@@ -9,7 +9,8 @@ deterministic reasoning. It is **not** an LLM wrapper and never generates or
 runs shell commands. Its language layer is a zero-parameter rule parser, with
 an optional ~0.3M-parameter model.
 
-Status: research prototype.
+Status: research prototype. The six project milestones are defined, with
+status and evidence, in [`docs/MILESTONES.md`](docs/MILESTONES.md).
 - Milestones 1–5 are implemented and verified on **macOS 15 (Apple M4 Pro)** and **Linux (Ubuntu 24.04, kernel 6.10)**.
 - Milestone 6 (Kubernetes) is a design document only.
 
@@ -124,7 +125,7 @@ tests/              unit (mock OS), platform (live kernel), Linux fixture /proc 
 benchmarks/         Google Benchmark harness
 ml/                 dataset generator, training, baselines, experiments, results
 models/             trained .osiem models (deployed: intent.osiem)
-docs/               ARCHITECTURE, SECURITY, DATASETS, BENCHMARKS, RESEARCH, PRIOR_ART, KUBERNETES
+docs/               MILESTONES, ARCHITECTURE, SECURITY, DATASETS, BENCHMARKS, RESEARCH, PRIOR_ART, KUBERNETES
 ```
 
 ## Limitations (honest list)
