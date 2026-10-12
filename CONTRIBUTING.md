@@ -136,4 +136,4 @@ privately instead of opening a public issue.
 ## License
 
 By contributing, you agree that your contributions are licensed under the
-project's license (see `README.md`).
+Apache License 2.0 (see `LICENSE`).
