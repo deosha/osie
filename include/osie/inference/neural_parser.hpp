@@ -40,6 +40,26 @@ std::vector<std::uint32_t> token_features(std::string_view token_text, std::uint
 /// OS-domain lexicon category of a lower-cased token ("" if none).
 std::string_view knowledge_category_list(std::string_view lower_token);
 
+/// Hard limits for .osiem files (docs/MODEL_FORMAT.md). Generous relative to
+/// the shipped models (<= 9.6M parameters), small enough that a malformed
+/// header cannot trigger a large allocation.
+namespace limits {
+inline constexpr std::uint64_t max_file_bytes = 256ULL << 20;  // 256 MiB
+inline constexpr std::size_t max_header_bytes = 64U << 10;
+inline constexpr std::size_t max_header_lines = 256;
+inline constexpr std::size_t max_tensors = 32;
+inline constexpr std::size_t max_rank = 3;
+inline constexpr std::uint64_t max_dim = 1U << 22;
+inline constexpr std::size_t max_tensor_elements = std::size_t{1} << 26;  // 256 MiB as f32
+inline constexpr std::uint64_t max_buckets = 1U << 22;
+inline constexpr std::uint64_t max_width = 4096;  // dim, hidden
+inline constexpr std::uint64_t max_ngram = 8;
+inline constexpr std::size_t max_intents = 128;
+inline constexpr std::size_t max_tags = 64;
+inline constexpr std::size_t max_label_chars = 64;
+inline constexpr float max_abs_weight = 1e6F;  // every f32 weight and int8 row scale
+}  // namespace limits
+
 struct Tensor {
     std::vector<std::size_t> shape;
     std::vector<float> f32;         // dense float data (or dequantised scales when i8)
@@ -77,6 +97,7 @@ public:
     [[nodiscard]] const std::vector<std::string>& tag_labels() const noexcept { return tags_; }
 
 private:
+    static Result<IntentModel> parse_model(std::string_view bytes);
     const Tensor& t(const std::string& name) const;
     void embed(const std::vector<intent::Token>& toks, std::vector<float>& x) const;  // [T, D]
 

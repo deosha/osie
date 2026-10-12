@@ -1,0 +1,19 @@
+OSIEM1
+arch cnn
+buckets 4
+dim 2
+hidden 2
+ngram 1 3
+intents help unsupported
+tags O B-PROC
+tensor emb f32 4 2
+tensor conv1_w f32 2 2 3
+tensor conv1_b f32 2
+tensor conv2_w f32 2 2 3
+tensor conv2_b f32 2
+tensor intent_w f32 2 4
+tensor intent_b f32 2
+tensor tag_w f32 2 2
+tensor tag_b f32 2
+data
+млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=

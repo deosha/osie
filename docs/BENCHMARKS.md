@@ -116,14 +116,48 @@ No GPU was used.
 
 **Energy was not measured.** `powermetrics` requires root, and OSIE's policy is to never escalate privileges.
 
+## History sampling overhead (`--watch`)
+
+Measured on an Apple M4 Pro with a release build. The command was
+`( sleep 60; echo :history-size ) | /usr/bin/time -l osie --watch 1`,
+compared with the same command without `--watch`.
+
+| | `--watch 1` | idle session |
+|---|---|---|
+| Samples in 60 s | 39 (each is a 0.5 s window plus a 1 s wait) | 0 |
+| CPU time (user + sys) | 0.65 s, ≈ 17 ms per sample | ≈ 0 s |
+| Average CPU | ≈ 1.1% of one core; ≈ 0.3% at `--watch 5` | — |
+| History size | 114 KiB, ≈ 2.9 KiB per point; ≈ 2.1 MiB at the 720-point cap | 72 B |
+| Peak RSS | 10.4 MB | 4.9 MB |
+
+The per-sample cost is mostly process enumeration (736 processes on this
+machine at the time).
+
+## Fuzzing the model loader
+
+Harness: `tests/fuzz/fuzz_model_loader.cpp`. Built with clang 18, libFuzzer,
+ASan and UBSan, in the Linux dev container. Any accepted model must run a
+forward pass with finite probabilities.
+
+| Run | Instrumentation | Seeds | Executions | Coverage | Result |
+|---|---|---|---|---|---|
+| 1 | harness only | 8 shipped models | 3,470 | — | **Crash:** finite weights ≈ 3.4e38 gave NaN probabilities. Fixed by the weight bound. |
+| 2 | harness only | 8 shipped models | 3,365,185 in 10 min | 44 edges | no crash; coverage too low to mean much |
+| 3 | whole library (`-fsanitize=fuzzer-no-link`) | 4 tiny models, one per arch (`tests/fuzz/seeds/`) | 21,341,926 in 10 min (≈ 35k/s) | 1,116 edges | no crash; peak RSS 512 MB (libFuzzer and ASan) |
+
+Run 2 shows why both the instrumentation and the seeds matter. Without
+instrumenting the library, libFuzzer gets no feedback from the loader. With
+megabyte-sized seeds, most mutations land in weight bytes. CI runs the
+setup of run 3 for 5 minutes on every push.
+
 ## Sanitizers and static analysis
 
 | Check | macOS | Linux |
 |---|---|---|
-| Unit tests (80) | pass | pass |
+| Unit tests (123) | pass | pass |
 | Platform/integration tests | 11 pass | 15 pass, 1 skipped (only meaningful as non-root) |
 | ASan + UBSan | pass | pass |
-| TSan | pass | not run |
+| TSan | pass | pass (unit tests) |
 | clang-tidy (`bugprone-*`, `performance-*`, `clang-analyzer-*`) | — | run; no defects found; small fixes applied |
 
 - **UBSan** found one real bug: misaligned 64-bit access in the macOS routing sysctl parser. It is fixed.

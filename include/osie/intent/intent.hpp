@@ -75,6 +75,25 @@ std::string_view to_string(ActionType a) noexcept;
 /// Capability id an action request maps to ("act.process.terminate", ...).
 std::string_view action_capability(ActionType a) noexcept;
 
+/// A question about change over time ("has CPU usage increased?", "when did
+/// memory pressure become elevated?", "is the system recovering?"). Detected
+/// deterministically from cue words for every parser; answered only from
+/// recorded history, never from a single snapshot.
+enum class TemporalKind : std::uint8_t { trend, onset, recovery };
+enum class TemporalMetric : std::uint8_t { cpu, memory, memory_pressure, overall };
+std::string_view to_string(TemporalKind k) noexcept;
+std::string_view to_string(TemporalMetric m) noexcept;
+
+struct TemporalQuery {
+    TemporalKind kind{TemporalKind::trend};
+    TemporalMetric metric{TemporalMetric::overall};
+    std::optional<std::int64_t> window_s;  // "in the last five minutes" -> 300
+    bool rank_processes{false};            // "which process has been growing?"
+};
+
+/// Temporal cues in `toks`, or nullopt. Exposed for tests.
+std::optional<TemporalQuery> detect_temporal(const std::vector<Token>& toks);
+
 struct IntentFrame {
     Intent intent{Intent::unsupported};
     float confidence{0.0F};
@@ -92,6 +111,7 @@ struct IntentFrame {
     std::vector<std::string> unavailable_observations;    // required but unsupported here
     std::vector<std::string> capabilities;                // capability ids to be invoked
     std::vector<std::string> validation_errors;           // empty = schema-valid
+    std::optional<TemporalQuery> temporal;
 };
 
 /// Concept lexicon: maps phrases ("run queue", "memory compression", ...) to ontology keys.

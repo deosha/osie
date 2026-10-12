@@ -1,0 +1,23 @@
+OSIEM1
+arch bigru
+buckets 4
+dim 2
+hidden 2
+ngram 2 4
+intents help unsupported
+tags O B-PROC
+tensor emb f32 4 2
+tensor gru_f_wih f32 6 2
+tensor gru_f_whh f32 6 2
+tensor gru_f_bih f32 6
+tensor gru_f_bhh f32 6
+tensor gru_b_wih f32 6 2
+tensor gru_b_whh f32 6 2
+tensor gru_b_bih f32 6
+tensor gru_b_bhh f32 6
+tensor intent_w f32 2 8
+tensor intent_b f32 2
+tensor tag_w f32 2 4
+tensor tag_b f32 2
+data
+млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=млл=

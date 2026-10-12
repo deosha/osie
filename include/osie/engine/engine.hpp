@@ -5,6 +5,7 @@
 
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -13,6 +14,7 @@
 #include "osie/capabilities/capability.hpp"
 #include "osie/intent/intent.hpp"
 #include "osie/reasoning/reasoner.hpp"
+#include "osie/state/history.hpp"
 #include "osie/state/state.hpp"
 
 namespace osie {
@@ -23,11 +25,27 @@ struct ProcessRef {
     std::string name;
 };
 
+/// Outcome of resolving a process target against the current state.
+struct Resolution {
+    std::optional<ProcessRef> subject;
+    /// Every process matching a name target, ranked by the metric the question
+    /// is about. More than one entry means the name is ambiguous: OSIE then
+    /// says so instead of silently picking one instance.
+    std::vector<ProcessRef> group;
+    /// Processes whose name merely contains the query, when exact matches exist
+    /// (reported, not included in `group`).
+    std::size_t partial_matches{0};
+};
+
 struct EngineConfig {
     Millis sample_interval{500};
     Millis freshness_budget{2000};  // reuse cached observations younger than this
     std::size_t default_top_n{5};
     std::size_t history_limit{32};
+    /// References such as "it" or "the second one" expire after this long:
+    /// an old answer is not silently reused as the subject of a new question.
+    Millis context_ttl{10 * 60 * 1000};
+    HistoryConfig history{};
 };
 
 struct Answer {
@@ -38,6 +56,8 @@ struct Answer {
     bool reused_observations{false};
     double latency_ms{0};
     double parse_ms{0};
+    /// Temporal questions: the series that were analysed (label, result).
+    std::vector<std::pair<std::string, TrendResult>> trends;
 };
 
 /// Conversational state. Deterministic; no learned components.
@@ -47,17 +67,19 @@ public:
     std::vector<ProcessRef> last_list;
     std::optional<intent::Intent> last_intent;
     std::deque<std::pair<std::string, intent::Intent>> history;
+    SteadyTime updated_at{};  // when last_process / last_list were set
 
     /// Rewrites short elliptical follow-ups ("why?", "what about memory?")
     /// using the previous turn. Returns true if the frame was changed.
     bool apply_followup(intent::IntentFrame& f, const std::vector<intent::Token>& toks) const;
 
     /// Resolves reference/name/pid targets against the current state.
+    /// Identity is (pid, start time): a reused PID is a different process.
     /// On failure, marks the frame ambiguous with a clarification question.
-    std::optional<ProcessRef> resolve(intent::IntentFrame& f, const SystemState& s) const;
+    Resolution resolve(intent::IntentFrame& f, const SystemState& s, SteadyTime now, Millis ttl) const;
 
     void remember(const std::string& utterance, const intent::IntentFrame& f, const std::optional<ProcessRef>& subject,
-                  const std::vector<ProcessRef>& list, std::size_t limit);
+                  const std::vector<ProcessRef>& list, std::size_t limit, SteadyTime now);
 };
 
 class Engine {
@@ -72,6 +94,13 @@ public:
     /// Snapshot of everything (used by `osie snapshot`).
     std::shared_ptr<const SystemState> observe_all(const CancellationToken& cancel = {});
 
+    /// Takes one sample of CPU, memory and processes and records it in the
+    /// bounded history (used by the opt-in --watch sampler). Thread-safe with
+    /// respect to ask().
+    void record_sample(const CancellationToken& cancel = {});
+    [[nodiscard]] std::size_t history_size() const;
+    [[nodiscard]] std::size_t history_bytes() const;
+
     [[nodiscard]] const CapabilityRegistry& registry() const noexcept { return reg_; }
     [[nodiscard]] AuditLog& audit() noexcept { return audit_; }
     [[nodiscard]] const arch::KnowledgeGraph& graph() const noexcept { return graph_; }
@@ -85,7 +114,10 @@ public:
 private:
     std::shared_ptr<const SystemState> state_for(const std::vector<ObservationKind>& kinds, const CancellationToken& c,
                                                  bool& reused);
-    std::string render(Answer& a, const SystemState* s, const std::optional<ProcessRef>& subject);
+    std::string render(Answer& a, const SystemState* s, const Resolution& r);
+    std::string render_group(const SystemState& s, const Resolution& r, const intent::IntentFrame& f) const;
+    std::string render_temporal(Answer& a, const Resolution& r);
+    std::vector<std::pair<Pid, std::optional<std::uint64_t>>> pinned_identities() const;
 
     std::unique_ptr<IOperatingSystem> os_;
     std::unique_ptr<intent::IIntentParser> parser_;
@@ -99,6 +131,8 @@ private:
     arch::KnowledgeGraph graph_;
     reason::Reasoner reasoner_;
     SessionContext session_;
+    StateHistory history_;
+    mutable std::mutex mu_;  // serialises ask(), observe_all() and record_sample()
 };
 
 /// Renders a diagnosis as plain text (shared by CLI and tests).

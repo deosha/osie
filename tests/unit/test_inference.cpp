@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 
 #include "osie/inference/neural_parser.hpp"
 
@@ -110,4 +111,148 @@ TEST(Inference, ShippedModelLoadsIfPresent) {
     HybridParser hp(std::make_shared<IntentModel>(std::move(m).value()));
     auto p = hp.parse(intent::tokenize("why is my mac so slow"));
     EXPECT_EQ(p.intent, intent::Intent::diagnose_slow);
+}
+
+// ------------------------------------------------- loader hardening (P0) ---
+
+namespace {
+
+std::string with_line_replaced(std::string s, const std::string& from, const std::string& to) {
+    const auto at = s.find(from);
+    EXPECT_NE(at, std::string::npos) << from;
+    if (at != std::string::npos) s.replace(at, from.size(), to);
+    return s;
+}
+
+std::string reason_of(const std::string& bytes) {
+    auto m = IntentModel::load_from_memory(bytes);
+    return m.ok() ? std::string("accepted") : m.error().message;
+}
+
+}  // namespace
+
+TEST(InferenceHardening, ShapeProductOverflowIsRejectedBeforeAllocation) {
+    // Regression: 2^26 * 2^26 * 2^10 elements wrapped the old size check to 0
+    // bytes and then aborted the process with std::length_error.
+    const std::string h = "OSIEM1\narch bag\nbuckets 4\ndim 2\nhidden 2\nintents help\ntags O\n"
+                          "tensor emb f32 4194304 4194304 1024\ndata\n";
+    EXPECT_FALSE(IntentModel::load_from_memory(h).ok());
+    const std::string h2 = "OSIEM1\narch bag\nbuckets 4\ndim 2\nhidden 2\nintents help\ntags O\n"
+                           "tensor emb f32 65536 65536\ndata\n";
+    EXPECT_NE(reason_of(h2).find("exceeds"), std::string::npos) << reason_of(h2);
+}
+
+TEST(InferenceHardening, RejectsMalformedHeaders) {
+    const auto good = tiny_bag(false);
+    ASSERT_EQ(reason_of(good), "accepted");
+    const std::vector<std::pair<std::string, std::string>> cases = {
+        {"buckets 4\n", "buckets -4\n"},                      // stoul used to accept a sign
+        {"buckets 4\n", "buckets 4294967300\n"},              // used to truncate to 4
+        {"buckets 4\n", "buckets 4abc\n"},                    // trailing garbage
+        {"buckets 4\n", "buckets 0\n"},
+        {"dim 2\n", "dim 1000000\n"},
+        {"ngram 2 2\n", "ngram 3 2\n"},
+        {"ngram 2 2\n", "ngram 0 2\n"},
+        {"ngram 2 2\n", "ngram 2 99\n"},
+        {"buckets 4\n", "buckets 4\nbuckets 4\n"},            // duplicate key
+        {"intents help unsupported\n", "intents help help\n"},
+        {"intents help unsupported\n", "intents help \x1b[2Jx\n"},  // control characters
+        {"intents help unsupported\n", "intents help caf\xc3\xa9\n"},  // non-ASCII label
+        {"tensor proj_b f32 2\n", "tensor proj_b f32 2\ntensor proj_b f32 2\n"},  // duplicate tensor
+        {"tensor proj_b f32 2\n", "tensor proj_b f32 2 1 1 1\n"},                // rank > 3
+        {"tensor proj_b f32 2\n", "tensor proj_b f64 2\n"},
+        {"arch bag\n", "arch bag extra\n"},
+        {"data\n", "dat\n"},                                   // no data section
+    };
+    for (const auto& [from, to] : cases) {
+        EXPECT_NE(reason_of(with_line_replaced(good, from, to)), "accepted") << "accepted: " << to;
+    }
+}
+
+TEST(InferenceHardening, RejectsBadThresholdsAndWeights) {
+    const auto good = tiny_bag(false);
+    for (const std::string th : {"nan", "inf", "-0.1", "1.5", "0.5x", ""}) {
+        EXPECT_NE(reason_of(with_line_replaced(good, "data\n", "hybrid_threshold " + th + "\ndata\n")), "accepted") << th;
+    }
+    EXPECT_EQ(reason_of(with_line_replaced(good, "data\n", "hybrid_threshold 0.6\ndata\n")), "accepted");
+
+    // A NaN weight would make every softmax NaN and every decision arbitrary.
+    std::string nan_w = good;
+    const float nan = std::nanf("");
+    std::memcpy(nan_w.data() + nan_w.size() - 4, &nan, 4);
+    EXPECT_NE(reason_of(nan_w).find("non-finite"), std::string::npos);
+
+    // Regression (found by libFuzzer): finite weights near FLT_MAX overflowed
+    // to NaN probabilities in the forward pass.
+    std::string huge = good;
+    const float big = 3.4e38F;
+    std::memcpy(huge.data() + huge.size() - 4, &big, 4);
+    EXPECT_NE(reason_of(huge).find("out-of-range"), std::string::npos);
+}
+
+TEST(InferenceHardening, RejectsTrailingBytesAndExtraTensors) {
+    const auto good = tiny_bag(false);
+    EXPECT_NE(reason_of(good + "junk").find("trailing"), std::string::npos);
+    // An extra, well-formed tensor that the architecture does not use.
+    std::string extra = with_line_replaced(good, "data\n", "tensor spare f32 1\ndata\n");
+    extra.append(4, '\0');
+    EXPECT_NE(reason_of(extra).find("extra tensors"), std::string::npos);
+}
+
+TEST(InferenceHardening, UnknownMetadataKeysAreIgnoredForCompatibility) {
+    EXPECT_EQ(reason_of(tiny_bag(false, "trained_by unit-test\n")), "accepted");
+    EXPECT_NE(reason_of(tiny_bag(false, "bad\x01key 1\n")), "accepted");
+}
+
+TEST(InferenceHardening, OversizedFileIsRejectedWithoutReadingIt) {
+    const auto path = std::filesystem::temp_directory_path() / "osie_sparse_model.osiem";
+    {
+        std::ofstream f(path, std::ios::binary);
+        f << "OSIEM1\n";
+    }
+    std::filesystem::resize_file(path, limits::max_file_bytes + 1);  // sparse: no disk or RAM cost
+    auto m = IntentModel::load(path.string());
+    std::filesystem::remove(path);
+    ASSERT_FALSE(m.ok());
+    EXPECT_NE(m.error().message.find("exceeds"), std::string::npos) << m.error().message;
+}
+
+TEST(InferenceHardening, RandomMutationsNeverCrash) {
+    // Deterministic mutation fuzzing of valid f32 and int8 models: byte flips,
+    // digit edits in the header and truncation. Every input must either be
+    // rejected or produce finite probabilities. Run under ASan/UBSan in CI;
+    // tests/fuzz/ holds the libFuzzer harness for open-ended fuzzing.
+    std::uint64_t state = 0x9E3779B97F4A7C15ULL;
+    auto rnd = [&state](std::uint64_t n) {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        return state % n;
+    };
+    const auto toks = intent::tokenize("why is chrome using so much cpu");
+    std::size_t accepted = 0;
+    for (const bool int8 : {false, true}) {
+        const auto base = tiny_bag(int8, "hybrid_threshold 0.5\n");
+        const auto header_end = base.find("data\n");
+        for (int iter = 0; iter < 4000; ++iter) {
+            std::string s = base;
+            const auto edits = 1 + rnd(4);
+            for (std::uint64_t e = 0; e < edits && !s.empty(); ++e) {
+                const std::size_t header = std::min(header_end, s.size());
+                switch (rnd(4)) {
+                    case 0: s[rnd(s.size())] = static_cast<char>(rnd(256)); break;
+                    case 1: s[rnd(header)] = static_cast<char>('0' + rnd(10)); break;
+                    case 2: s.resize(rnd(s.size() + 1)); break;
+                    default: s.insert(rnd(header + 1), std::string(1 + rnd(3), static_cast<char>('0' + rnd(10)))); break;
+                }
+            }
+            auto m = IntentModel::load_from_memory(s);
+            if (!m) continue;
+            ++accepted;
+            const auto out = m->forward(toks);
+            for (float p : out.intent_probs) ASSERT_TRUE(std::isfinite(p));
+            (void)m->parse(toks);
+        }
+    }
+    EXPECT_GT(accepted, 0U) << "mutations should sometimes leave a valid model (e.g. weight-only flips)";
 }

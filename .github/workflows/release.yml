@@ -1,0 +1,128 @@
+name: release
+
+# Builds, tests and publishes release artifacts for a version tag (v*).
+# Every archive is installed and smoke-tested on a clean system before the
+# release is created; checksums and build provenance are published with it.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-24.04, arch: x86_64, deb: amd64 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, deb: arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches the CMake project version
+        run: |
+          v=$(sed -n 's/^project(osie VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} != v$v"; exit 1; }
+      - name: Build in the Ubuntu 22.04 release image (glibc 2.35 baseline)
+        run: mkdir -p dist && packaging/build_linux_release.sh dist
+      - name: Smoke test - archive on Debian 12
+        run: docker run --rm -v "$PWD/dist":/dist:ro -v "$PWD/packaging":/p:ro debian:12 bash -c 'apt-get update -qq && apt-get install -y -qq binutils >/dev/null && /p/smoke_test.sh /dist/osie-*-linux-${{ matrix.arch }}.tar.gz'
+      - name: Smoke test - .deb on Ubuntu 22.04 (install, run, remove)
+        run: docker run --rm -v "$PWD/dist":/dist:ro -v "$PWD/packaging":/p:ro ubuntu:22.04 bash -c 'apt-get update -qq && apt-get install -y -qq binutils /dist/osie_*_${{ matrix.deb }}.deb >/dev/null && /p/smoke_test.sh --installed /usr/bin/osie && apt-get remove -y -qq osie && ! test -e /usr/bin/osie'
+      - name: Smoke test - .rpm on Fedora 40 (install, run, remove)
+        run: docker run --rm -v "$PWD/dist":/dist:ro -v "$PWD/packaging":/p:ro fedora:40 bash -c 'dnf install -y -q binutils /dist/osie-*.${{ matrix.arch }}.rpm && /p/smoke_test.sh --installed /usr/bin/osie && dnf remove -y -q osie && ! test -e /usr/bin/osie'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist/osie*
+
+  macos:
+    strategy:
+      matrix:
+        include:
+          - { os: macos-14, arch: arm64 }
+          - { os: macos-15-intel, arch: x86_64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install ninja
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF \
+                -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          ninja -C build osie
+          (cd build && cpack -G TGZ)
+          mkdir -p dist && cp build/osie-*.tar.gz dist/
+      - name: Smoke test (empty environment, cwd=/)
+        run: packaging/smoke_test.sh dist/osie-*-macos-${{ matrix.arch }}.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist/osie*
+
+  publish:
+    needs: [linux, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums and build metadata
+        run: |
+          cd dist
+          sha256sum osie* > SHA256SUMS
+          {
+            echo "tag: ${GITHUB_REF_NAME}"
+            echo "commit: ${GITHUB_SHA}"
+            echo "workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "linux builder: packaging/linux-release.Dockerfile (ubuntu:22.04, g++-12, glibc >= 2.35)"
+            echo "macos builder: macos-14 (arm64), macos-15-intel (x86_64); deployment target 13.0"
+          } > BUILDINFO.txt
+          cat SHA256SUMS BUILDINFO.txt
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/osie*
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/* --repo "${GITHUB_REPOSITORY}" --title "OSIE ${GITHUB_REF_NAME}" --notes "See docs/INSTALL.md. Verify downloads with SHA256SUMS or 'gh attestation verify <file> --repo ${GITHUB_REPOSITORY}'."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sha256sums
+          path: dist/SHA256SUMS
+
+  # Updates the Homebrew tap (deosha/homebrew-osie). Runs only when the
+  # repository secret HOMEBREW_TAP_TOKEN (a fine-grained token with contents
+  # write access to that one repository) is configured.
+  homebrew:
+    needs: [publish]
+    runs-on: ubuntu-24.04
+    env:
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: sha256sums
+          path: dist
+      - name: Update the formula in the tap
+        if: env.TAP_TOKEN != ''
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/deosha/homebrew-osie.git" tap
+          mkdir -p tap/Formula
+          packaging/homebrew/render_formula.sh "$v" dist/SHA256SUMS > tap/Formula/osie.rb
+          cd tap
+          git config user.name "osie-release"
+          git config user.email "osie-release@users.noreply.github.com"
+          git add Formula/osie.rb
+          git commit -m "osie ${v}" && git push || echo "formula unchanged"
+      - name: Skip notice
+        if: env.TAP_TOKEN == ''
+        run: echo "HOMEBREW_TAP_TOKEN not set; update the tap manually with packaging/homebrew/render_formula.sh"

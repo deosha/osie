@@ -17,6 +17,8 @@ endif()
 option(OSIE_BUILD_TESTS "Build unit/integration tests" ON)
 option(OSIE_BUILD_BENCHMARKS "Build Google Benchmark harness" ON)
 option(OSIE_WERROR "Treat warnings as errors" OFF)
+option(OSIE_PORTABLE "Release build: statically link the C++ runtime on Linux" OFF)
+option(OSIE_FUZZ "Build libFuzzer harnesses (clang with libclang-rt)" OFF)
 set(OSIE_SANITIZE "" CACHE STRING "Sanitizers: '', 'address,undefined', or 'thread'")
 
 set(OSIE_WARNINGS -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion
@@ -29,6 +31,10 @@ if(OSIE_WERROR)
   list(APPEND OSIE_WARNINGS -Werror)
 endif()
 
+if(OSIE_FUZZ)
+  # Coverage feedback must cover the library, not just the harness.
+  add_compile_options(-fsanitize=fuzzer-no-link)
+endif()
 if(OSIE_SANITIZE)
   add_compile_options(-fsanitize=${OSIE_SANITIZE} -fno-omit-frame-pointer -fno-sanitize-recover=all)
   add_link_options(-fsanitize=${OSIE_SANITIZE})
@@ -40,12 +46,14 @@ set(OSIE_CORE_SOURCES
   src/core/json.cpp
   src/capabilities/capabilities.cpp
   src/state/state.cpp
+  src/state/history.cpp
   src/architecture/graph.cpp
   src/architecture/model.cpp
   src/reasoning/reasoner.cpp
   src/intent/frame.cpp
   src/intent/rule_parser.cpp
   src/inference/neural_parser.cpp
+  src/inference/model_locator.cpp
   src/engine/engine.cpp
 )
 
@@ -81,7 +89,17 @@ target_link_libraries(osie_core PUBLIC Threads::Threads)
 add_executable(osie src/cli/main.cpp)
 target_link_libraries(osie PRIVATE osie_core)
 target_compile_options(osie PRIVATE ${OSIE_WARNINGS})
-target_compile_definitions(osie PRIVATE OSIE_DEFAULT_MODEL_PATH="${CMAKE_SOURCE_DIR}/models/intent.osiem")
+target_compile_definitions(osie PRIVATE OSIE_VERSION="${PROJECT_VERSION}")
+# The binary never embeds a source-tree path. In the build tree the model is
+# copied to the same relative location as an installation
+# (<build>/share/osie/models), so lookup works identically in both.
+add_custom_command(TARGET osie POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/intent.osiem
+          ${CMAKE_BINARY_DIR}/share/osie/models/intent.osiem)
+if(OSIE_PORTABLE AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  # Release archives: avoid depending on the target system's libstdc++ version.
+  target_link_options(osie PRIVATE -static-libstdc++ -static-libgcc)
+endif()
 
 add_executable(osie_eval tools/osie_eval.cpp)
 target_link_libraries(osie_eval PRIVATE osie_core)
@@ -147,3 +165,43 @@ if(OSIE_BUILD_BENCHMARKS)
     message(STATUS "Google Benchmark not found: osie_bench disabled")
   endif()
 endif()
+
+# ------------------------------------------------------------------- fuzz ---
+if(OSIE_FUZZ)
+  add_executable(osie_fuzz_model tests/fuzz/fuzz_model_loader.cpp)
+  target_link_libraries(osie_fuzz_model PRIVATE osie_core)
+  target_compile_options(osie_fuzz_model PRIVATE -fsanitize=fuzzer)
+  target_link_options(osie_fuzz_model PRIVATE -fsanitize=fuzzer)
+endif()
+
+# ---------------------------------------------------------------- install ---
+include(GNUInstallDirs)
+install(TARGETS osie RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES models/intent.osiem DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models)
+install(FILES LICENSE README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
+
+# ------------------------------------------------------------------ cpack ---
+set(CPACK_PACKAGE_NAME osie)
+set(CPACK_PACKAGE_VENDOR "OSIE contributors")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Local, read-only OS intelligence engine (native macOS/Linux observations)")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/deosha/osie")
+set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
+set(CPACK_PACKAGE_CONTACT "https://github.com/deosha/osie/issues")
+set(CPACK_STRIP_FILES ON)
+# Archive names carry OS and architecture: osie-<version>-<os>-<arch>.tar.gz
+if(APPLE)
+  set(_osie_arch "${CMAKE_OSX_ARCHITECTURES}")
+  if(NOT _osie_arch)
+    set(_osie_arch "${CMAKE_SYSTEM_PROCESSOR}")
+  endif()
+  set(CPACK_SYSTEM_NAME "macos-${_osie_arch}")
+else()
+  set(CPACK_SYSTEM_NAME "linux-${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_SECTION utils)
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
+set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+set(CPACK_RPM_PACKAGE_AUTOREQ ON)
+include(CPack)

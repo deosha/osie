@@ -12,6 +12,7 @@ tests or measurements in this repository. Anything not done is listed explicitly
 | 4 | OS reasoning | Done, with documented limitations |
 | 5 | Learned predictive-optimization research | Done (diagnosis only; no tuning) |
 | 6 | Future Kubernetes design | Design only, not implemented |
+| 7 | Iteration 2: hardening, distribution, temporal state | Done, except the items below |
 
 ## 1. Native macOS engine
 
@@ -100,3 +101,29 @@ relationship graph, pod → container → cgroup mapping, CPU/memory analysis, a
 safe recommendation architecture, and RBAC/admission considerations.
 
 **Not implemented.** OSIE recognises Kubernetes questions and says so.
+
+## 7. Iteration 2: hardening, distribution, temporal state
+
+**Goal:** make OSIE reliable on untrusted input, installable without a source
+checkout, and able to answer questions about change over time. The
+evidence-backed audit, with file and line references for every finding, is
+in [`NEXT_ITERATION_AUDIT.md`](NEXT_ITERATION_AUDIT.md).
+
+| Deliverable | Where |
+|---|---|
+| Hardened, specified model format | `src/inference/neural_parser.cpp`; [`MODEL_FORMAT.md`](MODEL_FORMAT.md); `InferenceHardening.*` |
+| Fuzzing | `tests/fuzz/`; CI `fuzz` job; `BENCHMARKS.md` (*Fuzzing*) |
+| Process identity and ambiguity, context expiry | `SessionContext::resolve`; `Identity.*` |
+| Safety tests: adversarial phrasing, multi-turn, malformed parser output | `tests/unit/test_identity_safety.cpp` |
+| Model discovery independent of the source tree | `include/osie/inference/model_locator.hpp`; `ModelLocator.*` |
+| Packages and release pipeline | `CMakeLists.txt` (install, CPack), `packaging/`, `.github/workflows/`; [`INSTALL.md`](INSTALL.md) |
+| Bounded history and temporal questions | `include/osie/state/history.hpp`; `Temporal*`, `Trend.*`, `History.*` |
+
+Not done in this iteration (see [`RESEARCH_ROADMAP.md`](RESEARCH_ROADMAP.md)):
+- running the CI and release workflows on GitHub;
+- x86_64 builds;
+- a Homebrew formula;
+- persistent history;
+- a response-generator interface;
+- the OS world-model experiments;
+- Kubernetes integration.

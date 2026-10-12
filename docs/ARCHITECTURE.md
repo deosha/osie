@@ -41,13 +41,13 @@ the first step.
 | core | `include/osie/core`, `src/core` | `Result<T>`/`Errc`, `Observation<T>` + `Provenance` (source, wall/mono time, validity), cancellation, JSON writer |
 | platform | `include/osie/platform`, `src/platform/{macos,linux}` | `IOperatingSystem` (shared concepts only) + typed `IMacExtensions` / `ILinuxExtensions` |
 | capabilities | `include/osie/capabilities`, `src/capabilities` | registry, descriptor validation, `SafetyPolicy`, `AuditLog`, `ObservationBroker` |
-| state | `include/osie/state`, `src/state` | raw counters → rates (pure functions), `StateSampler`, `StateCache` |
+| state | `include/osie/state`, `src/state` | raw counters → rates (pure functions), `StateSampler`, `StateCache`, bounded `StateHistory` + trend statistics |
 | architecture | `include/osie/architecture`, `src/architecture` | typed knowledge graph, ontology, incremental instance updates |
 | reasoning | `include/osie/reasoning`, `src/reasoning` | CPU, memory, slowness, per-process and concept diagnoses |
 | intent | `include/osie/intent`, `src/intent` | tokenizer, `IntentFrame` schema, frame builder, validation, rule parser |
-| inference | `include/osie/inference`, `src/inference` | `.osiem` loader, embedding-bag/BiGRU/CNN forward pass, hybrid parser |
+| inference | `include/osie/inference`, `src/inference` | hardened `.osiem` loader ([MODEL_FORMAT.md](MODEL_FORMAT.md)), embedding-bag/BiGRU/CNN forward pass, hybrid parser, model locator |
 | engine | `include/osie/engine`, `src/engine` | orchestration, session context, rendering |
-| cli | `src/cli` | `osie` REPL / `ask` / `parse` / `snapshot` / `caps` / `graph` |
+| cli | `src/cli` | `osie` REPL / `ask` / `parse` / `snapshot` / `caps` / `graph` / `version`; opt-in `--watch` sampler |
 | tools | `tools/` | `osie_eval` (E2E evaluation), `osie_ort_bench`, `osie_cpu_lab` (Linux experiments) |
 
 ## Platform contracts
@@ -121,9 +121,82 @@ rate rather than a negative one. The `StateCache` reuses a state only if it
 is younger than the freshness budget (2 s) **and** contains every observation
 the new question needs (or recorded why it is unavailable).
 
-Processes are identified by `(pid, start_time)`; PID reuse produces a new
-graph node and a reference to an exited process yields a clarification
-("… is no longer running"), never a silent answer about a different process.
+Processes are identified by `(pid, start_time)`. PID reuse produces a new
+graph node. A reference to an exited process gets a clarification ("… is no
+longer running"), never a silent answer about a different process.
+
+`SessionContext::resolve` returns a `Resolution` and applies these rules:
+
+- **Same name.** A name that matches several processes is never collapsed
+  silently to one of them. Exact matches form the group; processes whose name
+  merely contains the query are counted and mentioned, but not included.
+  - CPU and memory questions get the group's total, the instances ranked by
+    the metric asked about, and an analysis explicitly scoped to the top pid.
+  - Single-process questions (info, tree) list the candidates and ask which
+    one.
+  - Ordinals in the next turn refer to the list just shown.
+- **Reused PIDs.** When the platform does not report a start time, the name
+  is compared instead, and a mismatch is treated as PID reuse.
+- **Expiry.** References ("it", "the second one") expire after
+  `EngineConfig::context_ttl` (10 min). After that OSIE asks again instead
+  of assuming.
+- **Out-of-range ordinals.** An ordinal beyond the last list gets a question,
+  not a default.
+
+## Temporal state
+
+`StateHistory` (`include/osie/state/history.hpp`) is a bounded ring buffer:
+by default 720 points.
+
+**What a point holds:**
+- machine CPU busy and memory in use;
+- memory pressure: the macOS kernel level, or Linux PSI avg10;
+- the top 16 processes by CPU and by memory, keyed by (pid, start time);
+- the conversation's current subject, which is always kept.
+
+**When it records.** There is no daemon. Points are recorded in three cases:
+- whenever OSIE samples to answer a question;
+- every N seconds with the opt-in `--watch N`, while a session is open,
+  using a thread that serialises with `ask()` through the engine mutex;
+- before answering, with `ask --for S`.
+
+Nothing is written to disk.
+
+**How temporal questions are recognised.** `build_frame` detects temporal
+cues deterministically for every parser, so the trained models' label set
+is unchanged. It then:
+- maps the question to an intent whose observations cover the metric;
+- masks time phrases from slot extraction ("the last five minutes" is not
+  "the last one");
+- never makes an action temporal.
+
+**How they are answered.** Only from recorded points:
+- **Trend:** a Mann–Kendall test (|z| > 1.96) **and** a minimum change
+  between the first-third and last-third means: 5 pp for CPU, 2 pp for
+  memory, 16 MiB for a process.
+- **Onset:** the first sample of the current elevated run. It is "unknown"
+  if the run was already elevated when recording began.
+- **Recovery:** a peak followed by a decrease.
+- **Growth ranking:** per-identity trends.
+
+With fewer than 4 samples or less than 10 s of history, OSIE reports that
+there is not enough history and how to record it. The answers say the
+result is descriptive: consecutive samples are autocorrelated, so the test
+alone would overstate significance, and the effect-size floor is the main
+guard.
+
+## Model discovery
+
+`inference::locate_model` (`include/osie/inference/model_locator.hpp`)
+searches, in order:
+1. `--model`
+2. `$OSIE_MODEL`
+3. the user data directory
+4. `<exe>/../share/osie/models`, which is also the build tree's layout
+
+It never searches the working directory, and the binary embeds no source
+path. A model the user explicitly requested that fails to load is an error.
+Details are in [INSTALL.md](INSTALL.md#where-osie-looks-for-the-model).
 
 ## Knowledge graph
 

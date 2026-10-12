@@ -2,14 +2,18 @@
 // osie command-line interface.
 #include <unistd.h>
 
+#include <condition_variable>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
+#include <thread>
 #include <iostream>
 #include <string>
 #include <vector>
 
 #include "osie/architecture/model.hpp"
 #include "osie/engine/engine.hpp"
+#include "osie/inference/model_locator.hpp"
 #include "osie/inference/neural_parser.hpp"
 #include "osie/util/format.hpp"
 #include "osie/util/json.hpp"
@@ -27,6 +31,8 @@ struct Options {
     std::string model_path;
     std::string audit_path;
     long interval_ms = 500;
+    long watch_s = 0;  // opt-in periodic sampling into the in-memory history
+    long for_s = 0;    // `ask`: sample for this long before answering
     bool json = false;
     bool verbose = false;
     bool dot = false;
@@ -43,13 +49,18 @@ void usage() {
         "  snapshot            observe everything supported and print a summary\n"
         "  caps                list capabilities and policy decisions\n"
         "  graph               knowledge-graph statistics (--dot for Graphviz, --concepts for ontology only)\n"
+        "  version             version, platform and where the intent model is looked up\n"
         "options:\n"
         "  --json              machine-readable output\n"
         "  --verbose           include all evidence and documentation references\n"
         "  --parser MODE       rules (default) | hybrid (tiny model + rule fallback) | neural\n"
-        "  --model PATH        intent model file (default: $OSIE_MODEL or ./models/intent.osiem)\n"
+        "  --model PATH        intent model file (default: $OSIE_MODEL, then the user data directory,\n"
+        "                      then the model installed with the binary; see docs/INSTALL.md)\n"
         "  --interval MS       sampling window for rates (default 500)\n"
-        "  --audit FILE        append policy decisions as JSON lines");
+        "  --audit FILE        append policy decisions as JSON lines\n"
+        "  --watch SECONDS     record CPU/memory/top processes every SECONDS while the session is open\n"
+        "                      (in memory only; enables questions such as 'has CPU usage increased?')\n"
+        "  --for SECONDS       with ask: sample for SECONDS (every --watch seconds, default 2) before answering");
 }
 
 bool parse_args(int argc, char** argv, Options& o) {
@@ -65,7 +76,19 @@ bool parse_args(int argc, char** argv, Options& o) {
         else if (a == "--verbose" || a == "-v") o.verbose = true;
         else if (a == "--dot") o.dot = true;
         else if (a == "--concepts") o.concepts = true;
-        else if (a == "--parser") { if (!next(o.parser)) return false; }
+        else if (a == "--parser") {
+            if (!next(o.parser)) return false;
+            if (o.parser != "rules" && o.parser != "hybrid" && o.parser != "neural") return false;
+        }
+        else if (a == "--version") { o.command = "version"; }
+        else if (a == "--watch" || a == "--for") {
+            std::string v;
+            if (!next(v)) return false;
+            char* end = nullptr;
+            const long n = std::strtol(v.c_str(), &end, 10);
+            if (end == v.c_str() || *end != '\0' || n < 1 || n > 3600) return false;
+            (a == "--watch" ? o.watch_s : o.for_s) = n;
+        }
         else if (a == "--model") { if (!next(o.model_path)) return false; }
         else if (a == "--audit") { if (!next(o.audit_path)) return false; }
         else if (a == "--interval") {
@@ -93,6 +116,18 @@ std::string answer_json(const Answer& a) {
     w.kv("text", a.text).kv("latency_ms", a.latency_ms).kv("parse_ms", a.parse_ms)
         .kv("observation_age_ms", static_cast<std::int64_t>(a.observation_age.count()))
         .kv("reused_observations", a.reused_observations);
+    if (!a.trends.empty()) {
+        w.key("trends").begin_array();
+        for (const auto& [label, t] : a.trends) {
+            w.begin_object().kv("series", label).kv("direction", to_string(t.direction)).kv("samples", static_cast<std::uint64_t>(t.n))
+                .kv("span_s", t.span_s);
+            if (t.direction == TrendDirection::insufficient_data) w.kv("why", t.why);
+            else w.kv("first", t.first).kv("last", t.last).kv("early_mean", t.early_mean).kv("late_mean", t.late_mean)
+                     .kv("slope_per_min", t.slope_per_min).kv("mann_kendall_z", t.mann_kendall_z);
+            w.end_object();
+        }
+        w.end_array();
+    }
     w.end_object();
     std::string s = w.take();
     const std::string ph = "\"frame\":null";
@@ -100,32 +135,64 @@ std::string answer_json(const Answer& a) {
     return s;
 }
 
-std::unique_ptr<intent::IIntentParser> make_parser(const Options& o, std::string& note) {
+/// Builds the parser. Returns nullptr (with `error` set) when the user asked
+/// for a specific model (--model or $OSIE_MODEL) that cannot be loaded:
+/// silently answering with a different parser would misreport what ran.
+std::unique_ptr<intent::IIntentParser> make_parser(const Options& o, std::string& note, std::string& error) {
     if (o.parser == "rules") return std::make_unique<intent::RuleParser>();
-    std::string path = o.model_path;
-    if (path.empty()) {
-        if (const char* env = std::getenv("OSIE_MODEL")) path = env;
-    }
-    if (path.empty()) {
-        for (const char* cand : {"models/intent.osiem", "../models/intent.osiem", OSIE_DEFAULT_MODEL_PATH}) {
-            if (::access(cand, R_OK) == 0) {
-                path = cand;
-                break;
-            }
-        }
-    }
-    if (path.empty()) {
-        if (o.parser == "neural" || o.parser == "hybrid") note = "no model file found; using rules";
+    const auto loc = inference::locate_model(inference::default_model_search(
+        o.model_path.empty() ? std::nullopt : std::optional<std::string>(o.model_path)));
+    if (loc.source == inference::ModelSource::none) {
+        note = "no model file found; using rules (searched:";
+        for (const auto& c : loc.searched) note += " " + c;
+        note += ")";
         return std::make_unique<intent::RuleParser>();
     }
-    auto model = inference::IntentModel::load(path);
+    auto model = inference::IntentModel::load(loc.path);
     if (!model) {
-        note = "model load failed (" + model.error().describe() + "); using rules";
+        const std::string why = "model " + loc.path + " (" + std::string(inference::to_string(loc.source)) +
+                                ") failed to load: " + model.error().describe();
+        if (loc.user_requested()) {
+            error = why;
+            return nullptr;
+        }
+        note = why + "; using rules";
         return std::make_unique<intent::RuleParser>();
     }
+    note = "model: " + loc.path;
     auto shared = std::make_shared<inference::IntentModel>(std::move(model).value());
     if (o.parser == "neural") return std::make_unique<inference::NeuralParser>(shared);
     return std::make_unique<inference::HybridParser>(shared);
+}
+
+int print_version(const Options& o) {
+    std::printf("osie %s (%s, %s)\n", OSIE_VERSION,
+#if defined(__APPLE__)
+                "macOS",
+#else
+                "Linux",
+#endif
+#if defined(__aarch64__) || defined(__arm64__)
+                "arm64"
+#elif defined(__x86_64__)
+                "x86_64"
+#else
+                "other"
+#endif
+    );
+    const auto loc = inference::locate_model(inference::default_model_search(
+        o.model_path.empty() ? std::nullopt : std::optional<std::string>(o.model_path)));
+    std::printf("default parser: rules\nmodel for --parser hybrid|neural: %s\n",
+                loc.source == inference::ModelSource::none ? "none found (rules will be used)"
+                                                           : (loc.path + " [" + std::string(inference::to_string(loc.source)) + "]").c_str());
+    std::printf("model search order:\n");
+    for (const auto& c : loc.searched) std::printf("  %s\n", c.c_str());
+    if (loc.source != inference::ModelSource::none) {
+        auto m = inference::IntentModel::load(loc.path);
+        if (m) std::printf("model: %s, %zu parameters, %zu weight bytes\n", m->arch().c_str(), m->parameter_count(), m->weight_bytes());
+        else std::printf("model: failed to load: %s\n", m.error().describe().c_str());
+    }
+    return 0;
 }
 
 void print_caps(Engine& e, bool as_json) {
@@ -217,11 +284,53 @@ void print_snapshot(Engine& e, bool as_json) {
         std::printf("unavailable: %s - %s\n", std::string(to_string(u.kind)).c_str(), u.why.describe().c_str());
 }
 
+/// Opt-in sampler for --watch: records into the engine's bounded in-memory
+/// history until destroyed. Runs only while the session is open.
+class Watcher {
+public:
+    Watcher(Engine& e, long seconds) : e_(e), period_(seconds) {
+        if (seconds > 0) t_ = std::thread([this] { loop(); });
+    }
+    ~Watcher() {
+        {
+            std::lock_guard lk(mu_);
+            stop_ = true;
+        }
+        cv_.notify_all();
+        cancel_.cancel();
+        if (t_.joinable()) t_.join();
+    }
+    Watcher(const Watcher&) = delete;
+    Watcher& operator=(const Watcher&) = delete;
+
+private:
+    void loop() {
+        std::unique_lock lk(mu_);
+        while (!stop_) {
+            lk.unlock();
+            e_.record_sample(cancel_.token());
+            lk.lock();
+            cv_.wait_for(lk, std::chrono::seconds(period_), [this] { return stop_; });
+        }
+    }
+    Engine& e_;
+    long period_;
+    CancellationSource cancel_;
+    std::mutex mu_;
+    std::condition_variable cv_;
+    bool stop_{false};
+    std::thread t_;
+};
+
 int repl(Engine& e, Options& o, const std::string& note) {
     const bool tty = ::isatty(STDIN_FILENO) != 0;
+    Watcher watcher(e, o.watch_s);
     if (tty) {
         std::printf("OSIE - OS-native intelligence engine (read-only). Parser: %s%s\nType 'help' or ':quit'.\n",
                     std::string(e.parser().name()).c_str(), note.empty() ? "" : (" (" + note + ")").c_str());
+        if (o.watch_s > 0)
+            std::printf("Recording CPU, memory and the top processes every %ld s in memory while this session is open "
+                        "(:history-size shows usage).\n", o.watch_s);
     }
     std::string line;
     while (true) {
@@ -237,6 +346,10 @@ int repl(Engine& e, Options& o, const std::string& note) {
         if (line == ":audit") {
             for (const auto& d : e.audit().recent(15))
                 std::printf("%s %-32s %s\n", d.allowed ? "ALLOW" : "DENY ", d.capability.c_str(), d.reason.c_str());
+            continue;
+        }
+        if (line == ":history-size") {
+            std::printf("%zu samples, ~%s\n", e.history_size(), fmt::bytes(e.history_bytes()).c_str());
             continue;
         }
         if (line == ":history") {
@@ -269,18 +382,33 @@ int main(int argc, char** argv) {
         usage();
         return 2;
     }
-    std::string note;
+    if (o.command == "version") return print_version(o);
+    std::string note, error;
+    auto parser = make_parser(o, note, error);
+    if (!parser) {
+        std::fprintf(stderr, "error: %s\n", error.c_str());
+        return 1;
+    }
     EngineConfig cfg;
     cfg.sample_interval = Millis{o.interval_ms};
-    Engine e(make_native_os(), make_parser(o, note), cfg);
+    Engine e(make_native_os(), std::move(parser), cfg);
     if (!o.audit_path.empty()) {
         if (auto r = e.audit().open_file(o.audit_path); !r) std::fprintf(stderr, "warning: %s\n", r.error().describe().c_str());
     }
-    if (!note.empty() && o.command != "repl") std::fprintf(stderr, "note: %s\n", note.c_str());
+    if (!note.empty() && o.command != "repl" && note.rfind("model: ", 0) != 0) std::fprintf(stderr, "note: %s\n", note.c_str());
 
     if (o.command == "repl") return repl(e, o, note);
     if (o.command == "ask") {
         if (o.text.empty()) { usage(); return 2; }
+        if (o.for_s > 0) {
+            const long every = o.watch_s > 0 ? o.watch_s : 2;
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(o.for_s);
+            while (true) {
+                e.record_sample();
+                if (std::chrono::steady_clock::now() + std::chrono::seconds(every) > until) break;
+                std::this_thread::sleep_for(std::chrono::seconds(every));
+            }
+        }
         auto a = e.ask(o.text);
         if (o.json) std::puts(answer_json(a).c_str());
         else std::fputs((o.verbose && a.diagnosis ? render_diagnosis(*a.diagnosis, true) : a.text).c_str(), stdout);

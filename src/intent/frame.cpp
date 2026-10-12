@@ -274,7 +274,102 @@ bool is_process_intent(Intent i) {
            i == Intent::process_tree;
 }
 
+bool has_any(const std::vector<Token>& t, std::initializer_list<std::string_view> ws) {
+    for (auto w : ws)
+        if (has(t, w)) return true;
+    return false;
+}
+
+bool has_pair(const std::vector<Token>& t, std::string_view a, std::initializer_list<std::string_view> bs) {
+    for (std::size_t i = 0; i + 1 < t.size(); ++i)
+        if (t[i].lower == a)
+            for (auto b : bs)
+                if (t[i + 1].lower == b) return true;
+    return false;
+}
+
+std::int64_t time_unit_seconds(std::string_view u) {
+    if (u == "second" || u == "seconds" || u == "sec" || u == "secs" || u == "s") return 1;
+    if (u == "minute" || u == "minutes" || u == "min" || u == "mins" || u == "m") return 60;
+    if (u == "hour" || u == "hours" || u == "h") return 3600;
+    return 0;
+}
+
+/// Tokens belonging to a time phrase ("the last five minutes", "past hour"),
+/// so that e.g. "the last" is not read as a reference to "the last one".
+std::vector<bool> time_phrase_mask(const std::vector<Token>& t) {
+    std::vector<bool> m(t.size(), false);
+    for (std::size_t i = 0; i + 1 < t.size(); ++i) {
+        if (t[i].lower != "last" && t[i].lower != "past") continue;
+        std::size_t j = i + 1;
+        if (word_number(t[j].lower)) ++j;
+        if (j < t.size() && time_unit_seconds(t[j].lower) > 0) {
+            for (std::size_t k = (i > 0 && t[i - 1].lower == "the") ? i - 1 : i; k <= j; ++k) m[k] = true;
+        }
+    }
+    return m;
+}
+
 }  // namespace
+
+std::string_view to_string(TemporalKind k) noexcept {
+    switch (k) {
+        case TemporalKind::trend: return "trend";
+        case TemporalKind::onset: return "onset";
+        case TemporalKind::recovery: return "recovery";
+    }
+    return "?";
+}
+
+std::string_view to_string(TemporalMetric m) noexcept {
+    switch (m) {
+        case TemporalMetric::cpu: return "cpu";
+        case TemporalMetric::memory: return "memory";
+        case TemporalMetric::memory_pressure: return "memory_pressure";
+        case TemporalMetric::overall: return "overall";
+    }
+    return "?";
+}
+
+std::optional<TemporalQuery> detect_temporal(const std::vector<Token>& t) {
+    TemporalQuery q;
+    const bool when = has(t, "when") && has_any(t, {"become", "became", "start", "started", "begin", "began", "get", "got"});
+    const bool since_when = has_pair(t, "since", {"when"}) || has_pair(t, "how", {"long"});
+    const bool recovery = has_any(t, {"recovering", "recovered", "recover", "improving", "settling", "settled"}) ||
+                          has_pair(t, "calming", {"down"}) || has_pair(t, "getting", {"better"}) ||
+                          has_pair(t, "back", {"to"});
+    const bool trend =
+        has_any(t, {"increased", "increasing", "grown", "growing", "grew", "rising", "rose", "risen", "trend",
+                    "trending", "dropped", "dropping", "decreased", "decreasing", "declining", "climbing", "creeping",
+                    "lately", "recently"}) ||
+        has_pair(t, "going", {"up", "down"}) || has_pair(t, "gone", {"up", "down"}) ||
+        has_pair(t, "went", {"up", "down"}) || has_pair(t, "over", {"time"}) ||
+        has_pair(t, "getting", {"worse", "higher", "lower"});
+    if (when || since_when) q.kind = TemporalKind::onset;
+    else if (recovery) q.kind = TemporalKind::recovery;
+    else if (!trend) return std::nullopt;
+
+    const bool mem = has_any(t, {"memory", "ram", "swap", "mem"});
+    const bool cpu = has_any(t, {"cpu", "cpus", "processor", "load"});
+    if (mem && has(t, "pressure")) q.metric = TemporalMetric::memory_pressure;
+    else if (mem && !cpu) q.metric = TemporalMetric::memory;
+    else if (cpu && !mem) q.metric = TemporalMetric::cpu;
+
+    // "in the last five minutes", "over the past 30 s", "last hour"
+    for (std::size_t i = 0; i + 1 < t.size(); ++i) {
+        if (t[i].lower != "last" && t[i].lower != "past") continue;
+        std::size_t j = i + 1;
+        std::int64_t n = 1;
+        if (auto v = word_number(t[j].lower)) {
+            n = *v;
+            ++j;
+        }
+        if (j >= t.size()) break;
+        if (const auto mult = time_unit_seconds(t[j].lower); mult > 0) q.window_s = n * mult;
+    }
+    q.rank_processes = has_any(t, {"which", "what"}) && has_any(t, {"process", "processes", "app", "apps", "application", "program"});
+    return q;
+}
 
 IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Platform platform,
                         const ObservationSet& supported, const CapabilityRegistry& reg) {
@@ -284,16 +379,66 @@ IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Pl
     f.parser = p.parser;
     f.target.kind = TargetKind::host;
 
+    // Temporal questions: map to an intent whose observations cover the
+    // metric. Actions, concepts and structural questions are never temporal.
+    const auto in_time_phrase = time_phrase_mask(toks);
+    auto span_ok = [&](const Span& s) {
+        if (s.begin >= s.end || s.end > toks.size()) return false;
+        for (std::size_t i = s.begin; i < s.end; ++i)
+            if (in_time_phrase[i]) return false;
+        return true;
+    };
+    if (auto tq = detect_temporal(toks)) {
+        const bool has_target_span = std::any_of(p.spans.begin(), p.spans.end(), [&](const Span& s) {
+            return s.type != SpanType::num && span_ok(s);
+        });
+        const auto mem_metric = tq->metric == TemporalMetric::memory || tq->metric == TemporalMetric::memory_pressure;
+        Intent next = f.intent;
+        switch (f.intent) {
+            case Intent::process_cpu:
+            case Intent::process_memory:
+                if (!tq->rank_processes) next = tq->metric == TemporalMetric::memory ? Intent::process_memory
+                                               : tq->metric == TemporalMetric::cpu  ? Intent::process_cpu
+                                                                                    : f.intent;
+                else next = mem_metric ? Intent::top_memory : Intent::top_cpu;
+                break;
+            case Intent::top_cpu:
+            case Intent::top_memory:
+            case Intent::diagnose_cpu:
+            case Intent::diagnose_memory:
+            case Intent::diagnose_slow:
+            case Intent::memory_status:
+            case Intent::system_info:
+            case Intent::unsupported:
+                if (has_target_span && !tq->rank_processes && tq->metric != TemporalMetric::memory_pressure) {
+                    next = mem_metric ? Intent::process_memory : Intent::process_cpu;
+                } else if (tq->rank_processes) {
+                    next = mem_metric ? Intent::top_memory : Intent::top_cpu;
+                } else {
+                    next = mem_metric ? Intent::diagnose_memory
+                           : tq->metric == TemporalMetric::cpu ? Intent::diagnose_cpu : Intent::diagnose_slow;
+                }
+                break;
+            default:
+                tq.reset();
+                break;
+        }
+        if (tq) {
+            f.intent = next;
+            f.temporal = tq;
+        }
+    }
+
     // Target: PID > named process > reference.
     const Span* pid = nullptr;
     const Span* proc = nullptr;
     const Span* ref = nullptr;
     for (const auto& s : p.spans) {
-        if (s.begin >= s.end || s.end > toks.size()) continue;
+        if (!span_ok(s)) continue;
         if (s.type == SpanType::pid && !pid) pid = &s;
         if (s.type == SpanType::proc && !proc) proc = &s;
         if (s.type == SpanType::ref && !ref) ref = &s;
-        if (s.type == SpanType::num && !f.top_n && (p.intent == Intent::top_cpu || p.intent == Intent::top_memory))
+        if (s.type == SpanType::num && !f.top_n && (f.intent == Intent::top_cpu || f.intent == Intent::top_memory))
             f.top_n = word_number(toks[s.begin].lower);
     }
     auto span_text = [&](const Span& s) {
@@ -359,6 +504,13 @@ IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Pl
         }
     }
 
+    // Counts outside the supported range are clamped rather than rejected
+    // ("top 999" -> 50; "top 0" -> the default).
+    if (f.top_n) {
+        if (*f.top_n < 1) f.top_n.reset();
+        else if (*f.top_n > 50) f.top_n = 50;
+    }
+
     for (auto k : required_for(f.intent)) {
         if (supported.contains(k)) {
             f.observations.push_back(k);
@@ -385,7 +537,7 @@ std::vector<std::string> validate(const IntentFrame& f) {
     std::vector<std::string> v;
     if (static_cast<std::size_t>(f.intent) >= kIntentCount) v.emplace_back("intent out of range");
     if (!f.read_only) v.emplace_back("V1 frames must be read_only");
-    if (f.confidence < 0.0F || f.confidence > 1.0F) v.emplace_back("confidence outside [0,1]");
+    if (!(f.confidence >= 0.0F && f.confidence <= 1.0F)) v.emplace_back("confidence outside [0,1] or NaN");
     if (f.top_n && (*f.top_n < 1 || *f.top_n > 50)) v.emplace_back("top_n must be within 1..50");
     if (is_process_intent(f.intent)) {
         if (f.target.kind == TargetKind::host || f.target.kind == TargetKind::none) {
@@ -441,6 +593,11 @@ std::string to_json(const IntentFrame& f) {
     w.key("validation_errors").begin_array();
     for (const auto& e : f.validation_errors) w.value(e);
     w.end_array();
+    if (f.temporal) {
+        w.key("temporal").begin_object().kv("kind", to_string(f.temporal->kind)).kv("metric", to_string(f.temporal->metric));
+        if (f.temporal->window_s) w.kv("window_s", *f.temporal->window_s);
+        w.kv("rank_processes", f.temporal->rank_processes).end_object();
+    }
     w.end_object();
     return w.take();
 }

@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
 #include <fstream>
+#include <set>
 #include <sstream>
 
 namespace osie::inference {
@@ -21,6 +23,12 @@ char shape_char(unsigned char c) {
 inline float sigmoid(float x) { return 1.0F / (1.0F + std::exp(-x)); }
 
 void softmax(float* v, std::size_t n) {
+    // Defence in depth: the loader bounds weights so logits stay finite, but a
+    // non-finite logit must still yield a valid (uniform) distribution.
+    if (!std::all_of(v, v + n, [](float x) { return std::isfinite(x); })) {
+        std::fill(v, v + n, 1.0F / static_cast<float>(n));
+        return;
+    }
     float mx = v[0];
     for (std::size_t i = 1; i < n; ++i) mx = std::max(mx, v[i]);
     float sum = 0;
@@ -162,86 +170,199 @@ std::vector<std::uint32_t> token_features(std::string_view tok, std::uint32_t bu
 }
 
 Result<IntentModel> IntentModel::load(const std::string& path) {
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(path, std::ios::binary | std::ios::ate);
     if (!in) return make_error(Errc::not_found, "cannot open model " + path);
-    std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    // Size check before reading: a huge or special file must not be slurped.
+    const std::streamoff size = in.tellg();
+    if (size < 0) return make_error(Errc::io_error, "cannot determine size of " + path);
+    if (static_cast<std::uint64_t>(size) > limits::max_file_bytes)
+        return make_error(Errc::parse_error, "model file exceeds " + std::to_string(limits::max_file_bytes) + " bytes");
+    std::string bytes(static_cast<std::size_t>(size), '\0');
+    in.seekg(0);
+    if (!in.read(bytes.data(), size)) return make_error(Errc::io_error, "cannot read model " + path);
     return load_from_memory(bytes);
 }
 
+namespace {
+
+/// Strict unsigned decimal: digits only, whole token, no sign, no overflow.
+std::optional<std::uint64_t> parse_u64(std::string_view s, std::uint64_t max) {
+    if (s.empty() || s.size() > 19) return std::nullopt;
+    std::uint64_t v = 0;
+    for (char c : s) {
+        if (c < '0' || c > '9') return std::nullopt;
+        v = v * 10 + static_cast<std::uint64_t>(c - '0');
+    }
+    if (v > max) return std::nullopt;
+    return v;
+}
+
+/// a * b, or nullopt on overflow or when the product exceeds `max`.
+std::optional<std::size_t> checked_mul(std::size_t a, std::size_t b, std::size_t max) {
+    if (a != 0 && b > max / a) return std::nullopt;
+    return a * b;
+}
+
+/// Labels and names are restricted to a printable ASCII subset so that
+/// malformed metadata cannot inject control characters or invalid UTF-8
+/// into terminal output or JSON.
+bool valid_label(std::string_view s) {
+    if (s.empty() || s.size() > limits::max_label_chars) return false;
+    return std::all_of(s.begin(), s.end(), [](char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+    });
+}
+
+/// Finite and |x| <= limits::max_abs_weight. Finite alone is not enough:
+/// weights near FLT_MAX overflow to inf/NaN in the forward pass (found by
+/// fuzzing). The bound keeps every activation of the supported architectures
+/// finite (see docs/MODEL_FORMAT.md).
+bool all_bounded(const std::vector<float>& v) {
+    return std::all_of(v.begin(), v.end(), [](float x) {
+        return std::isfinite(x) && std::fabs(x) <= limits::max_abs_weight;
+    });
+}
+
+}  // namespace
+
 Result<IntentModel> IntentModel::load_from_memory(std::string_view bytes) {
+    try {
+        return parse_model(bytes);
+    } catch (const std::exception& e) {
+        // parse_model checks every size before allocating; this is a last line of defence.
+        return make_error(Errc::parse_error, std::string("model rejected: ") + e.what());
+    }
+}
+
+Result<IntentModel> IntentModel::parse_model(std::string_view bytes) {
+    if (bytes.size() > limits::max_file_bytes) return make_error(Errc::parse_error, "model exceeds size limit");
     IntentModel m;
     std::size_t pos = 0;
-    auto next_line = [&](std::string& line) {
+    std::size_t header_lines = 0;
+    auto next_line = [&](std::string_view& line) {
         const auto e = bytes.find('\n', pos);
         if (e == std::string_view::npos) return false;
-        line = std::string(bytes.substr(pos, e - pos));
+        line = bytes.substr(pos, e - pos);
         pos = e + 1;
         return true;
     };
-    std::string line;
-    if (!next_line(line) || line != "OSIEM1") return make_error(Errc::parse_error, "bad magic");
+    auto bad = [](std::string msg) { return make_error(Errc::parse_error, std::move(msg)); };
+    std::string_view line;
+    if (!next_line(line) || line != "OSIEM1") return bad("bad magic (expected OSIEM1)");
     struct Pending {
         std::string name, dtype;
         std::vector<std::size_t> shape;
+        std::size_t elements{0};
     };
     std::vector<Pending> pending;
-    while (next_line(line) && line != "data") {
-        auto w = split_ws(line);
+    std::set<std::string, std::less<>> seen_keys, seen_tensors;
+    bool have_data = false;
+    while (next_line(line)) {
+        if (line == "data") {
+            have_data = true;
+            break;
+        }
+        if (++header_lines > limits::max_header_lines) return bad("too many header lines");
+        if (pos > limits::max_header_bytes) return bad("header too large");
+        auto w = split_ws(std::string(line));
         if (w.empty()) continue;
         const auto& k = w[0];
-        try {
-            if (k == "arch" && w.size() == 2) m.arch_ = w[1];
-            else if (k == "buckets" && w.size() == 2) m.buckets_ = static_cast<std::uint32_t>(std::stoul(w[1]));
-            else if (k == "dim" && w.size() == 2) m.dim_ = std::stoul(w[1]);
-            else if (k == "hidden" && w.size() == 2) m.hidden_ = std::stoul(w[1]);
-            else if (k == "ngram" && w.size() == 3) { m.ngram_min_ = std::stoi(w[1]); m.ngram_max_ = std::stoi(w[2]); }
-            else if (k == "knowledge" && w.size() == 2) m.knowledge_ = w[1] == "1";
-            else if (k == "hybrid_threshold" && w.size() == 2) m.hybrid_threshold_ = std::stof(w[1]);
-            else if (k == "intents") m.intents_.assign(w.begin() + 1, w.end());
-            else if (k == "tags") m.tags_.assign(w.begin() + 1, w.end());
-            else if (k == "tensor" && w.size() >= 4) {
-                Pending p{w[1], w[2], {}};
-                for (std::size_t i = 3; i < w.size(); ++i) p.shape.push_back(std::stoul(w[i]));
-                pending.push_back(std::move(p));
+        if (k != "tensor" && !seen_keys.insert(k).second) return bad("duplicate header key " + k);
+        auto num = [&](std::size_t i, std::uint64_t max) { return parse_u64(w[i], max); };
+        if (k == "arch" && w.size() == 2) {
+            m.arch_ = w[1];
+        } else if (k == "buckets" && w.size() == 2) {
+            auto v = num(1, limits::max_buckets);
+            if (!v || *v == 0) return bad("buckets must be 1.." + std::to_string(limits::max_buckets));
+            m.buckets_ = static_cast<std::uint32_t>(*v);
+        } else if ((k == "dim" || k == "hidden") && w.size() == 2) {
+            auto v = num(1, limits::max_width);
+            if (!v || *v == 0) return bad(k + " must be 1.." + std::to_string(limits::max_width));
+            (k == "dim" ? m.dim_ : m.hidden_) = static_cast<std::size_t>(*v);
+        } else if (k == "ngram" && w.size() == 3) {
+            auto a = num(1, limits::max_ngram), b = num(2, limits::max_ngram);
+            if (!a || !b || *a == 0 || *a > *b) return bad("ngram must satisfy 1 <= min <= max <= " + std::to_string(limits::max_ngram));
+            m.ngram_min_ = static_cast<int>(*a);
+            m.ngram_max_ = static_cast<int>(*b);
+        } else if (k == "knowledge" && w.size() == 2) {
+            if (w[1] != "0" && w[1] != "1") return bad("knowledge must be 0 or 1");
+            m.knowledge_ = w[1] == "1";
+        } else if (k == "hybrid_threshold" && w.size() == 2) {
+            char* end = nullptr;
+            const float v = std::strtof(w[1].c_str(), &end);
+            if (end != w[1].c_str() + w[1].size() || !std::isfinite(v) || v < 0.0F || v > 1.0F)
+                return bad("hybrid_threshold must be a finite number in [0,1]");
+            m.hybrid_threshold_ = v;
+        } else if (k == "intents" || k == "tags") {
+            auto& dst = k == "intents" ? m.intents_ : m.tags_;
+            const std::size_t max = k == "intents" ? limits::max_intents : limits::max_tags;
+            if (w.size() < 2 || w.size() - 1 > max) return bad(k + " must list 1.." + std::to_string(max) + " labels");
+            std::set<std::string, std::less<>> uniq;
+            for (std::size_t i = 1; i < w.size(); ++i) {
+                if (!valid_label(w[i])) return bad("invalid label in " + k);
+                if (!uniq.insert(w[i]).second) return bad("duplicate label " + w[i] + " in " + k);
             }
-        } catch (const std::exception& e) {
-            return make_error(Errc::parse_error, "header: " + line);
+            dst.assign(w.begin() + 1, w.end());
+        } else if (k == "tensor" && w.size() >= 4 && w.size() <= 3 + limits::max_rank) {
+            if (pending.size() >= limits::max_tensors) return bad("too many tensors");
+            if (!valid_label(w[1])) return bad("invalid tensor name");
+            if (!seen_tensors.insert(w[1]).second) return bad("duplicate tensor " + w[1]);
+            Pending p{w[1], w[2], {}, 1};
+            for (std::size_t i = 3; i < w.size(); ++i) {
+                auto d = num(i, limits::max_dim);
+                if (!d || *d == 0) return bad("bad shape for " + p.name);
+                p.shape.push_back(static_cast<std::size_t>(*d));
+                auto n = checked_mul(p.elements, p.shape.back(), limits::max_tensor_elements);
+                if (!n) return bad("tensor " + p.name + " exceeds " + std::to_string(limits::max_tensor_elements) + " elements");
+                p.elements = *n;
+            }
+            pending.push_back(std::move(p));
+        } else if (k == "arch" || k == "buckets" || k == "dim" || k == "hidden" || k == "ngram" || k == "knowledge" ||
+                   k == "hybrid_threshold" || k == "tensor") {
+            return bad("malformed header line: " + k);
+        } else if (!valid_label(k)) {
+            return bad("invalid header key");
         }
+        // Other well-formed keys are optional metadata from newer writers and are ignored.
     }
-    if (line != "data") return make_error(Errc::parse_error, "missing data section");
+    if (!have_data) return bad("missing data section");
     const std::size_t data_start = pos;  // int8 padding is relative to the data section
-    if (m.arch_ != "bigru" && m.arch_ != "cnn" && m.arch_ != "bag") return make_error(Errc::parse_error, "unknown arch " + m.arch_);
-    if (m.buckets_ == 0 || m.dim_ == 0 || m.intents_.empty() || m.tags_.empty())
-        return make_error(Errc::parse_error, "incomplete header");
+    if (m.arch_ != "bigru" && m.arch_ != "cnn" && m.arch_ != "bag") return bad("unknown arch");
+    if (m.buckets_ == 0 || m.dim_ == 0 || m.hidden_ == 0 || m.intents_.empty() || m.tags_.empty())
+        return bad("incomplete header");
 
+    // Every size below is bounded by max_tensor_elements, so the arithmetic
+    // cannot overflow; reads are checked against the remaining bytes before
+    // anything is allocated.
+    auto remaining = [&]() { return bytes.size() - pos; };
     for (const auto& p : pending) {
         Tensor t;
         t.shape = p.shape;
-        std::size_t n = 1;
-        for (auto d : p.shape) {
-            if (d == 0 || d > (1U << 26)) return make_error(Errc::parse_error, "bad shape for " + p.name);
-            n *= d;
-        }
+        const std::size_t n = p.elements;
         if (p.dtype == "f32") {
-            if (pos + n * 4 > bytes.size()) return make_error(Errc::parse_error, "truncated tensor " + p.name);
+            if (n * 4 > remaining()) return bad("truncated tensor " + p.name);
             t.f32.resize(n);
             std::memcpy(t.f32.data(), bytes.data() + pos, n * 4);
             pos += n * 4;
+            if (!all_bounded(t.f32)) return bad("non-finite or out-of-range value in tensor " + p.name);
         } else if (p.dtype == "i8") {
             const std::size_t rows = p.shape[0];
-            if (pos + rows * 4 + n > bytes.size()) return make_error(Errc::parse_error, "truncated tensor " + p.name);
+            if (rows * 4 > remaining() || n > remaining() - rows * 4) return bad("truncated tensor " + p.name);
             t.row_scale.resize(rows);
             std::memcpy(t.row_scale.data(), bytes.data() + pos, rows * 4);
             pos += rows * 4;
+            if (!all_bounded(t.row_scale)) return bad("non-finite or out-of-range scale in tensor " + p.name);
             t.i8.resize(n);
             std::memcpy(t.i8.data(), bytes.data() + pos, n);
             pos += n;
-            pos = data_start + ((pos - data_start + 3U) & ~std::size_t{3});  // 4-byte alignment after int8 blocks
+            const std::size_t aligned = data_start + ((pos - data_start + 3U) & ~std::size_t{3});  // 4-byte alignment
+            pos = std::min(aligned, bytes.size());
         } else {
-            return make_error(Errc::parse_error, "unknown dtype " + p.dtype);
+            return bad("unknown dtype " + p.dtype);
         }
         m.tensors_.emplace(p.name, std::move(t));
     }
+    if (pos != bytes.size()) return bad(std::to_string(bytes.size() - pos) + " unexpected trailing bytes");
     auto need = [&m](const std::string& n, const std::vector<std::size_t>& shape) -> Result<void> {
         auto it = m.tensors_.find(n);
         if (it == m.tensors_.end()) return make_error(Errc::parse_error, "missing tensor " + n);
@@ -278,6 +399,7 @@ Result<IntentModel> IntentModel::load_from_memory(std::string_view bytes) {
         if (auto r = need(n, s); !r) return r.error();
     for (const auto& [name, ten] : m.tensors_)
         if (ten.quantized() && name != "emb") return make_error(Errc::parse_error, "only emb may be int8");
+    if (m.tensors_.size() != req.size()) return make_error(Errc::parse_error, "unexpected extra tensors for arch " + m.arch_);
 
     m.intent_map_.clear();
     for (const auto& l : m.intents_) {

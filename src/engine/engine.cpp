@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <cmath>
+#include <ctime>
 #include <set>
 
 #include "osie/architecture/model.hpp"
@@ -29,6 +31,28 @@ bool is_process_intent(Intent i) {
 }
 
 ProcessRef ref_of(const ProcessView& p) { return ProcessRef{p.info.pid, p.info.start_time_us, p.info.name}; }
+
+/// Parser output is untrusted (it may come from a model file): an intent the
+/// enum does not define becomes `unsupported`, and a non-finite or
+/// out-of-range confidence is clamped. Spans are bounds-checked by build_frame.
+intent::ParseOutput sanitize(intent::ParseOutput p) {
+    if (static_cast<std::size_t>(p.intent) >= intent::kIntentCount) {
+        p.intent = Intent::unsupported;
+        p.spans.clear();
+        p.parser += "+sanitized";
+    }
+    if (!(p.confidence >= 0.0F && p.confidence <= 1.0F)) {
+        p.confidence = 0.0F;
+        p.parser += "+sanitized";
+    }
+    return p;
+}
+
+std::string lower_ascii(std::string_view s) {
+    std::string o(s);
+    for (auto& c : o) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return o;
+}
 
 std::string kind_label(reason::FindingKind k) {
     switch (k) {
@@ -87,28 +111,49 @@ bool SessionContext::apply_followup(intent::IntentFrame& f, const std::vector<in
     return false;
 }
 
-std::optional<ProcessRef> SessionContext::resolve(intent::IntentFrame& f, const SystemState& s) const {
-    auto fail = [&f](std::string q) -> std::optional<ProcessRef> {
+Resolution SessionContext::resolve(intent::IntentFrame& f, const SystemState& s, SteadyTime now, Millis ttl) const {
+    Resolution res;
+    auto fail = [&f, &res](std::string q) {
         f.ambiguous = true;
         f.clarification = std::move(q);
-        return std::nullopt;
+        return res;
     };
     switch (f.target.kind) {
         case TargetKind::pid: {
             const Pid pid = static_cast<Pid>(std::stol(f.target.value));
-            if (const auto* p = s.find_pid(pid)) return ref_of(*p);
+            if (const auto* p = s.find_pid(pid)) {
+                res.subject = ref_of(*p);
+                return res;
+            }
             return fail("No running process has PID " + f.target.value + " (it may have exited).");
         }
         case TargetKind::process_name: {
-            auto matches = s.find_by_name(f.target.value);
+            const auto matches = s.find_by_name(f.target.value);
             if (matches.empty()) return fail("I can't find a running process matching '" + f.target.value + "'.");
-            // Pick the most relevant instance for the question.
-            const ProcessView* best = matches.front();
+            const std::string needle = lower_ascii(f.target.value);
+            std::vector<const ProcessView*> exact, partial;
+            for (const auto* m : matches) (lower_ascii(m->info.name) == needle ? exact : partial).push_back(m);
+            auto group = exact.empty() ? partial : exact;
+            res.partial_matches = exact.empty() ? 0 : partial.size();
+            // Rank by the metric the question is about (find_by_name ranks by memory).
             if (f.intent == Intent::process_cpu) {
-                for (const auto* m : matches)
-                    if (m->cpu_pct.value_or(-1) > best->cpu_pct.value_or(-1)) best = m;
+                std::stable_sort(group.begin(), group.end(), [](const ProcessView* a, const ProcessView* b) {
+                    return a->cpu_pct.value_or(-1) > b->cpu_pct.value_or(-1);
+                });
             }
-            return ref_of(*best);
+            for (const auto* m : group) res.group.push_back(ref_of(*m));
+            if (group.size() == 1 || f.intent == Intent::process_cpu || f.intent == Intent::process_memory) {
+                // CPU/memory questions about a name with several instances are
+                // answered for the whole group, with details for the top one.
+                res.subject = res.group.front();
+                return res;
+            }
+            std::string q = std::to_string(group.size()) + " processes match '" + f.target.value + "':\n";
+            for (std::size_t i = 0; i < group.size() && i < 8; ++i)
+                q += "  " + std::to_string(i + 1) + ". " + group[i]->info.name + " (pid " + std::to_string(group[i]->info.pid) + ")\n";
+            if (group.size() > 8) q += "  ... and " + std::to_string(group.size() - 8) + " more\n";
+            q += "Which one? Give a PID, or say e.g. 'the second one'.";
+            return fail(std::move(q));
         }
         case TargetKind::reference: {
             const ProcessRef* r = nullptr;
@@ -116,28 +161,42 @@ std::optional<ProcessRef> SessionContext::resolve(intent::IntentFrame& f, const 
                 const int o = *f.target.ordinal;
                 if (o == -1) r = &last_list.back();
                 else if (o >= 1 && static_cast<std::size_t>(o) <= last_list.size()) r = &last_list[static_cast<std::size_t>(o - 1)];
+                else return fail("My last list had " + std::to_string(last_list.size()) + " entries; which one do you mean?");
             } else if (last_process) {
                 r = &*last_process;
             } else if (!last_list.empty()) {
                 r = &last_list.front();
             }
             if (r == nullptr) return fail("Which process do you mean? I have no earlier process to refer to.");
-            const auto* p = s.find_pid(r->pid);
-            if (p == nullptr || (r->start_time_us && p->info.start_time_us && *r->start_time_us != *p->info.start_time_us)) {
-                return fail(r->name + " (pid " + std::to_string(r->pid) + ") is no longer running.");
+            if (now - updated_at > ttl) {
+                const auto mins = std::chrono::duration_cast<std::chrono::minutes>(now - updated_at).count();
+                return fail("My earlier answer about " + r->name + " is " + std::to_string(mins) +
+                            " minutes old, so I won't assume you still mean it. Which process (name or PID)?");
             }
-            return ref_of(*p);
+            const auto* p = s.find_pid(r->pid);
+            // Same PID is the same process only if the start time matches; when
+            // either start time is unknown, fall back to comparing the name.
+            const bool reused = p != nullptr && (r->start_time_us && p->info.start_time_us
+                                                     ? *r->start_time_us != *p->info.start_time_us
+                                                     : p->info.name != r->name);
+            if (p == nullptr || reused) {
+                return fail(r->name + " (pid " + std::to_string(r->pid) + ") is no longer running" +
+                            (reused ? " (that PID now belongs to " + p->info.name + ")." : "."));
+            }
+            res.subject = ref_of(*p);
+            return res;
         }
         case TargetKind::host:
         case TargetKind::none: break;
     }
-    return std::nullopt;
+    return res;
 }
 
 void SessionContext::remember(const std::string& utterance, const intent::IntentFrame& f,
                               const std::optional<ProcessRef>& subject, const std::vector<ProcessRef>& list,
-                              std::size_t limit) {
+                              std::size_t limit, SteadyTime now) {
     last_intent = f.intent;
+    if (subject || !list.empty()) updated_at = now;
     if (subject) last_process = subject;
     if (!list.empty()) {
         last_list = list;
@@ -156,7 +215,8 @@ Engine::Engine(std::unique_ptr<IOperatingSystem> os, std::unique_ptr<intent::IIn
       reg_(CapabilityRegistry::builtin()),
       broker_(*os_, reg_, policy_, audit_),
       sampler_(broker_),
-      reasoner_(graph_, os_->platform()) {
+      reasoner_(graph_, os_->platform()),
+      history_(cfg_.history) {
     arch::load_ontology(graph_);
 }
 
@@ -164,7 +224,7 @@ Engine::~Engine() = default;
 
 intent::IntentFrame Engine::interpret(std::string_view utterance) const {
     const auto toks = intent::tokenize(utterance);
-    auto out = parser_->parse(toks);
+    auto out = sanitize(parser_->parse(toks));
     auto f = intent::build_frame(out, toks, os_->platform(), os_->supported(), reg_);
     f.validation_errors = intent::validate(f);
     return f;
@@ -187,10 +247,42 @@ std::shared_ptr<const SystemState> Engine::state_for(const std::vector<Observati
     auto st = std::make_shared<SystemState>(sampler_.sample(req, c));
     arch::update_instances(graph_, *st, os_->platform());
     cache_.store(st);
+    history_.record(*st, pinned_identities());
     return st;
 }
 
+std::vector<std::pair<Pid, std::optional<std::uint64_t>>> Engine::pinned_identities() const {
+    std::vector<std::pair<Pid, std::optional<std::uint64_t>>> v;
+    if (session_.last_process) v.emplace_back(session_.last_process->pid, session_.last_process->start_time_us);
+    return v;
+}
+
+void Engine::record_sample(const CancellationToken& c) {
+    std::lock_guard lk(mu_);
+    SampleRequest req;
+    req.interval = cfg_.sample_interval;
+    req.cgroup_top_n = 0;
+    for (auto k : {ObservationKind::cpu_times, ObservationKind::memory, ObservationKind::memory_pressure_level,
+                   ObservationKind::pressure_stall, ObservationKind::process_list})
+        if (os_->supported().contains(k)) req.kinds.push_back(k);
+    // Not stored in the answer cache: the architecture graph is only updated
+    // for states that answers are built from.
+    const auto st = sampler_.sample(req, c);
+    history_.record(st, pinned_identities());
+}
+
+std::size_t Engine::history_size() const {
+    std::lock_guard lk(mu_);
+    return history_.size();
+}
+
+std::size_t Engine::history_bytes() const {
+    std::lock_guard lk(mu_);
+    return history_.approx_bytes();
+}
+
 std::shared_ptr<const SystemState> Engine::observe_all(const CancellationToken& c) {
+    std::lock_guard lk(mu_);
     std::vector<ObservationKind> all;
     for (auto k : os_->supported().list()) all.push_back(k);
     bool reused = false;
@@ -198,15 +290,31 @@ std::shared_ptr<const SystemState> Engine::observe_all(const CancellationToken& 
 }
 
 Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) {
+    std::lock_guard lk(mu_);
     const auto t0 = std::chrono::steady_clock::now();
     Answer a;
     const auto toks = intent::tokenize(utterance);
-    auto out = parser_->parse(toks);
+    auto out = sanitize(parser_->parse(toks));
     a.frame = intent::build_frame(out, toks, os_->platform(), os_->supported(), reg_);
     a.parse_ms = ms_since(t0);
 
+    // A temporal follow-up that names no metric ("has its usage increased?")
+    // continues the metric of the previous turn.
+    if (a.frame.temporal && a.frame.temporal->metric == intent::TemporalMetric::overall &&
+        a.frame.target.kind == TargetKind::reference && session_.last_intent) {
+        const auto prev = *session_.last_intent;
+        if (prev == Intent::top_memory || prev == Intent::process_memory || prev == Intent::diagnose_memory ||
+            prev == Intent::memory_status) {
+            a.frame.intent = Intent::process_memory;
+            a.frame.temporal->metric = intent::TemporalMetric::memory;
+        } else if (prev == Intent::top_cpu || prev == Intent::process_cpu || prev == Intent::diagnose_cpu) {
+            a.frame.intent = Intent::process_cpu;
+            a.frame.temporal->metric = intent::TemporalMetric::cpu;
+        }
+    }
+
     // Context: short follow-ups and references.
-    if (session_.apply_followup(a.frame, toks)) {
+    if (!a.frame.temporal && session_.apply_followup(a.frame, toks)) {
         a.frame = intent::build_frame(intent::ParseOutput{a.frame.intent, a.frame.confidence, {}, a.frame.parser + "+context"},
                                       toks, os_->platform(), os_->supported(), reg_);
         if (is_process_intent(a.frame.intent)) {
@@ -216,31 +324,51 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
         }
     }
 
+    // A frame that fails validation is never acted on: nothing is observed and
+    // the answer says so. (Ambiguity is not a validation failure.)
+    // Action requests skip this: they are always refused and audited in render().
+    if (auto errs = intent::validate(a.frame); !errs.empty() && a.frame.intent != Intent::action_request) {
+        a.frame.validation_errors = std::move(errs);
+        a.text = "I could not interpret that request safely, so I did nothing (" + a.frame.validation_errors.front() +
+                 ").\n";
+        session_.remember(std::string(utterance), a.frame, std::nullopt, {}, cfg_.history_limit,
+                          std::chrono::steady_clock::now());
+        a.latency_ms = ms_since(t0);
+        return a;
+    }
+
     bool reused = false;
     std::shared_ptr<const SystemState> st;
     if (!a.frame.ambiguous || is_process_intent(a.frame.intent)) {
         st = state_for(a.frame.observations, cancel, reused);
     }
-    std::optional<ProcessRef> subject;
+    const auto now = std::chrono::steady_clock::now();
+    Resolution res;
     if (st && a.frame.target.kind != TargetKind::host && a.frame.target.kind != TargetKind::none) {
-        subject = session_.resolve(a.frame, *st);
-        if (subject) {
+        res = session_.resolve(a.frame, *st, now, cfg_.context_ttl);
+        if (res.subject) {
             a.frame.ambiguous = false;
             a.frame.clarification.clear();
         }
     }
+    const auto& subject = res.subject;
     a.frame.validation_errors = intent::validate(a.frame);
     a.reused_observations = reused;
     if (st) a.observation_age = std::chrono::duration_cast<Millis>(std::chrono::steady_clock::now() - st->taken_at);
 
-    a.text = render(a, st.get(), subject);
+    a.text = (a.frame.temporal && st && !(a.frame.ambiguous && !subject)) ? render_temporal(a, res)
+                                                                         : render(a, st.get(), res);
 
+    // Ordinals in the next turn refer to the last list shown: a ranked answer,
+    // or the instances of an ambiguous name.
     std::vector<ProcessRef> list;
-    if (a.diagnosis && st) {
+    if (res.group.size() > 1) {
+        list = res.group;
+    } else if (a.diagnosis && st) {
         for (Pid p : a.diagnosis->ranked_pids)
             if (const auto* pv = st->find_pid(p)) list.push_back(ref_of(*pv));
     }
-    session_.remember(std::string(utterance), a.frame, subject, list, cfg_.history_limit);
+    session_.remember(std::string(utterance), a.frame, subject, list, cfg_.history_limit, now);
     a.latency_ms = ms_since(t0);
     return a;
 }
@@ -285,7 +413,8 @@ std::string render_diagnosis(const reason::Diagnosis& d, bool verbose) {
     return o;
 }
 
-std::string Engine::render(Answer& a, const SystemState* s, const std::optional<ProcessRef>& subject) {
+std::string Engine::render(Answer& a, const SystemState* s, const Resolution& res) {
+    const auto& subject = res.subject;
     const auto& f = a.frame;
     const std::size_t n = f.top_n ? static_cast<std::size_t>(*f.top_n) : cfg_.default_top_n;
     std::string o;
@@ -296,7 +425,10 @@ std::string Engine::render(Answer& a, const SystemState* s, const std::optional<
         return u.empty() ? u : "\nUnavailable on this system:\n" + u;
     };
 
-    if (f.ambiguous && !subject) {
+    // Action requests are refused (and audited) before anything else, so an
+    // ambiguous or unresolvable target can never turn a refusal into a
+    // "which process?" question that implies the action would then run.
+    if (f.ambiguous && !subject && f.intent != Intent::action_request) {
         return f.clarification.empty() ? "Could you rephrase that?\n" : f.clarification + "\n";
     }
 
@@ -572,7 +704,264 @@ std::string Engine::render(Answer& a, const SystemState* s, const std::optional<
     if (a.diagnosis) {
         o = render_diagnosis(*a.diagnosis, false);
         if (!f.unavailable_observations.empty()) o += unavailable_note();
+        if (res.group.size() > 1 && subject && (f.intent == Intent::process_cpu || f.intent == Intent::process_memory))
+            o = render_group(*s, res, f) + o;
     }
+    return o;
+}
+
+namespace {
+
+std::string clock_time(std::chrono::system_clock::time_point t) {
+    const std::time_t tt = std::chrono::system_clock::to_time_t(t);
+    std::tm tm{};
+    localtime_r(&tt, &tm);
+    char buf[16];
+    std::strftime(buf, sizeof buf, "%H:%M:%S", &tm);
+    return buf;
+}
+
+std::string duration_text(double s) {
+    if (s < 90) return fmt::num(s, 0) + " s";
+    if (s < 5400) return fmt::num(s / 60.0, 1) + " min";
+    return fmt::num(s / 3600.0, 1) + " h";
+}
+
+struct SeriesSpec {
+    std::string label;
+    std::string unit;      // appended to values
+    TrendRule rule;
+    double scale{1.0};     // display = value * scale
+};
+
+std::string fmt_value(double v, const SeriesSpec& sp) { return fmt::num(v * sp.scale, sp.unit == "%" ? 0 : 1) + sp.unit; }
+
+std::string describe_trend(const SeriesSpec& sp, const TrendResult& r) {
+    if (r.direction == TrendDirection::insufficient_data) return sp.label + ": not enough history (" + r.why + ").";
+    std::string o = sp.label + ": ";
+    switch (r.direction) {
+        case TrendDirection::increasing: o += "increasing"; break;
+        case TrendDirection::decreasing: o += "decreasing"; break;
+        default: o += "no clear change"; break;
+    }
+    o += " over " + duration_text(r.span_s) + " (" + std::to_string(r.n) + " samples): " + fmt_value(r.first, sp) + " -> " +
+         fmt_value(r.last, sp) + "; first-third mean " + fmt_value(r.early_mean, sp) + ", last-third mean " +
+         fmt_value(r.late_mean, sp) + ", range " + fmt_value(r.min, sp) + "-" + fmt_value(r.max, sp) +
+         " (Mann-Kendall z=" + fmt::num(r.mann_kendall_z, 1) + ").";
+    return o;
+}
+
+}  // namespace
+
+std::string Engine::render_temporal(Answer& a, const Resolution& res) {
+    using intent::TemporalKind;
+    using intent::TemporalMetric;
+    const auto& q = *a.frame.temporal;
+    const auto& all = history_.points();
+    const double span_min = history_.config().min_span_s;
+    const auto now = std::chrono::steady_clock::now();
+    std::vector<const HistoryPoint*> pts;
+    for (const auto& p : all)
+        if (!q.window_s || now - p.at <= std::chrono::seconds(*q.window_s)) pts.push_back(&p);
+
+    std::string o;
+    const double recorded_s =
+        all.empty() ? 0.0 : std::chrono::duration<double>(all.back().at - all.front().at).count();
+    if (q.window_s && recorded_s + 1.0 < static_cast<double>(*q.window_s)) {
+        o += "Note: history in this session covers only " + duration_text(recorded_s) + " of the requested " +
+             duration_text(static_cast<double>(*q.window_s)) + "; the answer is limited to that.\n";
+    }
+    auto t_of = [&](const HistoryPoint& p) { return std::chrono::duration<double>(p.at - pts.front()->at).count(); };
+    auto how_to_record = [&]() {
+        return std::string("OSIE only knows what it has sampled in this session (") + std::to_string(all.size()) +
+               " sample(s) so far) and keeps no history on disk. Start a session with 'osie --watch 5' to record every "
+               "5 s, or use 'osie ask --watch 2 --for 60 \"...\"', then ask again.\n";
+    };
+
+    // Series builders over the windowed points.
+    auto host_series = [&](TemporalMetric m) {
+        Series s;
+        for (const auto* p : pts) {
+            if (m == TemporalMetric::cpu && p->cpu_busy_pct) s.emplace_back(t_of(*p), *p->cpu_busy_pct);
+            if (m == TemporalMetric::memory && p->mem_available_bytes && p->mem_total_bytes && *p->mem_total_bytes > 0)
+                s.emplace_back(t_of(*p), 100.0 * (1.0 - static_cast<double>(*p->mem_available_bytes) /
+                                                            static_cast<double>(*p->mem_total_bytes)));
+        }
+        return s;
+    };
+    auto proc_series = [&](const ProcessRef& r, bool mem) {
+        Series s;
+        for (const auto* p : pts)
+            for (const auto& pp : p->processes)
+                if (pp.pid == r.pid && (!r.start_time_us || !pp.start_time_us || *r.start_time_us == *pp.start_time_us)) {
+                    if (mem && pp.memory_bytes) s.emplace_back(t_of(*p), static_cast<double>(*pp.memory_bytes) / (1 << 20));
+                    if (!mem && pp.cpu_pct) s.emplace_back(t_of(*p), *pp.cpu_pct);
+                }
+        return s;
+    };
+    SeriesSpec cpu_spec{"CPU busy (whole machine)", "%", TrendRule{4, span_min, 5.0, 1.96}};
+    SeriesSpec mem_spec{"Memory in use (whole machine)", "%", TrendRule{4, span_min, 2.0, 1.96}};
+
+    if (pts.empty()) return o + "I have no observations for that period. " + how_to_record();
+
+    // ---- onset: when did memory pressure (or high CPU) begin? -------------
+    if (q.kind == TemporalKind::onset) {
+        const bool pressure = q.metric == TemporalMetric::memory_pressure || q.metric == TemporalMetric::memory;
+        auto elevated = [&](const HistoryPoint& p) -> std::optional<bool> {
+            if (pressure) {
+                if (p.pressure) return *p.pressure != MemoryPressureLevel::normal;
+                if (p.psi_mem_some10) return *p.psi_mem_some10 >= 10.0;
+                return std::nullopt;
+            }
+            if (p.cpu_busy_pct) return *p.cpu_busy_pct >= 75.0;
+            return std::nullopt;
+        };
+        const std::string what = pressure ? (os_->platform() == Platform::macos
+                                                 ? "Memory pressure (kernel level warning or critical)"
+                                                 : "Memory pressure (PSI memory some avg10 >= 10%)")
+                                          : "High CPU (>= 75% busy)";
+        std::optional<std::size_t> start;
+        std::size_t known = 0;
+        bool currently = false;
+        for (std::size_t i = 0; i < pts.size(); ++i) {
+            auto e = elevated(*pts[i]);
+            if (!e) continue;
+            ++known;
+            if (*e && !currently) start = i;
+            currently = *e;
+        }
+        if (known == 0) return o + what + " was not observable in the recorded samples.\n";
+        const auto ago = [&](std::size_t i) {
+            return clock_time(pts[i]->wall) + " (" +
+                   duration_text(std::chrono::duration<double>(now - pts[i]->at).count()) + " ago)";
+        };
+        if (!currently) {
+            if (start) return o + what + " is not present now; the most recent episode began at " + ago(*start) + ".\n";
+            return o + what + " was not observed in " + std::to_string(known) + " samples since " + ago(0) + ".\n";
+        }
+        if (start && *start == 0)
+            return o + what + " was already present when recording began at " + ago(0) +
+                   ", so when it started is unknown.\n" + (all.size() < 4 ? how_to_record() : std::string());
+        return o + what + " began at " + ago(*start) + " and is still present (" + std::to_string(known) +
+               " samples).\n";
+    }
+
+    // ---- which process has been growing? ----------------------------------
+    if (q.rank_processes) {
+        const bool mem = a.frame.intent == Intent::top_memory;
+        std::map<std::pair<Pid, std::uint64_t>, ProcessRef> ids;
+        for (const auto* p : pts)
+            for (const auto& pp : p->processes)
+                ids.emplace(std::make_pair(pp.pid, pp.start_time_us.value_or(0)), ProcessRef{pp.pid, pp.start_time_us, pp.name});
+        struct Row {
+            ProcessRef r;
+            TrendResult t;
+        };
+        std::vector<Row> rows;
+        for (const auto& [_, r] : ids) {
+            TrendRule rule = mem ? TrendRule{4, span_min, 16.0, 1.96} : TrendRule{4, span_min, 5.0, 1.96};
+            auto t = analyse_trend(proc_series(r, mem), rule);
+            if (t.direction == TrendDirection::increasing) rows.push_back({r, t});
+        }
+        std::sort(rows.begin(), rows.end(), [](const Row& x, const Row& y) {
+            return x.t.late_mean - x.t.early_mean > y.t.late_mean - y.t.early_mean;
+        });
+        if (pts.size() < 4 || t_of(*pts.back()) < span_min)
+            return o + "Not enough history to tell which processes are growing (" + std::to_string(pts.size()) +
+                   " samples over " + duration_text(t_of(*pts.back())) + "). " + how_to_record();
+        o += std::string("Processes whose ") + (mem ? "memory" : "CPU use") + " increased over " +
+             duration_text(t_of(*pts.back())) + " (" + std::to_string(pts.size()) + " samples):\n";
+        if (rows.empty()) o += "  none showed a clear increase.\n";
+        for (std::size_t i = 0; i < rows.size() && i < 5; ++i) {
+            const auto& [r, t] = rows[i];
+            o += "  " + std::to_string(i + 1) + ". " + r.name + " (pid " + std::to_string(r.pid) + ")  " +
+                 (mem ? fmt::num(t.early_mean, 0) + " -> " + fmt::num(t.late_mean, 0) + " MiB"
+                      : fmt::pct(t.early_mean) + " -> " + fmt::pct(t.late_mean)) +
+                 "  (" + std::to_string(t.n) + " samples)\n";
+        }
+        o += "Only the top " + std::to_string(history_.config().top_k) +
+             " processes by CPU and by memory are kept per sample, so smaller processes are not covered.\n";
+        return o;
+    }
+
+    // ---- trend / recovery for one process or the whole machine -------------
+    std::vector<std::pair<SeriesSpec, Series>> series;
+    if (res.subject) {
+        const bool mem = a.frame.intent == Intent::process_memory;
+        const auto& r = *res.subject;
+        SeriesSpec sp{r.name + " (pid " + std::to_string(r.pid) + ") " + (mem ? "memory" : "CPU"), mem ? " MiB" : "%",
+                      mem ? TrendRule{4, span_min, 16.0, 1.96} : TrendRule{4, span_min, 5.0, 1.96}};
+        series.emplace_back(sp, proc_series(r, mem));
+    } else {
+        if (q.metric != TemporalMetric::memory && q.metric != TemporalMetric::memory_pressure)
+            series.emplace_back(cpu_spec, host_series(TemporalMetric::cpu));
+        if (q.metric != TemporalMetric::cpu) series.emplace_back(mem_spec, host_series(TemporalMetric::memory));
+    }
+    bool insufficient = false;
+    for (auto& [sp, s] : series) {
+        auto t = analyse_trend(s, sp.rule);
+        a.trends.emplace_back(sp.label, t);
+        insufficient |= t.direction == TrendDirection::insufficient_data;
+        if (q.kind == TemporalKind::recovery && t.direction != TrendDirection::insufficient_data) {
+            // Recovering = the latest values are clearly below the peak and
+            // the series after the peak is decreasing (or already flat and low).
+            std::size_t peak = 0;
+            for (std::size_t i = 1; i < s.size(); ++i)
+                if (s[i].second > s[peak].second) peak = i;
+            Series after(s.begin() + static_cast<std::ptrdiff_t>(peak), s.end());
+            const auto ta = analyse_trend(after, TrendRule{3, span_min / 2, sp.rule.min_effect, sp.rule.z_threshold});
+            const double drop = s[peak].second - s.back().second;
+            std::string verdict;
+            if (peak + 1 >= s.size() || drop < sp.rule.min_effect) verdict = "not recovering: it is at or near its peak";
+            else if (ta.direction == TrendDirection::decreasing || drop >= 2 * sp.rule.min_effect)
+                verdict = "recovering: down " + fmt_value(drop, sp) + " from its peak";
+            else verdict = "unclear: slightly below its peak, without a clear downward trend";
+            o += sp.label + ": " + verdict + " (peak " + fmt_value(s[peak].second, sp) + ", now " +
+                 fmt_value(s.back().second, sp) + ", " + std::to_string(s.size()) + " samples over " +
+                 duration_text(t.span_s) + ").\n";
+        } else {
+            o += describe_trend(sp, t) + "\n";
+        }
+    }
+    if (res.subject && !series.empty() && series.front().second.size() < pts.size())
+        o += "(The process was in the tracked set for " + std::to_string(series.front().second.size()) + " of " +
+             std::to_string(pts.size()) + " samples; missing samples are not counted as zero.)\n";
+    if (insufficient) o += how_to_record();
+    else o += "Method: Mann-Kendall trend test plus a minimum effect size; consecutive samples are correlated, so treat "
+              "this as descriptive, not as a causal explanation.\n";
+    return o;
+}
+
+std::string Engine::render_group(const SystemState& s, const Resolution& res, const intent::IntentFrame& f) const {
+    if (!res.subject) return {};
+    const bool cpu = f.intent == Intent::process_cpu;
+    double cpu_sum = 0;
+    std::uint64_t mem_sum = 0;
+    std::size_t cpu_known = 0, mem_known = 0;
+    std::string rows;
+    for (std::size_t i = 0; i < res.group.size(); ++i) {
+        const auto* p = s.find_pid(res.group[i].pid);
+        if (p == nullptr) continue;
+        if (p->cpu_pct) cpu_sum += *p->cpu_pct, ++cpu_known;
+        if (auto m = p->info.memory_bytes()) mem_sum += *m, ++mem_known;
+        if (i < 5) {
+            rows += "  " + std::to_string(i + 1) + ". " + p->info.name + " (pid " + std::to_string(p->info.pid) + ")  " +
+                    (cpu ? (p->cpu_pct ? fmt::pct(*p->cpu_pct) : std::string("CPU n/a"))
+                         : (p->info.memory_bytes() ? fmt::bytes(*p->info.memory_bytes()) : std::string("memory n/a"))) +
+                    "\n";
+        }
+    }
+    if (res.group.size() > 5) rows += "  ... and " + std::to_string(res.group.size() - 5) + " more\n";
+    std::string o = std::to_string(res.group.size()) + " processes match '" + f.target.value + "'";
+    if (res.partial_matches > 0)
+        o += " (another " + std::to_string(res.partial_matches) + " contain it in their name and are not included)";
+    o += ".\n";
+    if (cpu && cpu_known > 0) o += "Together: " + fmt::pct(cpu_sum) + " of one core (" + std::to_string(cpu_known) + " readable).\n";
+    if (!cpu && mem_known > 0)
+        o += "Together: " + fmt::bytes(mem_sum) + " (" + std::to_string(mem_known) +
+             " readable; shared memory may be counted more than once).\n";
+    o += rows + "The analysis below is for the " + (cpu ? "busiest" : "largest") + " instance, pid " +
+         std::to_string(res.subject->pid) + ". Ask about another one by PID or e.g. 'the second one'.\n\n";
     return o;
 }
 

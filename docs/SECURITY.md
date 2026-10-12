@@ -49,9 +49,33 @@ pre/postcondition), so future actions cannot be registered carelessly.
   (`LinuxFixture.CgroupThrottlingAndPsiFromFixtureTree`).
 * `/proc/<pid>/stat` parsing uses the last `)` so hostile `comm` values
   (spaces, parentheses) cannot shift fields (`LinuxParse.ProcStatWithHostileComm`).
-* Model files are validated before use: magic, known architecture, tensor
-  shapes against the header, bounded dimensions, truncation, dtype
-  (`Inference.RejectsMalformedFiles`). Only the embedding may be int8.
+* **Model files are untrusted input.** The loader (`IntentModel::load`)
+  enforces the limits and rules in [`MODEL_FORMAT.md`](MODEL_FORMAT.md):
+  * A size cap, checked before the file is read.
+  * Strict number parsing.
+  * Checked arithmetic for shape products and offsets, so nothing is
+    allocated before its bytes are known to exist.
+  * No duplicate keys, tensors or labels.
+  * Labels restricted to `[A-Za-z0-9_-]`.
+  * No trailing bytes or unused tensors.
+  * Every weight finite and bounded (|w| ≤ 1e6), so the forward pass cannot
+    overflow.
+
+  A malformed file fails with an error and never crashes the process. Coverage:
+  * `InferenceHardening.*`, including a deterministic mutation test;
+  * a libFuzzer harness (`tests/fuzz/`) that runs in CI under ASan and UBSan.
+
+  Fuzzing has already found one defect: finite weights near `FLT_MAX`
+  produced NaN probabilities.
+* **Parser output is untrusted.** Before a frame is built, an intent outside
+  the enum becomes `unsupported` and a non-finite confidence becomes 0. A
+  frame that fails validation is refused before anything is observed.
+  Action requests are always refused and audited, whatever the target
+  (`Safety.*` tests).
+* **Model lookup never uses the working directory.** A model file in an
+  arbitrary directory cannot change how questions are interpreted. An
+  explicitly requested model that fails to load is an error, not a silent
+  fallback.
 
 ## Memory/UB safety
 
@@ -63,9 +87,30 @@ access on macOS). Sanitizer builds compile GoogleTest from source
 
 ## Privacy
 
-Everything runs locally. No network access is required at runtime, no
-telemetry is sent, and no utterance or observation leaves the process. The
-audit log is written only when `--audit` is given.
+Everything runs locally:
+- No network access is required at runtime, and no telemetry is sent.
+- No utterance or observation leaves the process.
+- The audit log is written only when `--audit` is given.
+
+History of process names and resource use is held **in memory only**:
+- It is bounded (default 720 samples of at most 32 processes).
+- It is discarded when the process exits.
+- Beyond the sample taken to answer each question, periodic recording happens
+  only with the explicit `--watch` option.
+
+## Reporting a vulnerability
+
+Please report security issues privately via GitHub's "Report a vulnerability"
+(Security tab of the repository) rather than in a public issue. Useful
+reports include the OSIE version (`osie version`), the platform and a
+minimal reproduction, for example a model file or an utterance.
+
+In scope:
+- a way to make OSIE change system state;
+- a way to read data it should report as unavailable;
+- a crash or memory error on malformed input (model files, `/proc`
+  contents, utterances);
+- model lookup loading a file the user did not choose.
 
 ## Future actions (not implemented)
 

@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, name: macos-arm64 }
+          - { os: ubuntu-24.04, name: linux-x86_64 }
+          - { os: ubuntu-24.04-arm, name: linux-arm64 }
+    name: test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja googletest
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libgtest-dev
+      - name: Build
+        run: cmake -S . -B build -G Ninja -DOSIE_WERROR=ON -DOSIE_BUILD_BENCHMARKS=OFF && ninja -C build
+      - name: Unit tests
+        run: ./build/osie_unit_tests
+      - name: Platform tests (live kernel)
+        run: ./build/osie_platform_tests
+      - name: ASan + UBSan
+        run: |
+          cmake -S . -B build-asan -G Ninja -DOSIE_SANITIZE=address,undefined -DCMAKE_BUILD_TYPE=Debug -DOSIE_BUILD_BENCHMARKS=OFF
+          ninja -C build-asan
+          ./build-asan/osie_unit_tests
+          ./build-asan/osie_platform_tests
+      - name: TSan (unit tests)
+        run: |
+          cmake -S . -B build-tsan -G Ninja -DOSIE_SANITIZE=thread -DCMAKE_BUILD_TYPE=Debug -DOSIE_BUILD_BENCHMARKS=OFF
+          ninja -C build-tsan osie_unit_tests
+          ./build-tsan/osie_unit_tests
+      - name: Install and smoke-test the package
+        run: |
+          cmake -S . -B build-rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF -DOSIE_PORTABLE=ON
+          ninja -C build-rel osie
+          (cd build-rel && cpack -G TGZ)
+          packaging/smoke_test.sh build-rel/osie-*.tar.gz
+
+  fuzz:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build clang libclang-rt-18-dev
+      - name: Build libFuzzer harness (ASan + UBSan)
+        run: |
+          cmake -S . -B build-fuzz -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang \
+                -DOSIE_FUZZ=ON -DOSIE_SANITIZE=address,undefined -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF
+          ninja -C build-fuzz osie_fuzz_model
+      - name: Fuzz the model loader (5 minutes, seeded with tiny models of each architecture)
+        run: |
+          mkdir -p corpus && cp tests/fuzz/seeds/*.osiem corpus/
+          ./build-fuzz/osie_fuzz_model -max_total_time=300 -max_len=8192 -rss_limit_mb=2048 corpus
+
+  python-parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build && pip install numpy
+      - run: cmake -S . -B build -G Ninja -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF && ninja -C build osie_eval
+      - name: C++/Python tokenizer and feature-hash parity
+        run: python3 ml/evaluation/check_parity.py build/osie_eval
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4

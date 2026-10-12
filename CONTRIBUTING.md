@@ -74,6 +74,21 @@ python3 ml/evaluation/check_parity.py build/osie_eval   # if you touched tokeniz
 `clang-tidy` is configured in `.clang-tidy`; please run it on files you change
 (`run-clang-tidy -p build <paths>`).
 
+CI (`.github/workflows/ci.yml`) runs all of the above on macOS arm64, Linux
+x86_64 and Linux arm64, plus a package smoke test. If you change the model
+loader (`src/inference/neural_parser.cpp`), also fuzz it. libFuzzer needs
+clang with `libclang-rt`, which the Linux dev image has:
+
+```bash
+docker run --rm -v "$PWD":/src:ro osie-linux-dev bash -c '
+  cmake -S /src -B /tmp/f -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang \
+        -DOSIE_FUZZ=ON -DOSIE_SANITIZE=address,undefined -DOSIE_BUILD_TESTS=OFF && ninja -C /tmp/f osie_fuzz_model &&
+  mkdir -p /tmp/c && cp /src/tests/fuzz/seeds/* /tmp/c && /tmp/f/osie_fuzz_model -max_total_time=300 -max_len=8192 /tmp/c'
+```
+
+To check packaging, run `packaging/build_linux_release.sh <out-dir>`, then
+`packaging/smoke_test.sh <archive>`.
+
 ### Pull request checklist
 
 - [ ] Tests added or updated: unit tests with `tests/support/mock_os.hpp`
@@ -85,6 +100,8 @@ python3 ml/evaluation/check_parity.py build/osie_eval   # if you touched tokeniz
 - [ ] Claims in docs are backed by a test or a reproducible measurement.
 - [ ] No secrets, hostnames, personal paths or other machine-specific data in
       committed files (check `ml/experiments/results/` in particular).
+- [ ] Untrusted input (model files, `/proc` contents, utterances, parser
+      output) is validated with explicit limits, and has negative tests.
 
 ## Code style
 
@@ -130,8 +147,9 @@ and the output of `osie snapshot --json` (review it first; it contains
 process counts and system metadata, but no process names).
 
 For security issues (for example, a way to make OSIE change system state or
-read data it should report as unavailable), please contact the maintainer
-privately instead of opening a public issue.
+read data it should report as unavailable), please report privately as
+described in [`docs/SECURITY.md`](docs/SECURITY.md#reporting-a-vulnerability)
+instead of opening a public issue.
 
 ## License
 
