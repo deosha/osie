@@ -1,0 +1,8 @@
+{
+ "model": "mech_psi_mlp_h16",
+ "mode": "mechanistic_psi",
+ "params": 609,
+ "parity_max_abs_diff": 1.3863532899449638e-07,
+ "parity_episodes": 96,
+ "abstained_on_test": 2
+}

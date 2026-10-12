@@ -45,6 +45,8 @@ enum class EdgeNature : std::uint8_t {
     observed,      // read directly from a native interface
     inferred,      // deterministically derived from observations (e.g. unit from cgroup path)
     hypothesized,  // probabilistic causal relation; requires evidence before use
+    associated,    // statistical association measured in data; not a causal claim
+    experimental,  // effect measured under randomised, controlled interventions (in the stated environment)
 };
 std::string_view to_string(EdgeNature n) noexcept;
 

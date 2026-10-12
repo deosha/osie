@@ -20,6 +20,7 @@ enum class ModelSource { explicit_path, environment, user_data_dir, bundled, non
 std::string_view to_string(ModelSource s) noexcept;
 
 struct ModelSearch {
+    std::string file_name{"intent.osiem"};     // looked up as <dir>/models/<file_name>
     std::optional<std::string> explicit_path;  // --model
     std::optional<std::string> env_path;       // $OSIE_MODEL
     std::optional<std::string> data_dir;       // e.g. ~/.local/share/osie
@@ -45,7 +46,10 @@ ModelLocation locate_model(const ModelSearch& search);
 /// The search inputs for this process: environment, platform data directory
 /// ($XDG_DATA_HOME/osie or ~/.local/share/osie on Linux,
 /// ~/Library/Application Support/osie on macOS) and the executable's path.
-ModelSearch default_model_search(std::optional<std::string> explicit_path);
+/// `env_var` names the override variable ($OSIE_MODEL for the intent model,
+/// $OSIE_WORLD_MODEL for the CPU world model).
+ModelSearch default_model_search(std::optional<std::string> explicit_path, std::string file_name = "intent.osiem",
+                                 const char* env_var = "OSIE_MODEL");
 
 /// Absolute path of the running executable (/proc/self/exe or
 /// _NSGetExecutablePath), symlinks resolved.

@@ -117,6 +117,12 @@ needed**. The model is used only with `--parser hybrid` or
    layout.
 5. None found: OSIE uses the rule parser and says so.
 
+The CPU world model used by `osie predict` (Linux) is looked up the same way:
+1. `--world-model PATH`
+2. `$OSIE_WORLD_MODEL`
+3. the user data directory
+4. `<prefix>/share/osie/models/world_cpu.osiewm`
+
 The **current working directory is never searched**, so a stray model file
 cannot change how OSIE reads your questions. If you name a model in (1) or
 (2) and it fails to load, OSIE exits with an error instead of quietly using

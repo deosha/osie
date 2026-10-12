@@ -13,6 +13,7 @@ Status: research prototype. The project milestones are defined, with status
 and evidence, in [`docs/MILESTONES.md`](docs/MILESTONES.md).
 - Milestones 1–5 are implemented and verified on **macOS 15 (Apple M4 Pro)** and **Linux (Ubuntu 24.04, kernel 6.10)**.
 - Milestone 6 (Kubernetes) is a design document only.
+- Milestone 8 adds a **predictive CPU world model** for Linux. `osie predict` answers "what if this cgroup's CPU quota changed?". It is validated in one environment only; see [`docs/WORLD_MODEL_RESULTS.md`](docs/WORLD_MODEL_RESULTS.md).
 - Iteration 2 added three things, audited in [`docs/NEXT_ITERATION_AUDIT.md`](docs/NEXT_ITERATION_AUDIT.md):
   - a hardened and fuzzed model loader, plus safer process identity;
   - installable packages and CI;
@@ -105,6 +106,15 @@ osie --parser hybrid ...               # use the trained intent model instead of
 osie --audit audit.jsonl ...           # log every policy decision
 ```
 
+On Linux, `osie predict --cpu-quota 2 --name api` (or, in a session,
+`predict cpu quota 2 for api`) estimates the cgroup's CPU usage, throttling and
+CPU pressure under the new quota:
+- each estimate comes with calibrated 80% and 95% intervals;
+- OSIE gives no numbers when the case is outside what the model was
+  validated on;
+- it never predicts application latency, which OSIE cannot observe;
+- it never applies the change.
+
 Questions about change over time are answered only from samples OSIE itself
 recorded in the current session. With too little history OSIE says so, and
 never guesses from one snapshot. Examples: "has CPU usage increased in the
@@ -156,12 +166,19 @@ CI (`.github/workflows/ci.yml`) runs:
 | Knowledge graph | typed nodes/edges, enforced schema, provenance, temporal validity, platform sets, and edge nature (invariant / observed / inferred / hypothesized), with documentation references; 31-concept ontology; incremental instance updates |
 | Reasoning | CPU, memory, slowness, per-process CPU/memory, concept explanations; findings typed as observation / hypothesis / correlation / causal explanation / investigation / proposal; missing evidence always listed |
 | Conversation | follow-ups ("what about cpu?"), references ("it", "the second one") that expire after 10 min, (pid, start time) identity with PID-reuse detection, explicit handling of names that match several processes, observation freshness and reuse |
+| Prediction (Linux) | read-only `osie predict`; CPU usage, throttling and PSI under a hypothetical quota or cpuset change. Uses a shared C++ feature encoder, a 16 KB model, conformal intervals, OOD abstention, and mechanisms from the graph. |
 | Temporal | bounded in-memory history (no daemon, no disk); trend, onset, recovery and "which process is growing" from a Mann–Kendall test plus an effect-size floor; insufficient history reported, never guessed |
 | Intent models | dataset generator with leakage controls; rules, TF-IDF, bag, CNN and BiGRU (17k–9.6M params), 3 seeds; dependency-free C++ inference with int8 option; hardened loader ([`docs/MODEL_FORMAT.md`](docs/MODEL_FORMAT.md)) fuzzed in CI |
 | Distribution | install rules, `.tar.gz`/`.deb`/`.rpm` via CPack, glibc 2.35 baseline, release workflow with checksums and provenance, clean-environment smoke test |
 | Experiments | isolated Linux CPU-contention study (`tools/cpu_lab.cpp`) |
 
-## Key results (details in [`docs/RESEARCH.md`](docs/RESEARCH.md))
+## Key results (details in [`docs/RESEARCH.md`](docs/RESEARCH.md) and [`docs/WORLD_MODEL_RESULTS.md`](docs/WORLD_MODEL_RESULTS.md))
+
+- **Predicting the effect of a CPU quota change: the mechanism beat learning outside the training workloads.** The setup was 752 randomised interventions in disposable Linux containers (one VM environment).
+  - A zero-parameter model built on one measured kernel fact (demand ≈ usage + throttled CPU time) was best for usage and throttling on unseen workload families, quotas and workload classes. On batch jobs its error was 0.005 cores.
+  - A 660-parameter learned hybrid won only on runs of the training families. On batch jobs it was off by 0.4 cores.
+  - OSIE ships the mechanism plus a small learned model for CPU pressure. Prediction takes ~1 µs.
+  - Application latency could not be predicted from OS telemetry on unseen workloads, so OSIE never predicts it.
 
 - **Rules ≈ tiny models for language.**
   - On held-out sets the zero-parameter rule parser scores 65.5% (synthetic test) and 71.0% (hand-written) end-to-end.
@@ -198,6 +215,7 @@ packaging/          release builder image, Linux package script, clean-environme
 
 - **Read-only.** OSIE observes and explains; it never tunes. Predictions are never presented as observations.
 - **No privileges.** It does not escalate. On macOS about 190 root-owned processes are only partly visible, and OSIE says so.
+- **Predictions are validated in one environment.** That is one Linux 6.10 arm64 VM with synthetic workloads. CPU-pressure predictions are weak, and the out-of-distribution check misses some unfamiliar workload types.
 - **Short history only.** One 0.5 s sampling window per question. Trends need samples recorded in the same session (`--watch`); nothing is persisted between sessions.
 - **macOS gaps.** No public API for temperatures or CPU frequency, or for mapping a PID to its launchd job label.
 - **Templated answers.** Answers are deterministic templates, not open-ended conversation. The intent model (~0.3M parameters) classifies questions; it does not generate text.

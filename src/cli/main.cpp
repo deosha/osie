@@ -5,7 +5,9 @@
 #include <condition_variable>
 #include <cstdio>
 #include <cstring>
+#include <cmath>
 #include <mutex>
+#include <sstream>
 #include <thread>
 #include <iostream>
 #include <string>
@@ -15,6 +17,7 @@
 #include "osie/engine/engine.hpp"
 #include "osie/inference/model_locator.hpp"
 #include "osie/inference/neural_parser.hpp"
+#include "osie/prediction/world_model.hpp"
 #include "osie/util/format.hpp"
 #include "osie/util/json.hpp"
 
@@ -32,6 +35,10 @@ struct Options {
     std::string audit_path;
     long interval_ms = 500;
     long watch_s = 0;  // opt-in periodic sampling into the in-memory history
+    std::string world_model_path;
+    std::optional<double> cpu_quota, cpuset;  // predict
+    std::optional<long> pid;
+    std::string cgroup, process_name;
     long for_s = 0;    // `ask`: sample for this long before answering
     bool json = false;
     bool verbose = false;
@@ -50,6 +57,9 @@ void usage() {
         "  caps                list capabilities and policy decisions\n"
         "  graph               knowledge-graph statistics (--dot for Graphviz, --concepts for ontology only)\n"
         "  version             version, platform and where the intent model is looked up\n"
+        "  predict             Linux: predict a cgroup's CPU usage/throttling under a hypothetical change\n"
+        "                      --cpu-quota CORES | --cpuset N, and --pid P | --name NAME | --cgroup PATH\n"
+        "                      (read-only: nothing is changed; see docs/WORLD_MODEL.md)\n"
         "options:\n"
         "  --json              machine-readable output\n"
         "  --verbose           include all evidence and documentation references\n"
@@ -58,6 +68,7 @@ void usage() {
         "                      then the model installed with the binary; see docs/INSTALL.md)\n"
         "  --interval MS       sampling window for rates (default 500)\n"
         "  --audit FILE        append policy decisions as JSON lines\n"
+        "  --world-model PATH  CPU world model (default: $OSIE_WORLD_MODEL, data dir, installed world_cpu.osiewm)\n"
         "  --watch SECONDS     record CPU/memory/top processes every SECONDS while the session is open\n"
         "                      (in memory only; enables questions such as 'has CPU usage increased?')\n"
         "  --for SECONDS       with ask: sample for SECONDS (every --watch seconds, default 2) before answering");
@@ -81,6 +92,25 @@ bool parse_args(int argc, char** argv, Options& o) {
             if (o.parser != "rules" && o.parser != "hybrid" && o.parser != "neural") return false;
         }
         else if (a == "--version") { o.command = "version"; }
+        else if (a == "--world-model") { if (!next(o.world_model_path)) return false; }
+        else if (a == "--cpu-quota" || a == "--cpuset") {
+            std::string v;
+            if (!next(v)) return false;
+            char* end = nullptr;
+            const double d = std::strtod(v.c_str(), &end);
+            if (end == v.c_str() || *end != '\0' || !std::isfinite(d)) return false;
+            (a == "--cpu-quota" ? o.cpu_quota : o.cpuset) = d;
+        }
+        else if (a == "--pid") {
+            std::string v;
+            if (!next(v)) return false;
+            char* end = nullptr;
+            const long d = std::strtol(v.c_str(), &end, 10);
+            if (end == v.c_str() || *end != '\0' || d <= 0) return false;
+            o.pid = d;
+        }
+        else if (a == "--cgroup") { if (!next(o.cgroup)) return false; }
+        else if (a == "--name") { if (!next(o.process_name)) return false; }
         else if (a == "--watch" || a == "--for") {
             std::string v;
             if (!next(v)) return false;
@@ -163,6 +193,57 @@ std::unique_ptr<intent::IIntentParser> make_parser(const Options& o, std::string
     auto shared = std::make_shared<inference::IntentModel>(std::move(model).value());
     if (o.parser == "neural") return std::make_unique<inference::NeuralParser>(shared);
     return std::make_unique<inference::HybridParser>(shared);
+}
+
+/// Loads the CPU world model if one is found. A model the user named
+/// explicitly that fails to load is reported as an error.
+bool load_world_model(Engine& e, const Options& o) {
+    const auto loc = inference::locate_model(inference::default_model_search(
+        o.world_model_path.empty() ? std::nullopt : std::optional<std::string>(o.world_model_path), "world_cpu.osiewm",
+        "OSIE_WORLD_MODEL"));
+    if (loc.source == inference::ModelSource::none) return true;
+    auto m = predict::WorldModel::load(loc.path);
+    if (!m) {
+        std::fprintf(stderr, "%s: world model %s failed to load: %s\n", loc.user_requested() ? "error" : "warning",
+                     loc.path.c_str(), m.error().describe().c_str());
+        return !loc.user_requested();
+    }
+    e.set_world_model(*m);
+    return true;
+}
+
+/// "predict cpu quota 1.5 for nginx", "predict cpuset 2 for pid 123",
+/// "predict cpu quota 2 for cgroup /system.slice/x.service".
+std::optional<std::string> repl_predict(Engine& e, const std::string& line) {
+    std::istringstream is(line);
+    std::vector<std::string> w;
+    for (std::string t; is >> t;) w.push_back(t);
+    if (w.empty() || w[0] != "predict") return std::nullopt;
+    const std::string usage = "usage: predict cpu quota <cores> for <name | pid N | cgroup PATH>\n"
+                              "       predict cpuset <cpus> for <name | pid N | cgroup PATH>\n";
+    std::size_t i = 1;
+    predict::ActionKind kind{};
+    if (w.size() > 3 && w[1] == "cpu" && w[2] == "quota") {
+        kind = predict::ActionKind::cpu_quota;
+        i = 3;
+    } else if (w.size() > 2 && w[1] == "cpuset") {
+        kind = predict::ActionKind::cpuset;
+        i = 2;
+    } else {
+        return usage;
+    }
+    char* end = nullptr;
+    const double v = std::strtod(w[i].c_str(), &end);
+    if (end == w[i].c_str() || *end != '\0' || !std::isfinite(v) || i + 2 >= w.size() + 1 || i + 1 >= w.size() ||
+        w[i + 1] != "for" || i + 2 >= w.size())
+        return usage;
+    PredictTarget t;
+    if (w[i + 2] == "pid" && i + 3 < w.size()) t.pid = static_cast<Pid>(std::strtol(w[i + 3].c_str(), nullptr, 10));
+    else if (w[i + 2] == "cgroup" && i + 3 < w.size()) t.cgroup = w[i + 3];
+    else {
+        for (std::size_t k = i + 2; k < w.size(); ++k) t.process_name += (t.process_name.empty() ? "" : " ") + w[k];
+    }
+    return e.predict(t, kind, v).text;
 }
 
 int print_version(const Options& o) {
@@ -357,6 +438,10 @@ int repl(Engine& e, Options& o, const std::string& note) {
                 std::printf("  [%s] %s\n", std::string(intent::to_string(i)).c_str(), u.c_str());
             continue;
         }
+        if (auto p = repl_predict(e, line)) {
+            std::fputs(("\n" + *p + "\n").c_str(), stdout);
+            continue;
+        }
         auto a = e.ask(line);
         if (o.json) {
             std::puts(answer_json(a).c_str());
@@ -395,6 +480,7 @@ int main(int argc, char** argv) {
     if (!o.audit_path.empty()) {
         if (auto r = e.audit().open_file(o.audit_path); !r) std::fprintf(stderr, "warning: %s\n", r.error().describe().c_str());
     }
+    if (!load_world_model(e, o)) return 1;
     if (!note.empty() && o.command != "repl" && note.rfind("model: ", 0) != 0) std::fprintf(stderr, "note: %s\n", note.c_str());
 
     if (o.command == "repl") return repl(e, o, note);
@@ -420,6 +506,49 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (o.command == "snapshot") { print_snapshot(e, o.json); return 0; }
+    if (o.command == "predict") {
+        if (o.cpu_quota.has_value() == o.cpuset.has_value()) {
+            std::fputs("predict: give exactly one of --cpu-quota CORES or --cpuset N\n", stderr);
+            return 2;
+        }
+        PredictTarget t;
+        if (o.pid) t.pid = static_cast<Pid>(*o.pid);
+        t.cgroup = o.cgroup;
+        t.process_name = !o.process_name.empty() ? o.process_name : o.text;
+        if (!t.pid && t.cgroup.empty() && t.process_name.empty()) {
+            std::fputs("predict: give --pid P, --name NAME or --cgroup PATH\n", stderr);
+            return 2;
+        }
+        auto r = e.predict(t, o.cpu_quota ? predict::ActionKind::cpu_quota : predict::ActionKind::cpuset,
+                           o.cpu_quota ? *o.cpu_quota : *o.cpuset);
+        if (o.json) {
+            json::Writer w;
+            w.begin_object().kv("answered", r.answered).kv("cgroup", r.cgroup).kv("text", r.text);
+            if (r.prediction) {
+                const auto& p = *r.prediction;
+                w.kv("model", p.model_id).kv("abstained", p.abstained).kv("out_of_distribution", p.out_of_distribution);
+                w.key("reasons").begin_array();
+                for (const auto& x : p.reasons) w.value(x);
+                w.end_array().key("targets").begin_array();
+                for (const auto& t2 : p.targets) {
+                    w.begin_object().kv("name", t2.name).kv("unit", t2.unit).kv("current", t2.current);
+                    if (!p.abstained) {
+                        w.kv("expected", t2.expected).key("intervals").begin_array();
+                        for (const auto& iv : t2.intervals)
+                            w.begin_object().kv("level", iv.level).kv("lo", iv.lo).kv("hi", iv.hi).end_object();
+                        w.end_array();
+                    }
+                    w.end_object();
+                }
+                w.end_array();
+            }
+            w.end_object();
+            std::puts(w.str().c_str());
+        } else {
+            std::fputs(r.text.c_str(), stdout);
+        }
+        return r.answered ? 0 : 3;
+    }
     if (o.command == "caps") { print_caps(e, o.json); return 0; }
     if (o.command == "graph") { print_graph(e, o); return 0; }
     usage();

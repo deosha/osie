@@ -150,3 +150,19 @@ TEST(Systemd, UnitFromCgroupPath) {
     EXPECT_FALSE(systemd_unit_from_cgroup("/"));
     EXPECT_FALSE(systemd_unit_from_cgroup("/kubepods/burstable/pod1"));
 }
+
+TEST(Ontology, ExperimentalEdgesAreLabelledAndReferenced) {
+    KnowledgeGraph g;
+    load_ontology(g);
+    std::size_t experimental = 0;
+    for (const auto* n = g.find(NodeKind::concept_, concept_key::cpu_quota); n != nullptr; n = nullptr)
+        for (auto eid : g.out_edges(n->id)) {
+            const auto& e = g.edge(eid);
+            if (e.nature != EdgeNature::experimental) continue;
+            ++experimental;
+            EXPECT_NE(e.doc_ref.find("WORLD_MODEL_RESULTS"), std::string::npos);
+            EXPECT_LT(e.confidence, 1.0F);
+        }
+    EXPECT_GE(experimental, 1U);
+    EXPECT_TRUE(g.check_consistency().empty());
+}

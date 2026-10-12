@@ -54,6 +54,8 @@ set(OSIE_CORE_SOURCES
   src/intent/rule_parser.cpp
   src/inference/neural_parser.cpp
   src/inference/model_locator.cpp
+  src/prediction/features.cpp
+  src/prediction/world_model.cpp
   src/engine/engine.cpp
 )
 
@@ -96,10 +98,18 @@ target_compile_definitions(osie PRIVATE OSIE_VERSION="${PROJECT_VERSION}")
 add_custom_command(TARGET osie POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/intent.osiem
           ${CMAKE_BINARY_DIR}/share/osie/models/intent.osiem)
+if(EXISTS ${CMAKE_SOURCE_DIR}/models/world_cpu.osiewm)
+  add_custom_command(TARGET osie POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/world_cpu.osiewm
+            ${CMAKE_BINARY_DIR}/share/osie/models/world_cpu.osiewm)
+endif()
 if(OSIE_PORTABLE AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # Release archives: avoid depending on the target system's libstdc++ version.
   target_link_options(osie PRIVATE -static-libstdc++ -static-libgcc)
 endif()
+
+add_executable(osie_wm_lab tools/world_model_lab.cpp)  # world-model data collection (serve: Linux only) and encoding
+target_link_libraries(osie_wm_lab PRIVATE osie_core)
 
 add_executable(osie_eval tools/osie_eval.cpp)
 target_link_libraries(osie_eval PRIVATE osie_core)
@@ -178,6 +188,7 @@ endif()
 include(GNUInstallDirs)
 install(TARGETS osie RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES models/intent.osiem DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models)
+install(FILES models/world_cpu.osiewm DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models OPTIONAL)
 install(FILES LICENSE README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
 
 # ------------------------------------------------------------------ cpack ---

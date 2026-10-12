@@ -1,0 +1,333 @@
+// SPDX-License-Identifier: Apache-2.0
+#include "osie/prediction/world_model.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <fstream>
+#include <set>
+#include <sstream>
+
+namespace osie::predict {
+namespace {
+
+std::vector<std::string> split_ws(std::string_view s) {
+    std::vector<std::string> v;
+    std::istringstream is{std::string(s)};
+    for (std::string w; is >> w;) v.push_back(w);
+    return v;
+}
+
+bool valid_token(std::string_view s) {
+    return !s.empty() && s.size() <= 64 && std::all_of(s.begin(), s.end(), [](char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' ||
+               c == '.' || c == '/';
+    });
+}
+
+std::optional<double> parse_double(const std::string& s) {
+    if (s.empty() || s.size() > 40) return std::nullopt;
+    char* end = nullptr;
+    const double v = std::strtod(s.c_str(), &end);
+    if (end != s.c_str() + s.size() || !std::isfinite(v)) return std::nullopt;
+    return v;
+}
+
+/// Mean of a history quantity with the same definition as the training target.
+double current_value(const std::string& target, const std::vector<CgroupWindow>& h) {
+    double s = 0;
+    for (const auto& w : h) {
+        if (target == "usage_cores") s += w.usage_cores;
+        else if (target == "throttled_cores") s += w.throttled_frac.value_or(0.0);
+        else if (target == "throttled_ratio") s += w.throttled_ratio.value_or(0.0);
+        else if (target == "psi_some") s += w.psi_some.value_or(0.0);
+    }
+    return h.empty() ? 0.0 : s / static_cast<double>(h.size());
+}
+
+}  // namespace
+
+Result<std::shared_ptr<WorldModel>> WorldModel::load(const std::string& path) {
+    std::ifstream in(path, std::ios::binary | std::ios::ate);
+    if (!in) return make_error(Errc::not_found, "cannot open world model " + path);
+    const auto size = in.tellg();
+    if (size < 0 || static_cast<std::uint64_t>(size) > wm_limits::max_file_bytes)
+        return make_error(Errc::parse_error, "world model file too large or unreadable");
+    std::string text(static_cast<std::size_t>(size), '\0');
+    in.seekg(0);
+    if (!in.read(text.data(), size)) return make_error(Errc::io_error, "cannot read " + path);
+    return load_from_memory(text);
+}
+
+Result<std::shared_ptr<WorldModel>> WorldModel::load_from_memory(std::string_view text) {
+    auto bad = [](std::string m) { return make_error(Errc::parse_error, "world model: " + std::move(m)); };
+    if (text.size() > wm_limits::max_file_bytes) return bad("file too large");
+    std::shared_ptr<WorldModel> m(new WorldModel());
+    std::istringstream is{std::string(text)};
+    std::string line;
+    if (!std::getline(is, line) || line != "OSIEWM1") return bad("bad magic (expected OSIEWM1)");
+    std::size_t lines = 0;
+    std::set<std::string> seen;
+    bool ended = false;
+    std::vector<std::pair<std::string, std::pair<double, double>>> conformal;  // name, (level, width)
+    std::vector<std::pair<std::string, double>> abstain;
+    auto numbers = [&](const std::vector<std::string>& w, std::vector<double>& out) -> bool {
+        out.clear();
+        out.reserve(w.size() - 1);
+        for (std::size_t i = 1; i < w.size(); ++i) {
+            auto v = parse_double(w[i]);
+            if (!v || std::fabs(*v) > wm_limits::max_abs_weight) return false;
+            out.push_back(*v);
+        }
+        return true;
+    };
+    while (std::getline(is, line)) {
+        if (++lines > wm_limits::max_lines) return bad("too many lines");
+        auto w = split_ws(line);
+        if (w.empty() || w[0][0] == '#') continue;
+        const auto& k = w[0];
+        const bool repeatable = k == "target" || k == "conformal" || k == "abstain_width" || k == "action" || k == "meta";
+        if (!repeatable && !seen.insert(k).second) return bad("duplicate key " + k);
+        if (k == "end") {
+            ended = true;
+            break;
+        } else if (k == "id" && w.size() == 2 && valid_token(w[1])) {
+            m->id_ = w[1];
+        } else if (k == "kind" && w.size() == 2 && (w[1] == "linear" || w[1] == "mlp")) {
+            m->kind_ = w[1];
+        } else if (k == "history" && w.size() == 2) {
+            auto v = parse_double(w[1]);
+            if (!v || *v < 1 || *v > 64 || std::floor(*v) != *v) return bad("history must be 1..64");
+            m->history_ = static_cast<std::size_t>(*v);
+        } else if (k == "window_s" && w.size() == 2) {
+            auto v = parse_double(w[1]);
+            if (!v || *v < 0.05 || *v > 60) return bad("window_s must be 0.05..60");
+            m->window_s_ = *v;
+        } else if (k == "features" && w.size() >= 2 && w.size() - 1 <= wm_limits::max_features) {
+            const auto& names = feature_names();
+            for (std::size_t i = 1; i < w.size(); ++i) {
+                auto it = std::find(names.begin(), names.end(), w[i]);
+                if (it == names.end()) return bad("unknown feature " + w[i] + " (feature schema mismatch)");
+                m->features_.push_back(w[i]);
+                m->feature_index_.push_back(static_cast<std::size_t>(it - names.begin()));
+            }
+        } else if (k == "mean" || k == "scale" || k == "ood_lo" || k == "ood_hi" || k == "w1" || k == "b1" ||
+                   k == "w2" || k == "b2") {
+            std::vector<double> v;
+            if (w.size() < 2 || !numbers(w, v)) return bad("bad numbers for " + k);
+            (k == "mean"     ? m->mean_
+             : k == "scale"  ? m->scale_
+             : k == "ood_lo" ? m->ood_lo_
+             : k == "ood_hi" ? m->ood_hi_
+             : k == "w1"     ? m->w1_
+             : k == "b1"     ? m->b1_
+             : k == "w2"     ? m->w2_
+                             : m->b2_) = std::move(v);
+        } else if (k == "ood_score_max" && w.size() == 2) {
+            auto v = parse_double(w[1]);
+            if (!v || *v <= 0) return bad("ood_score_max must be > 0");
+            m->ood_score_max_ = *v;
+        } else if (k == "hidden" && w.size() == 2) {
+            auto v = parse_double(w[1]);
+            if (!v || *v < 1 || *v > static_cast<double>(wm_limits::max_hidden) || std::floor(*v) != *v)
+                return bad("hidden must be 1.." + std::to_string(wm_limits::max_hidden));
+            m->hidden_ = static_cast<std::size_t>(*v);
+        } else if (k == "target" && w.size() == 6) {
+            if (m->targets_.size() >= wm_limits::max_targets) return bad("too many targets");
+            Target t;
+            t.name = w[1];
+            t.unit = w[2];
+            t.transform = w[3];
+            if (!valid_token(t.name) || !valid_token(t.unit) || (t.transform != "identity" && t.transform != "log1p"))
+                return bad("bad target line");
+            auto lo = parse_double(w[4]);
+            if (!lo) return bad("bad target bound");
+            t.lo = *lo;
+            if (w[5] == "cap") {
+                t.cap_bound = true;
+                t.hi = 1e9;
+            } else {
+                auto hi = parse_double(w[5]);
+                if (!hi || *hi <= *lo) return bad("bad target bound");
+                t.hi = *hi;
+            }
+            for (const auto& o : m->targets_)
+                if (o.name == t.name) return bad("duplicate target " + t.name);
+            m->targets_.push_back(std::move(t));
+        } else if (k == "conformal" && w.size() == 4) {
+            auto lvl = parse_double(w[2]), hw = parse_double(w[3]);
+            if (!lvl || *lvl <= 0 || *lvl >= 1 || !hw || *hw < 0) return bad("bad conformal line");
+            conformal.push_back({w[1], {*lvl, *hw}});
+        } else if (k == "abstain_width" && w.size() == 3) {
+            auto v = parse_double(w[2]);
+            if (!v || *v <= 0) return bad("bad abstain_width");
+            abstain.emplace_back(w[1], *v);
+        } else if (k == "action" && w.size() == 4) {
+            auto kind = action_from_string(w[1]);
+            auto lo = parse_double(w[2]), hi = parse_double(w[3]);
+            if (!kind || !lo || !hi || *hi < *lo) return bad("bad action line");
+            m->action_ranges_.push_back({*kind, {*lo, *hi}});
+        } else if (k == "residual_on" && w.size() == 2 && w[1] == "mechanistic") {
+            m->residual_on_mechanistic_ = true;
+        } else if (k == "provenance" && w.size() >= 2) {
+            // Printable ASCII only: shown to users verbatim.
+            const auto rest = line.substr(line.find("provenance") + 10);
+            if (rest.size() > 300 || !std::all_of(rest.begin(), rest.end(), [](char c) { return c >= 0x20 && c < 0x7f; }))
+                return bad("provenance must be printable ASCII, <= 300 characters");
+            m->provenance_ = rest.substr(rest.find_first_not_of(' '));
+        } else if (k == "meta") {
+            // free-form provenance (training data, date, metrics); ignored by inference
+        } else {
+            return bad("unknown or malformed line: " + k);
+        }
+    }
+    if (!ended) return bad("missing 'end' (truncated file)");
+    // ---- consistency -------------------------------------------------------
+    const std::size_t n = m->features_.size(), T = m->targets_.size();
+    if (m->id_.empty() || m->kind_.empty() || n == 0 || T == 0) return bad("incomplete header");
+    if (m->mean_.size() != n || m->scale_.size() != n || m->ood_lo_.size() != n || m->ood_hi_.size() != n)
+        return bad("feature statistics do not match the feature count");
+    if (std::any_of(m->scale_.begin(), m->scale_.end(), [](double s) { return !(s > 0); })) return bad("scale must be > 0");
+    if (m->ood_score_max_ <= 0) return bad("missing ood_score_max");
+    if (m->kind_ == "mlp") {
+        const std::size_t H = m->hidden_;
+        if (H == 0 || m->w1_.size() != H * n || m->b1_.size() != H || m->w2_.size() != T * H || m->b2_.size() != T)
+            return bad("MLP weight shapes do not match");
+    } else {
+        if (m->hidden_ != 0 || !m->w1_.empty() || m->w2_.size() != T * n || m->b2_.size() != T)
+            return bad("linear weight shapes do not match");
+    }
+    for (auto& t : m->targets_) {
+        for (const auto& [name, c] : conformal)
+            if (name == t.name) t.conformal.push_back(c);
+        for (const auto& [name, v] : abstain)
+            if (name == t.name) t.abstain_width = v;
+        if (t.conformal.empty()) return bad("target " + t.name + " has no calibrated interval");
+        std::sort(t.conformal.begin(), t.conformal.end());
+    }
+    for (const auto& [name, c] : conformal)
+        if (std::none_of(m->targets_.begin(), m->targets_.end(), [&](const Target& t) { return t.name == name; }))
+            return bad("conformal line for unknown target " + name);
+    if (m->action_ranges_.empty()) return bad("no supported actions");
+    return m;
+}
+
+bool WorldModel::supports(ActionKind k) const noexcept {
+    return std::any_of(action_ranges_.begin(), action_ranges_.end(), [k](const auto& r) { return r.first == k; });
+}
+
+std::size_t WorldModel::parameter_count() const noexcept { return w1_.size() + b1_.size() + w2_.size() + b2_.size(); }
+
+std::vector<double> WorldModel::forward(const std::vector<double>& z) const {
+    const std::size_t n = z.size(), T = targets_.size();
+    std::vector<double> y(T);
+    if (kind_ == "mlp") {
+        std::vector<double> h(hidden_);
+        for (std::size_t j = 0; j < hidden_; ++j) {
+            double a = b1_[j];
+            for (std::size_t i = 0; i < n; ++i) a += w1_[j * n + i] * z[i];
+            h[j] = std::max(0.0, a);
+        }
+        for (std::size_t t = 0; t < T; ++t) {
+            double a = b2_[t];
+            for (std::size_t j = 0; j < hidden_; ++j) a += w2_[t * hidden_ + j] * h[j];
+            y[t] = a;
+        }
+    } else {
+        for (std::size_t t = 0; t < T; ++t) {
+            double a = b2_[t];
+            for (std::size_t i = 0; i < n; ++i) a += w2_[t * n + i] * z[i];
+            y[t] = a;
+        }
+    }
+    return y;
+}
+
+Result<WorldPrediction> WorldModel::predict(const std::vector<CgroupWindow>& history_in, const Intervention& a) const {
+    if (history_in.empty()) return make_error(Errc::unavailable, "no observation windows");
+    if (!supports(a.kind))
+        return make_error(Errc::unsupported, "this model was not trained for '" + std::string(to_string(a.kind)) + "' interventions");
+    // Use the most recent windows, as in training.
+    const std::size_t take = std::min(history_, history_in.size());
+    const std::vector<CgroupWindow> hist(history_in.end() - static_cast<std::ptrdiff_t>(take), history_in.end());
+    auto enc = encode(hist, a);
+    if (!enc) return enc.error();
+
+    WorldPrediction p;
+    p.action = a;
+    p.model_id = id_;
+    p.history_windows = hist.size();
+    p.missing = enc->missing;
+    if (hist.size() < history_) {
+        p.out_of_distribution = true;
+        p.reasons.push_back("only " + std::to_string(hist.size()) + " of the " + std::to_string(history_) +
+                            " observation windows the model was trained with");
+    }
+    if (!p.missing.empty()) {
+        p.out_of_distribution = true;
+        p.reasons.push_back("required telemetry unavailable");
+    }
+    for (const auto& [kind, range] : action_ranges_) {
+        if (kind != a.kind || kind == ActionKind::none) continue;
+        for (double v : {a.previous, a.proposed}) {
+            if (v < range.first - 1e-9 || v > range.second + 1e-9) {
+                p.out_of_distribution = true;
+                p.reasons.push_back(std::string(to_string(kind)) + " value " + std::to_string(v) +
+                                    " is outside the validated range " + std::to_string(range.first) + "-" +
+                                    std::to_string(range.second));
+            }
+        }
+    }
+    std::vector<double> z(features_.size());
+    double score = 0;
+    for (std::size_t i = 0; i < features_.size(); ++i) {
+        const double x = enc->values[feature_index_[i]];
+        if (x < ood_lo_[i] || x > ood_hi_[i]) {
+            p.out_of_distribution = true;
+            p.reasons.push_back("feature " + features_[i] + " = " + std::to_string(x) + " is outside the training range");
+        }
+        z[i] = (x - mean_[i]) / scale_[i];
+        score += z[i] * z[i];
+    }
+    score /= static_cast<double>(features_.size());
+    if (score > ood_score_max_) {
+        p.out_of_distribution = true;
+        p.reasons.push_back("the observed state is unlike the training data (distance score " + std::to_string(score) + ")");
+    }
+
+    const auto raw = forward(z);
+    const double cap = capacity_after(hist.back(), a);
+    for (std::size_t t = 0; t < targets_.size(); ++t) {
+        const auto& tg = targets_[t];
+        TargetPrediction tp;
+        tp.name = tg.name;
+        tp.unit = tg.unit;
+        tp.current = current_value(tg.name, hist);
+        double v = tg.transform == "log1p" ? std::expm1(raw[t]) : raw[t];
+        if (residual_on_mechanistic_) {
+            const auto prior = mechanistic_prior(tg.name, enc->values);
+            if (!prior) return make_error(Errc::invalid_argument, "no mechanistic prior for target " + tg.name);
+            v += *prior;
+        }
+        const double hi = tg.cap_bound ? cap : tg.hi;
+        if (!std::isfinite(v)) v = tg.lo;
+        if (v < tg.lo || v > hi) tp.clamped = true;
+        tp.expected = std::clamp(v, tg.lo, std::max(tg.lo, hi));
+        for (const auto& [level, hw] : tg.conformal) {
+            tp.intervals.push_back(Interval{level, std::clamp(tp.expected - hw, tg.lo, std::max(tg.lo, hi)),
+                                            std::clamp(tp.expected + hw, tg.lo, std::max(tg.lo, hi))});
+        }
+        // The usefulness gate uses the primary (lowest-level) interval. Split-
+        // conformal widths do not depend on the state, so this is a check on the
+        // model as a whole; per-case abstention comes from the OOD checks above.
+        const double primary = tp.intervals.front().hi - tp.intervals.front().lo;
+        if (tg.abstain_width && primary > *tg.abstain_width) {
+            p.abstained = true;
+            p.reasons.push_back("the interval for " + tg.name + " is too wide to be useful");
+        }
+        p.targets.push_back(std::move(tp));
+    }
+    if (p.out_of_distribution) p.abstained = true;
+    return p;
+}
+
+}  // namespace osie::predict

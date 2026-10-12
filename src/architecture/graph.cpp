@@ -59,6 +59,8 @@ std::string_view to_string(EdgeNature n) noexcept {
         case EdgeNature::observed: return "observed";
         case EdgeNature::inferred: return "inferred";
         case EdgeNature::hypothesized: return "hypothesized";
+        case EdgeNature::associated: return "statistical association";
+        case EdgeNature::experimental: return "experimentally supported";
     }
     return "?";
 }
@@ -303,7 +305,8 @@ std::vector<std::string> KnowledgeGraph::check_consistency() const {
         if (e.nature == EdgeNature::hypothesized && e.confidence >= 1.0F) {
             v.push_back("hypothesized edge with certainty 1.0: " + a.key + "->" + b.key);
         }
-        if ((e.nature == EdgeNature::invariant || e.nature == EdgeNature::hypothesized) &&
+        if ((e.nature == EdgeNature::invariant || e.nature == EdgeNature::hypothesized ||
+             e.nature == EdgeNature::associated || e.nature == EdgeNature::experimental) &&
             a.kind == NodeKind::concept_ && e.doc_ref.empty()) {
             v.push_back("ontology edge without documentation reference: " + a.key + "->" + b.key);
         }

@@ -1,0 +1,232 @@
+{
+ "episodes_total": 600,
+ "episodes_valid": 600,
+ "runs": {
+  "train": 24,
+  "val": 8,
+  "test": 8,
+  "ood_family": 10
+ },
+ "episodes": {
+  "train": 288,
+  "val": 96,
+  "test": 96,
+  "ood_family": 120
+ },
+ "actions": {
+  "none": 77,
+  "cpu_quota": 329,
+  "cpuset": 102,
+  "offered_load": 92
+ },
+ "target_scale_train_std": {
+  "usage_cores": 0.5624117011633292,
+  "throttled_cores": 0.8378820370988913,
+  "throttled_ratio": 0.40140570133110964,
+  "psi_some": 0.3055642850596548
+ }
+}
+
+== Experiments 1-2: features x models
+ridge/generic          params=    104 val=0.485 test=0.495±0.000 ood=0.373 | vs mech test +0.270 [+0.221,+0.326] ood +0.306 [+0.273,+0.338]
+gbt/generic            params=  43180 val=0.308 test=0.340±0.000 ood=0.209 | vs mech test +0.116 [+0.086,+0.152] ood +0.142 [+0.116,+0.170]
+mlp_h16/generic        params=    484 val=0.237 test=0.223±0.005 ood=0.110 | vs mech test +0.002 [-0.036,+0.043] ood +0.030 [+0.010,+0.050]
+mlp_h128/generic       params=   3844 val=0.252 test=0.252±0.002 ood=0.164 | vs mech test +0.026 [-0.017,+0.072] ood +0.090 [+0.068,+0.117]
+mlp_2x384/generic      params= 159364 val=0.204 test=0.224±0.003 ood=0.092 | vs mech test -0.003 [-0.032,+0.027] ood +0.028 [+0.006,+0.047]
+ridge/mechanism        params=     80 val=0.350 test=0.349±0.000 ood=0.244 | vs mech test +0.124 [+0.091,+0.162] ood +0.177 [+0.139,+0.208]
+gbt/mechanism          params=  31468 val=0.203 test=0.230±0.000 ood=0.118 | vs mech test +0.005 [-0.046,+0.052] ood +0.051 [+0.030,+0.070]
+mlp_h16/mechanism      params=    388 val=0.208 test=0.225±0.008 ood=0.094 | vs mech test +0.006 [-0.025,+0.037] ood +0.030 [+0.011,+0.047]
+mlp_h128/mechanism     params=   3076 val=0.192 test=0.226±0.002 ood=0.097 | vs mech test +0.001 [-0.036,+0.033] ood +0.032 [+0.011,+0.053]
+mlp_2x384/mechanism    params= 157060 val=0.174 test=0.207±0.005 ood=0.071 | vs mech test -0.022 [-0.045,-0.002] ood +0.011 [-0.010,+0.029]
+ridge/both             params=    148 val=0.334 test=0.324±0.000 ood=0.247 | vs mech test +0.099 [+0.073,+0.124] ood +0.180 [+0.155,+0.206]
+gbt/both               params=  36240 val=0.172 test=0.190±0.000 ood=0.120 | vs mech test -0.034 [-0.061,-0.010] ood +0.053 [+0.042,+0.066]
+mlp_h16/both           params=    660 val=0.206 test=0.206±0.011 ood=0.094 | vs mech test -0.006 [-0.038,+0.023] ood +0.025 [+0.010,+0.043]
+mlp_h128/both          params=   5252 val=0.192 test=0.209±0.009 ood=0.129 | vs mech test -0.005 [-0.031,+0.022] ood +0.064 [+0.050,+0.079]
+mlp_2x384/both         params= 163588 val=0.158 test=0.172±0.005 ood=0.092 | vs mech test -0.060 [-0.089,-0.030] ood +0.027 [+0.002,+0.048]
+res_ridge/both         params=    148 val=0.291 test=0.286±0.000 ood=0.191 | vs mech test +0.062 [+0.027,+0.093] ood +0.124 [+0.105,+0.142]
+res_mlp_h16/both       params=    660 val=0.176 test=0.177±0.002 ood=0.086 | vs mech test -0.047 [-0.074,-0.021] ood +0.020 [+0.003,+0.038]
+no_change              val=0.482 test=0.332 ood=0.083
+mechanistic            val=0.264 test=0.225 ood=0.067
+
+== Experiment 4: history
+ridge/history1: 0.330
+gbt/history1: 0.210
+mlp_h16/history1: 0.207
+res_ridge/history1: 0.303
+res_mlp_h16/history1: 0.199
+ridge/history2: 0.328
+gbt/history2: 0.192
+mlp_h16/history2: 0.203
+res_ridge/history2: 0.285
+res_mlp_h16/history2: 0.179
+ridge/history4: 0.326
+gbt/history4: 0.194
+mlp_h16/history4: 0.196
+res_ridge/history4: 0.299
+res_mlp_h16/history4: 0.185
+ridge/history6: 0.324
+gbt/history6: 0.190
+mlp_h16/history6: 0.206
+res_ridge/history6: 0.286
+res_mlp_h16/history6: 0.177
+gru_h16 (raw windows + action): 0.219 params=2404
+gru_h32 (raw windows + action): 0.202 params=6852
+
+== Experiment 3: learning curves
+k=1 ridge/generic: 0.543±0.024 (48 episodes)
+k=1 gbt/generic: 0.654±0.026 (48 episodes)
+k=1 mlp_h16/generic: 0.440±0.024 (48 episodes)
+k=1 ridge/mechanism: 0.412±0.054 (48 episodes)
+k=1 gbt/mechanism: 0.455±0.033 (48 episodes)
+k=1 mlp_h16/mechanism: 0.330±0.020 (48 episodes)
+k=1 ridge/both: 0.415±0.035 (48 episodes)
+k=1 gbt/both: 0.475±0.022 (48 episodes)
+k=1 mlp_h16/both: 0.336±0.040 (48 episodes)
+k=1 res_ridge/both: 0.333±0.020 (48 episodes)
+k=1 res_mlp_h16/both: 0.256±0.029 (48 episodes)
+k=2 ridge/generic: 0.501±0.035 (96 episodes)
+k=2 gbt/generic: 0.491±0.018 (96 episodes)
+k=2 mlp_h16/generic: 0.349±0.017 (96 episodes)
+k=2 ridge/mechanism: 0.356±0.026 (96 episodes)
+k=2 gbt/mechanism: 0.313±0.006 (96 episodes)
+k=2 mlp_h16/mechanism: 0.286±0.009 (96 episodes)
+k=2 ridge/both: 0.353±0.028 (96 episodes)
+k=2 gbt/both: 0.300±0.008 (96 episodes)
+k=2 mlp_h16/both: 0.261±0.024 (96 episodes)
+k=2 res_ridge/both: 0.296±0.013 (96 episodes)
+k=2 res_mlp_h16/both: 0.211±0.007 (96 episodes)
+k=3 ridge/generic: 0.501±0.028 (144 episodes)
+k=3 gbt/generic: 0.425±0.015 (144 episodes)
+k=3 mlp_h16/generic: 0.313±0.030 (144 episodes)
+k=3 ridge/mechanism: 0.355±0.013 (144 episodes)
+k=3 gbt/mechanism: 0.282±0.006 (144 episodes)
+k=3 mlp_h16/mechanism: 0.256±0.005 (144 episodes)
+k=3 ridge/both: 0.340±0.018 (144 episodes)
+k=3 gbt/both: 0.250±0.011 (144 episodes)
+k=3 mlp_h16/both: 0.244±0.015 (144 episodes)
+k=3 res_ridge/both: 0.285±0.008 (144 episodes)
+k=3 res_mlp_h16/both: 0.204±0.005 (144 episodes)
+k=4 ridge/generic: 0.493±0.025 (192 episodes)
+k=4 gbt/generic: 0.406±0.008 (192 episodes)
+k=4 mlp_h16/generic: 0.277±0.023 (192 episodes)
+k=4 ridge/mechanism: 0.352±0.009 (192 episodes)
+k=4 gbt/mechanism: 0.259±0.006 (192 episodes)
+k=4 mlp_h16/mechanism: 0.248±0.012 (192 episodes)
+k=4 ridge/both: 0.339±0.016 (192 episodes)
+k=4 gbt/both: 0.218±0.008 (192 episodes)
+k=4 mlp_h16/both: 0.241±0.005 (192 episodes)
+k=4 res_ridge/both: 0.287±0.007 (192 episodes)
+k=4 res_mlp_h16/both: 0.198±0.008 (192 episodes)
+k=6 ridge/generic: 0.495±0.000 (288 episodes)
+k=6 gbt/generic: 0.340±0.000 (288 episodes)
+k=6 mlp_h16/generic: 0.223±0.005 (288 episodes)
+k=6 ridge/mechanism: 0.349±0.000 (288 episodes)
+k=6 gbt/mechanism: 0.230±0.000 (288 episodes)
+k=6 mlp_h16/mechanism: 0.225±0.008 (288 episodes)
+k=6 ridge/both: 0.324±0.000 (288 episodes)
+k=6 gbt/both: 0.190±0.000 (288 episodes)
+k=6 mlp_h16/both: 0.206±0.011 (288 episodes)
+k=6 res_ridge/both: 0.286±0.000 (288 episodes)
+k=6 res_mlp_h16/both: 0.177±0.002 (288 episodes)
+
+== Experiment 5: unseen quotas
+{
+ "test_episodes": 18,
+ "train_episodes": 243,
+ "no_change": 0.13418655039823946,
+ "mechanistic": 0.06445654077518442,
+ "ridge/generic": 0.4116592461007246,
+ "gbt/generic": 0.28729768031917013,
+ "mlp_h16/generic": 0.13602072254709316,
+ "ridge/mechanism": 0.27510057572241986,
+ "gbt/mechanism": 0.11706517342263069,
+ "mlp_h16/mechanism": 0.09713706326514242,
+ "ridge/both": 0.22601578903957992,
+ "gbt/both": 0.08529456359409031,
+ "mlp_h16/both": 0.09341124073138651,
+ "res_ridge/both": 0.19192169454112665,
+ "res_mlp_h16/both": 0.07176338344868531
+}
+
+== Selection (validation only)
+best on validation: mlp_2x384/both | best exportable to C++: res_mlp_h16/both
+{
+ "conformal_half_widths": {
+  "usage_cores": {
+   "0.8": 0.06446911932214607,
+   "0.95": 0.35213319475554067
+  },
+  "throttled_cores": {
+   "0.8": 0.2244880084088443,
+   "0.95": 1.0481585317136213
+  },
+  "throttled_ratio": {
+   "0.8": 0.016296073015016493,
+   "0.95": 0.5802727429220833
+  },
+  "psi_some": {
+   "0.8": 0.14523206196120783,
+   "0.95": 0.3207212977047042
+  }
+ },
+ "coverage": {
+  "test": {
+   "usage_cores": {
+    "0.8": 0.7708333333333334,
+    "0.95": 0.9895833333333334
+   },
+   "throttled_cores": {
+    "0.8": 0.8229166666666666,
+    "0.95": 0.9479166666666666
+   },
+   "throttled_ratio": {
+    "0.8": 0.8229166666666666,
+    "0.95": 0.9479166666666666
+   },
+   "psi_some": {
+    "0.8": 0.8854166666666666,
+    "0.95": 0.9895833333333334
+   }
+  },
+  "ood_family": {
+   "usage_cores": {
+    "0.8": 0.925,
+    "0.95": 0.9833333333333333
+   },
+   "throttled_cores": {
+    "0.8": 0.9166666666666666,
+    "0.95": 0.9916666666666667
+   },
+   "throttled_ratio": {
+    "0.8": 0.9333333333333333,
+    "0.95": 0.975
+   },
+   "psi_some": {
+    "0.8": 0.925,
+    "0.95": 0.9916666666666667
+   }
+  }
+ },
+ "ood_flag_rate": {
+  "val": 0.020833333333333332,
+  "test": 0.020833333333333332,
+  "ood_family": 0.05
+ },
+ "ood_threshold": 3.6832028209283902,
+ "accept_vs_abstain": {
+  "test": {
+   "flagged_rate": 0.020833333333333332,
+   "norm_mae_accepted": 0.16051783678952017,
+   "norm_mae_flagged": 0.9934959906725231
+  },
+  "ood_family": {
+   "flagged_rate": 0.05,
+   "norm_mae_accepted": 0.08751499796631529,
+   "norm_mae_flagged": 0.06949482583841422
+  }
+ }
+}
+false-safe: {'test/point<=0.1': {'quota_changes': 52, 'predicted_safe': 34, 'false_safe': 0, 'false_safe_rate': 0.0}, 'test/upper80<=0.25': {'quota_changes': 52, 'predicted_safe': 32, 'false_safe': 0, 'false_safe_rate': 0.0}, 'test/mechanistic point<=0.1': {'predicted_safe': 44, 'false_safe': 4, 'false_safe_rate': 0.09090909090909091}, 'ood_family/point<=0.1': {'quota_changes': 71, 'predicted_safe': 58, 'false_safe': 0, 'false_safe_rate': 0.0}, 'ood_family/upper80<=0.25': {'quota_changes': 71, 'predicted_safe': 53, 'false_safe': 0, 'false_safe_rate': 0.0}, 'ood_family/mechanistic point<=0.1': {'predicted_safe': 68, 'false_safe': 0, 'false_safe_rate': 0.0}}
+
+wrote results/experiments.json in 219s
+python3 experiments.py --data data/v1 --out results  959.63s user 937.25s system 858% cpu 3:41.03 total

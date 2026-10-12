@@ -21,6 +21,11 @@ answer, rather than larger language models.
 
 ## R1. A tiny OS world model: State(t) + Action(t) → State(t+1)
 
+> **Status:** done for CPU quota, cpuset and offered load, in one
+> environment. See [`WORLD_MODEL_RESULTS.md`](WORLD_MODEL_RESULTS.md).
+> Learned models did not beat the mechanistic model outside the training
+> workloads. The next steps are in that document's *Next questions*.
+
 **Scope:** Linux CPU scheduling under cgroup v2 limits, in disposable
 containers or VMs only. The host is never the subject, and learned
 recommendations are never applied.

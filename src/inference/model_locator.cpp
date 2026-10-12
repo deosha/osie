@@ -64,14 +64,14 @@ ModelLocation locate_model(const ModelSearch& s) {
         loc.source = src;
         return true;
     };
-    if (s.data_dir && try_candidate(fs::path(*s.data_dir) / "models" / kModelFileName, ModelSource::user_data_dir))
+    if (s.data_dir && try_candidate(fs::path(*s.data_dir) / "models" / s.file_name, ModelSource::user_data_dir))
         return loc;
     if (s.executable) {
         const fs::path dir = fs::path(*s.executable).parent_path();
         // Installed layout (<prefix>/bin/osie, <prefix>/share/osie/models) and
         // the build tree, where CMake copies the model to <build>/share/osie/models.
-        for (const auto& cand : {dir / ".." / "share" / "osie" / "models" / kModelFileName,
-                                 dir / "share" / "osie" / "models" / kModelFileName}) {
+        for (const auto& cand : {dir / ".." / "share" / "osie" / "models" / s.file_name,
+                                 dir / "share" / "osie" / "models" / s.file_name}) {
             if (try_candidate(cand.lexically_normal(), ModelSource::bundled)) return loc;
         }
     }
@@ -98,10 +98,11 @@ std::optional<std::string> executable_path() {
     return ec ? buf : canon.string();
 }
 
-ModelSearch default_model_search(std::optional<std::string> explicit_path) {
+ModelSearch default_model_search(std::optional<std::string> explicit_path, std::string file_name, const char* env_var) {
     ModelSearch s;
+    s.file_name = std::move(file_name);
     s.explicit_path = std::move(explicit_path);
-    s.env_path = non_empty_env("OSIE_MODEL");
+    s.env_path = non_empty_env(env_var);
 #if defined(__APPLE__)
     if (auto home = non_empty_env("HOME")) s.data_dir = *home + "/Library/Application Support/osie";
 #else

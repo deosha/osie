@@ -85,6 +85,24 @@ commands). UBSan found and we fixed one real bug (misaligned `if_msghdr2`
 access on macOS). Sanitizer builds compile GoogleTest from source
 (pinned SHA-256) to avoid false positives from an uninstrumented prebuilt gtest.
 
+## Prediction (Linux)
+
+`osie predict` is registered as `observe.predict.cpu_world_model`:
+- kind `observe`, no side effects;
+- policy-checked and audited.
+
+It reads cgroup and CPU counters through `ObservationBroker` and evaluates a
+model. There is no code path that writes `cpu.max`, `cpuset` or any other
+control file, and `act.cgroup.set_cpu_limit` remains declared-but-denied.
+
+The `.osiewm` model file is validated like `.osiem`:
+- size, line and feature limits;
+- strict numbers and bounded weights;
+- a feature-schema check;
+- shape checks, and nothing after `end`.
+
+It is covered by negative tests and a mutation test.
+
 ## Privacy
 
 Everything runs locally:

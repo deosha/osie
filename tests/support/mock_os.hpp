@@ -63,6 +63,7 @@ public:
     MacPowerState power{};
     std::vector<PressureStall> psi;
     std::vector<CgroupInfo> cgroups;
+    std::deque<CgroupInfo> cgroup_script;  // if set, cgroup() pops these in order (any path)
     std::vector<FilesystemInfo> fs;
     std::vector<NetInterface> nets;
     int fail_memory_with_eperm{0};
@@ -140,6 +141,14 @@ public:
         return Observation<std::vector<PressureStall>>{psi, Provenance::now("mock.psi")};
     }
     Result<Observation<CgroupInfo>> cgroup(const std::string& path) override {
+        {
+            std::lock_guard lk(mu);
+            if (!cgroup_script.empty()) {
+                auto c = pop(cgroup_script);
+                c.path = path;
+                return Observation<CgroupInfo>{c, Provenance::now("mock.cgroup")};
+            }
+        }
         for (const auto& c : cgroups)
             if (c.path == path) return Observation<CgroupInfo>{c, Provenance::now("mock.cgroup")};
         return make_error(Errc::not_found, path);

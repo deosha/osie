@@ -1,0 +1,6 @@
+build*
+ml/.venv
+ml/datasets/out
+ml/experiments/runs
+ml/world_model/data
+.git

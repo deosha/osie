@@ -251,6 +251,7 @@ struct CgroupInfo {
     std::optional<std::uint64_t> nr_periods, nr_throttled, throttled_usec;
     std::optional<std::uint64_t> memory_current, memory_max, memory_high;
     std::optional<std::uint64_t> pids_current;
+    std::optional<std::uint32_t> cpuset_cpus;  // CPUs in cpuset.cpus.effective
     std::vector<PressureStall> pressure;  // per-cgroup PSI files
     std::optional<std::string> systemd_unit;  // derived from path: "*.service" / "*.scope"
 };

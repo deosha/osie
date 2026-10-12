@@ -3,6 +3,7 @@
 #include <cstdlib>
 
 #include "linux_os.hpp"
+#include "osie/platform/cpu_list.hpp"
 #include "osie/architecture/model.hpp"
 
 namespace osie::linux_os {
@@ -71,6 +72,7 @@ Result<Observation<CgroupInfo>> LinuxOperatingSystem::cgroup(const std::string& 
     ci.memory_max = read_u64(dir + "memory.max");    // "max" -> nullopt (unlimited)
     ci.memory_high = read_u64(dir + "memory.high");
     ci.pids_current = read_u64(dir + "pids.current");
+    if (auto cs = read_file(dir + "cpuset.cpus.effective", 4096)) ci.cpuset_cpus = parse_cpu_list_count(*cs);
     for (auto [file, res] : {std::pair{"cpu.pressure", PsiResource::cpu}, std::pair{"memory.pressure", PsiResource::memory},
                              std::pair{"io.pressure", PsiResource::io}}) {
         if (auto b = read_file(dir + file, 512))

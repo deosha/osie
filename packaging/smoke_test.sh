@@ -58,4 +58,15 @@ rc=$?
 set -e
 [[ $rc -eq 1 ]] || fail "corrupt model: expected exit 1, got $rc"
 
+# 8. Prediction is read-only and either answers or abstains, never fails
+#    silently (Linux with cgroup v2 only; containers usually qualify).
+if [[ "$(uname -s)" == "Linux" && -r /sys/fs/cgroup/cpu.max ]]; then
+  set +e
+  pout=$(run predict --cpu-quota 1 --cgroup / 2>&1)
+  prc=$?
+  set -e
+  [[ $prc -eq 0 || $prc -eq 3 ]] || fail "predict exited $prc: $pout"
+  echo "$pout" | grep -q "No changes were applied\|Nothing was predicted\|Insufficient evidence" || fail "predict output: $pout"
+fi
+
 echo "SMOKE OK"

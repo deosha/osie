@@ -13,6 +13,7 @@
 #include "osie/architecture/graph.hpp"
 #include "osie/capabilities/capability.hpp"
 #include "osie/intent/intent.hpp"
+#include "osie/prediction/world_model.hpp"
 #include "osie/reasoning/reasoner.hpp"
 #include "osie/state/history.hpp"
 #include "osie/state/state.hpp"
@@ -82,6 +83,20 @@ public:
                   const std::vector<ProcessRef>& list, std::size_t limit, SteadyTime now);
 };
 
+/// What a hypothetical-intervention question is about.
+struct PredictTarget {
+    std::optional<Pid> pid;
+    std::string process_name;  // resolved like other process targets
+    std::string cgroup;        // explicit cgroup path (Linux), e.g. /system.slice/nginx.service
+};
+
+struct PredictionAnswer {
+    std::string text;
+    std::optional<predict::WorldPrediction> prediction;  // set when the model ran
+    std::string cgroup;
+    bool answered{false};  // false: unsupported, insufficient evidence, or abstained
+};
+
 class Engine {
 public:
     Engine(std::unique_ptr<IOperatingSystem> os, std::unique_ptr<intent::IIntentParser> parser, EngineConfig cfg = {});
@@ -98,6 +113,15 @@ public:
     /// bounded history (used by the opt-in --watch sampler). Thread-safe with
     /// respect to ask().
     void record_sample(const CancellationToken& cancel = {});
+
+    /// Read-only prediction of a cgroup's CPU outcomes under a hypothetical
+    /// intervention (Linux, docs/WORLD_MODEL.md). Observes the cgroup for the
+    /// model's history window, then evaluates the model. Never applies the
+    /// intervention: there is no code path that writes to the cgroup.
+    PredictionAnswer predict(const PredictTarget& target, predict::ActionKind kind, double proposed,
+                             const CancellationToken& cancel = {});
+    void set_world_model(std::shared_ptr<const predict::IWorldModel> m) { world_model_ = std::move(m); }
+    [[nodiscard]] const predict::IWorldModel* world_model() const noexcept { return world_model_.get(); }
     [[nodiscard]] std::size_t history_size() const;
     [[nodiscard]] std::size_t history_bytes() const;
 
@@ -132,6 +156,7 @@ private:
     reason::Reasoner reasoner_;
     SessionContext session_;
     StateHistory history_;
+    std::shared_ptr<const predict::IWorldModel> world_model_;
     mutable std::mutex mu_;  // serialises ask(), observe_all() and record_sample()
 };
 

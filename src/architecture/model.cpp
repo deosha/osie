@@ -39,6 +39,7 @@ constexpr std::string_view kDocSchedLinux = "Linux: Documentation/scheduler/sche
 constexpr std::string_view kDocBwc = "Linux: Documentation/scheduler/sched-bwc.rst (CFS bandwidth control)";
 constexpr std::string_view kDocCgroup = "Linux: Documentation/admin-guide/cgroup-v2.rst";
 constexpr std::string_view kDocPsi = "Linux: Documentation/accounting/psi.rst";
+constexpr std::string_view kDocWorld = "docs/WORLD_MODEL_RESULTS.md (randomised interventions; Linux 6.10 arm64 Docker VM only)";
 constexpr std::string_view kDocProcfs = "Linux: proc(5) /proc/loadavg, /proc/stat, /proc/vmstat";
 constexpr std::string_view kDocMm = "Linux: Documentation/admin-guide/mm/concepts.rst";
 constexpr std::string_view kDocXnuVm = "Apple: Kernel Programming Guide, Memory and Virtual Memory; xnu osfmk/vm";
@@ -106,6 +107,10 @@ const std::vector<RelationDef>& relations() {
         // documented mechanisms (invariants where the platform defines the behaviour)
         {ck::cpu_quota, E::affects, ck::cpu_throttling, N::invariant, 1.0F, kLinux, kDocBwc, "a cgroup that exhausts its cpu.max quota in a period is throttled until the next period"},
         {ck::cpu_throttling, E::affects, ck::scheduling_latency, N::invariant, 1.0F, kLinux, kDocBwc, "throttled tasks are not scheduled even when CPUs are idle"},
+        // Effects measured under randomised interventions in the OSIE lab.
+        // Their size is environment-specific; their direction matches the invariants above.
+        {ck::cpu_quota, E::affects, ck::psi_cpu, N::experimental, 0.95F, kLinux, kDocWorld, "lowering a cgroup's CPU quota raised its CPU PSI some by 23 pp (95% CI 18-29) over 163 randomised changes; raising it lowered PSI by 8 pp (5-11)"},
+        {ck::cpu_throttling, E::affects, ck::responsiveness, N::experimental, 0.95F, kLinux, kDocWorld, "halving the quota from 1 to 0.5 core raised p99 latency of instrumented request servers 15x (geometric mean, 95% CI 8-29x, 30 configurations)"},
         {ck::memory_pressure, E::affects, ck::memory_compression, N::invariant, 1.0F, kMac, kDocActMon, "under pressure macOS compresses memory to free pages"},
         {ck::memory_pressure, E::affects, ck::page_cache, N::invariant, 1.0F, kAll, kDocMm, "reclaim evicts clean file-backed pages first"},
         {ck::memory_pressure, E::affects, ck::paging, N::invariant, 1.0F, kAll, kDocXnuVm, "when free pages run out the kernel pages out (compressor/swap)"},

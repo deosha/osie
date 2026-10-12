@@ -7,6 +7,7 @@
 #include <cmath>
 #include <ctime>
 #include <set>
+#include <thread>
 
 #include "osie/architecture/model.hpp"
 #include "osie/util/format.hpp"
@@ -963,6 +964,183 @@ std::string Engine::render_group(const SystemState& s, const Resolution& res, co
     o += rows + "The analysis below is for the " + (cpu ? "busiest" : "largest") + " instance, pid " +
          std::to_string(res.subject->pid) + ". Ask about another one by PID or e.g. 'the second one'.\n\n";
     return o;
+}
+
+}  // namespace osie
+
+// ------------------------------------------------------------ prediction ---
+
+namespace osie {
+
+namespace {
+
+std::string fmt_val(double v, const std::string& unit) {
+    if (unit == "fraction") return fmt::pct(100.0 * v);
+    return fmt::num(v, 2) + " " + unit;
+}
+
+std::string target_label(const std::string& name) {
+    if (name == "usage_cores") return "CPU usage";
+    if (name == "throttled_cores") return "Throttled CPU time (runnable but held back by the quota)";
+    if (name == "throttled_ratio") return "Share of quota periods throttled";
+    if (name == "psi_some") return "CPU pressure (PSI some: share of time a task waited)";
+    return name;
+}
+
+}  // namespace
+
+PredictionAnswer Engine::predict(const PredictTarget& target, predict::ActionKind kind, double proposed,
+                                 const CancellationToken& cancel) {
+    std::lock_guard lk(mu_);
+    PredictionAnswer ans;
+    const auto* cap = reg_.find("observe.predict.cpu_world_model");
+    if (cap == nullptr) {
+        ans.text = "Prediction is not available in this build.\n";
+        return ans;
+    }
+    const auto decision = policy_.authorize(*cap, os_->platform(), os_->supported());
+    audit_.record(decision);
+    if (!decision.allowed) {
+        ans.text = os_->platform() == Platform::macos
+                       ? "CPU quota prediction is defined for Linux cgroup v2 CPU bandwidth control, which macOS does not "
+                         "have. Nothing was predicted.\n"
+                       : "Prediction is not available here: " + decision.reason + ".\n";
+        return ans;
+    }
+    if (!world_model_) {
+        ans.text = "No CPU world model is installed (models/world_cpu.osiewm), so OSIE cannot predict this. "
+                   "Nothing was predicted.\n";
+        return ans;
+    }
+    if (!world_model_->supports(kind)) {
+        ans.text = "The installed world model was not trained for '" + std::string(predict::to_string(kind)) +
+                   "' interventions. Nothing was predicted.\n";
+        return ans;
+    }
+
+    // ---- resolve the cgroup ---------------------------------------------
+    std::string path = target.cgroup;
+    std::string who = path;
+    if (path.empty()) {
+        SampleRequest req;
+        req.kinds = {ObservationKind::process_list};
+        req.interval = Millis{50};
+        const auto st = sampler_.sample(req, cancel);
+        intent::IntentFrame f;
+        f.intent = Intent::process_info;
+        if (target.pid) f.target = intent::Target{TargetKind::pid, std::to_string(*target.pid), std::nullopt};
+        else f.target = intent::Target{TargetKind::process_name, target.process_name, std::nullopt};
+        const auto res = session_.resolve(f, st, std::chrono::steady_clock::now(), cfg_.context_ttl);
+        if (!res.subject) {
+            ans.text = (f.clarification.empty() ? "Which process do you mean?" : f.clarification) + "\n";
+            return ans;
+        }
+        auto cg = broker_.cgroup_of(res.subject->pid);
+        if (!cg) {
+            ans.text = "Cannot read the cgroup of " + res.subject->name + " (pid " + std::to_string(res.subject->pid) +
+                       "): " + cg.error().describe() + "\n";
+            return ans;
+        }
+        path = *cg;
+        who = res.subject->name + " (pid " + std::to_string(res.subject->pid) + "), cgroup " + path;
+    }
+    ans.cgroup = path;
+
+    // ---- observe the model's history window ------------------------------
+    const auto win = std::chrono::duration<double>(world_model_->window_seconds());
+    std::vector<predict::CgroupWindow> hist;
+    auto snap = [&]() -> std::optional<std::pair<CgroupInfo, std::optional<CpuSample>>> {
+        auto c = broker_.cgroup(path);
+        if (!c) return std::nullopt;
+        std::optional<CpuSample> h;
+        if (auto s = broker_.cpu_sample()) h = s->value;
+        return std::make_pair(c->value, h);
+    };
+    auto prev = snap();
+    if (!prev) {
+        auto c = broker_.cgroup(path);
+        ans.text = "Cannot observe cgroup " + path + ": " + (c ? std::string("unknown error") : c.error().describe()) + "\n";
+        return ans;
+    }
+    auto t_prev = std::chrono::steady_clock::now();
+    for (std::size_t i = 0; i < world_model_->history_windows() && !cancel.cancelled(); ++i) {
+        std::this_thread::sleep_for(std::chrono::duration_cast<std::chrono::milliseconds>(win));
+        auto cur = snap();
+        const auto t_cur = std::chrono::steady_clock::now();
+        if (!cur) break;
+        const double secs = std::chrono::duration<double>(t_cur - t_prev).count();
+        auto w = predict::make_window(prev->first, cur->first, secs, prev->second ? &*prev->second : nullptr,
+                                      cur->second ? &*cur->second : nullptr);
+        if (w) hist.push_back(*w);
+        prev = cur;
+        t_prev = t_cur;
+    }
+    if (hist.empty()) {
+        ans.text = "Could not collect any valid observation window for " + path + ". Nothing was predicted.\n";
+        return ans;
+    }
+
+    // ---- intervention and model ------------------------------------------
+    predict::Intervention a;
+    a.kind = kind;
+    a.proposed = proposed;
+    const auto& last = hist.back();
+    const double cpus = last.cpuset_cpus.value_or(last.host_cpus.value_or(1.0));
+    if (kind == predict::ActionKind::cpu_quota) a.previous = last.quota_cores.value_or(cpus);
+    if (kind == predict::ActionKind::cpuset) a.previous = cpus;
+    auto p = world_model_->predict(hist, a);
+    if (!p) {
+        ans.text = "Cannot evaluate this intervention: " + p.error().message + ". Nothing was predicted.\n";
+        return ans;
+    }
+    ans.prediction = *p;
+
+    // ---- render ------------------------------------------------------------
+    std::string o = "OSIE prediction (hypothetical: nothing will be changed)\n";
+    o += "Target: " + who + "\n";
+    const std::string unit = kind == predict::ActionKind::cpu_quota ? " cores" : " CPUs";
+    const std::string what = kind == predict::ActionKind::cpu_quota ? "CPU quota" : "cpuset size";
+    o += what + ": " + (kind == predict::ActionKind::cpu_quota && !last.quota_cores ? "unlimited (" + fmt::num(cpus, 0) + " CPUs usable)"
+                                                                                       : fmt::num(a.previous, 2) + unit) +
+         " -> " + fmt::num(a.proposed, 2) + unit + "\n";
+    o += "Observed over " + fmt::num(static_cast<double>(hist.size()) * world_model_->window_seconds(), 1) + " s (" +
+         std::to_string(hist.size()) + " windows).\n\n";
+    if (p->abstained) {
+        o += "Insufficient evidence: OSIE will not give numbers for this case.\n";
+        for (const auto& r : p->reasons) o += "  - " + r + "\n";
+    } else {
+        for (const auto& t : p->targets) {
+            o += target_label(t.name) + ":\n";
+            o += "  now " + fmt_val(t.current, t.unit) + "  ->  expected " + fmt_val(t.expected, t.unit);
+            for (const auto& iv : t.intervals)
+                o += "  [" + fmt::pct(100.0 * iv.level, 0) + " interval " + fmt_val(iv.lo, t.unit) + " - " + fmt_val(iv.hi, t.unit) + "]";
+            o += "\n";
+        }
+        ans.answered = true;
+    }
+    o += "\nNot predicted: application latency and throughput. OSIE cannot observe them for this workload, and the "
+         "model's latency results come only from instrumented lab workloads.\n";
+    o += "Assumptions:\n";
+    o += "  - the workload's demand stays as observed during the window; a change in offered load invalidates the prediction\n";
+    // Mechanisms from the architecture graph, labelled with their epistemic
+    // status. The graph explains the prediction; it does not produce it.
+    const auto start_key = kind == predict::ActionKind::cpu_quota ? arch::concept_key::cpu_quota
+                                                                  : arch::concept_key::cpu_throttling;
+    if (const auto* n = graph_.find(arch::NodeKind::concept_, start_key)) {
+        for (auto eid : graph_.consequences(n->id, Platform::linux_os, 2)) {
+            const auto& ed = graph_.edge(eid);
+            o += "  - " + graph_.node(ed.from).label + " -" + std::string(arch::to_string(ed.kind)) + "-> " +
+                 graph_.node(ed.to).label + " (" + std::string(arch::to_string(ed.nature)) +
+                 (ed.doc_ref.empty() ? "" : "; " + ed.doc_ref) + ")\n";
+        }
+    }
+    o += "  - the model was validated only in the environment it was trained in: " +
+         (world_model_->provenance().empty() ? std::string("unknown") : world_model_->provenance()) + "\n";
+    o += "Model: " + world_model_->id() + ". Evidence: cgroup " + path + " cpu.stat, cpu.max, cpu.pressure, "
+         "cpuset.cpus.effective.\n";
+    o += "No changes were applied.\n";
+    ans.text = o;
+    return ans;
 }
 
 }  // namespace osie

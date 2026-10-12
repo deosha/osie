@@ -7,3 +7,6 @@ __pycache__/
 *.pyc
 .DS_Store
 compile_commands.json
+ml/world_model/data/pilot
+ml/world_model/data/*/episodes.jsonl
+ml/world_model/data/pilot

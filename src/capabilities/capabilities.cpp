@@ -162,6 +162,12 @@ CapabilityRegistry CapabilityRegistry::builtin() {
                  "kernel built with CONFIG_PSI and not booted with psi=0"));
     must(observe("observe.cgroup.v2", "cgroup v2 cpu/memory/pids controller state", lin, {K::cgroup},
                  "unified cgroup hierarchy mounted"));
+    // Prediction is classified as an observation: it reads cgroup and CPU
+    // counters and evaluates a model. A predicted intervention is never applied.
+    must(observe("observe.predict.cpu_world_model",
+                 "predict a cgroup's CPU usage, throttling and pressure under a hypothetical quota or cpuset change",
+                 lin, {K::cgroup, K::cpu_times},
+                 "compatible world model installed; target cgroup observable; prediction only, nothing applied"));
 
     // Declared but disabled actions. They exist so requests can be mapped to a
     // concrete, explainable refusal; there is no executor in V1.
