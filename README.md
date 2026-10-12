@@ -139,4 +139,6 @@ docs/               MILESTONES, ARCHITECTURE, SECURITY, DATASETS, BENCHMARKS, RE
 - **No Kubernetes support yet.** Kubernetes support is a design only ([`docs/KUBERNETES.md`](docs/KUBERNETES.md)).
 - **Energy not measured.** It would require root.
 
+Contributions are welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 License: Apache-2.0 (intended; add a LICENSE file before publishing).
