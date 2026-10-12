@@ -116,13 +116,10 @@ in [`NEXT_ITERATION_AUDIT.md`](NEXT_ITERATION_AUDIT.md).
 | Process identity and ambiguity, context expiry | `SessionContext::resolve`; `Identity.*` |
 | Safety tests: adversarial phrasing, multi-turn, malformed parser output | `tests/unit/test_identity_safety.cpp` |
 | Model discovery independent of the source tree | `include/osie/inference/model_locator.hpp`; `ModelLocator.*` |
-| Packages and release pipeline | `CMakeLists.txt` (install, CPack), `packaging/`, `.github/workflows/`; [`INSTALL.md`](INSTALL.md) |
+| Packages and release pipeline | `CMakeLists.txt` (install, CPack), `packaging/`, `.github/workflows/`; [`INSTALL.md`](INSTALL.md); release v0.1.0; Homebrew tap `deosha/homebrew-osie` |
 | Bounded history and temporal questions | `include/osie/state/history.hpp`; `Temporal*`, `Trend.*`, `History.*` |
 
 Not done in this iteration (see [`RESEARCH_ROADMAP.md`](RESEARCH_ROADMAP.md)):
-- running the CI and release workflows on GitHub;
-- x86_64 builds;
-- a Homebrew formula;
 - persistent history;
 - a response-generator interface;
 - the OS world-model experiments;

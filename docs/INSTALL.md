@@ -3,30 +3,43 @@
 OSIE is a single binary plus a ~1 MB intent model. It needs no runtime
 dependencies beyond the C library, no privileges and no network.
 
+## Quick install
+
+| Platform | Command |
+|---|---|
+| macOS 13+ (arm64, x86_64) | `brew install deosha/osie/osie` |
+| Linux with Homebrew | `brew install deosha/osie/osie` |
+| Debian 12+ / Ubuntu 22.04+ | `sudo apt install ./osie_<version>_<amd64\|arm64>.deb` (download from the release) |
+| Fedora 36+ / RHEL family with glibc ≥ 2.35 | `sudo dnf install https://github.com/deosha/osie/releases/download/v<version>/osie-<version>-1.<x86_64\|aarch64>.rpm` |
+| Other Linux, glibc ≥ 2.35 | release `.tar.gz` (below) |
+
+Releases: <https://github.com/deosha/osie/releases>. The Homebrew formula
+lives in the tap [`deosha/homebrew-osie`](https://github.com/deosha/homebrew-osie).
+It installs the same prebuilt, checksum-pinned archives.
+
 ## Platform support
 
-| Platform | Package | Status |
+What was verified for v0.1.0:
+
+| Platform | Package | Verified |
 |---|---|---|
-| macOS 13+ on Apple Silicon (arm64) | `.tar.gz` | Built and smoke-tested locally on macOS 15. Release CI configured (`macos-14`). |
-| macOS 13+ on Intel (x86_64) | `.tar.gz` | Release CI configured (`macos-15-intel`); not yet run. |
-| Linux arm64, glibc ≥ 2.35 | `.tar.gz`, `.deb`, `.rpm` | Built in `packaging/linux-release.Dockerfile`. The tarball is smoke-tested on Debian 12 and Ubuntu 22.04, the `.deb` on Ubuntu 22.04 and 24.04, the `.rpm` on Fedora 40. |
-| Linux x86_64, glibc ≥ 2.35 | `.tar.gz`, `.deb`, `.rpm` | Same build script; release CI configured (`ubuntu-24.04`); not yet run. |
-| Homebrew | — | Not available yet. A formula needs a published release to point at. |
+| macOS arm64 | Homebrew, `.tar.gz` | CI smoke test (macos-14). Installed with `brew install deosha/osie/osie` on macOS 15 (M4 Pro); `brew test` and `brew audit --strict --online` pass. |
+| macOS x86_64 | Homebrew, `.tar.gz` | CI smoke test (macos-15-intel). |
+| Linux x86_64 | `.deb`, `.rpm`, `.tar.gz` | CI: the tarball on Debian 12, the `.deb` installed and removed on Ubuntu 22.04, the `.rpm` installed and removed on Fedora 40. Release downloads re-tested on Ubuntu 22.04 (`.deb`) and Fedora 40 (`.rpm`). |
+| Linux arm64 | `.deb`, `.rpm`, `.tar.gz` | The same CI checks. Release downloads re-tested on Debian 12 (`.deb`) and Fedora 40 (`.rpm`). |
+| Linux with Homebrew | Homebrew | The formula uses the same Linux archives, but has not been tested through `brew` on Linux. |
 
 glibc 2.35 or newer covers Debian 12+, Ubuntu 22.04+, Fedora 36+ and
 RHEL/Rocky/Alma 10. RHEL 9 ships glibc 2.34 and is **not** supported by the
 prebuilt binaries; build from source there.
 
-> **Release status:** the release workflow
-> (`.github/workflows/release.yml`) publishes these artifacts when a `v*`
-> tag is pushed. Until the first tag exists, there are no downloads: build
-> from source (below), or build the packages yourself with
-> `packaging/build_linux_release.sh <out-dir>` (needs Docker).
+**Uninstall (Homebrew):** `brew uninstall osie && brew untap deosha/osie`
 
 ## Install from a release archive
 
 ```bash
-# 1. Download osie-<version>-<os>-<arch>.tar.gz and SHA256SUMS from the release page, then verify:
+# 1. Download osie-<version>-<os>-<arch>.tar.gz and SHA256SUMS from
+#    https://github.com/deosha/osie/releases, then verify:
 sha256sum --check --ignore-missing SHA256SUMS        # macOS: shasum -a 256 -c SHA256SUMS --ignore-missing
 # Optional: verify that GitHub Actions built it from this repository
 gh attestation verify osie-<version>-<os>-<arch>.tar.gz --repo deosha/osie

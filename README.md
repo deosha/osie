@@ -55,19 +55,41 @@ The full live transcript is in [`examples/demo_session_macos.txt`](examples/demo
 
 ## Install
 
-Prebuilt archives (macOS arm64/x86_64; Linux x86_64/arm64 with glibc ≥ 2.35)
-and `.deb`/`.rpm` packages are produced by the release workflow for each
-`v*` tag, with SHA-256 checksums and build-provenance attestations. **No
-release has been tagged yet.** Until one is, build from source:
+**macOS (Apple Silicon or Intel), or Linux with Homebrew:**
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && ninja -C build
-./build/osie version
+brew install deosha/osie/osie
 ```
 
-The full guide is in [`docs/INSTALL.md`](docs/INSTALL.md): platform matrix,
-package install and uninstall, where the model is looked up, and resource
-use.
+**Debian/Ubuntu** (x86_64 shown; use `arm64` on ARM):
+
+```bash
+curl -LO https://github.com/deosha/osie/releases/download/v0.1.0/osie_0.1.0_amd64.deb
+sudo apt install ./osie_0.1.0_amd64.deb
+```
+
+**Fedora/RHEL family** (use `aarch64` on ARM):
+
+```bash
+sudo dnf install https://github.com/deosha/osie/releases/download/v0.1.0/osie-0.1.0-1.x86_64.rpm
+```
+
+**Any other Linux with glibc ≥ 2.35:** download
+`osie-0.1.0-linux-<arch>.tar.gz` from the
+[release page](https://github.com/deosha/osie/releases/latest), then unpack
+it into `~/.local`.
+
+Every release publishes `SHA256SUMS` and GitHub build-provenance
+attestations. [`docs/INSTALL.md`](docs/INSTALL.md) covers verification,
+uninstalling, building from source, where the model is looked up, and
+resource use.
+
+Then:
+
+```bash
+osie version
+osie ask "what is using the most cpu?"
+```
 
 ## Use
 

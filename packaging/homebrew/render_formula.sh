@@ -17,7 +17,6 @@ cat <<RUBY
 class Osie < Formula
   desc "Local, read-only OS intelligence engine using native macOS/Linux observations"
   homepage "https://github.com/deosha/osie"
-  version "${v}"
   license "Apache-2.0"
 
   on_macos do
@@ -45,7 +44,7 @@ class Osie < Formula
   def install
     # Same layout as the archive: the binary finds its model at ../share/osie/models.
     bin.install "bin/osie"
-    (share/"osie/models").install "share/osie/models/intent.osiem"
+    (pkgshare/"models").install "share/osie/models/intent.osiem"
     doc.install Dir["share/doc/osie/*"]
   end
 

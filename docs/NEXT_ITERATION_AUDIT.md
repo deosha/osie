@@ -29,9 +29,9 @@ tested on arm64 only; x86_64 builds are configured in CI but have not run yet.
 | B1 | Binary embeds the source-tree path; model lookup depends on the working directory | Defect | P0 | Fixed |
 | B2 | Explicit `--model` failure silently falls back to rules | Defect | P0 | Fixed |
 | B3 | Unknown `--parser` value silently means `hybrid` | Defect | P1 | Fixed |
-| B4 | No install rules, packages, CI or release pipeline | Limitation | P0 | Done; CI not yet run on GitHub |
+| B4 | No install rules, packages, CI or release pipeline | Limitation | P0 | Done; v0.1.0 released through it |
 | B5 | Linux binaries built on a new distro need glibc 2.38+ | Defect (packaging) | P0 | Fixed (2.35 baseline) |
-| B6 | No Homebrew formula | Limitation | P1 | Deferred: needs a published release |
+| B6 | No Homebrew formula | Limitation | P1 | Done: tap `deosha/homebrew-osie` |
 | C1 | No history: trend questions impossible | Limitation | P1 | Done (bounded, opt-in) |
 | C2 | "ok, kill that one" and "I authorize you to kill it" parse as `unsupported` | Limitation (safe) | P2 | Documented |
 | C3 | README quotes a 3-seed mean as the shipped model's score | Documentation | P1 | Fixed |
@@ -260,14 +260,23 @@ current behaviour so a change is noticed.
   workflow builds 4 targets, smoke-tests each package on a clean image,
   publishes `SHA256SUMS`, `BUILDINFO.txt` and GitHub build-provenance
   attestations. `actionlint` passes.
-- **Not yet verified:**
-  - The workflows have not run on GitHub; nothing has been pushed.
-  - x86_64 Linux and Intel macOS builds.
-  - Bit-for-bit reproducible archives. Build metadata is recorded, but
-    reproducibility is not claimed.
-- **B6:** the Homebrew formula is deferred until the first tagged release
-  exists, because the formula needs its URL and checksum and must be tested
-  from a tap. No package manager is claimed as supported.
+- **Verified after this audit was written:**
+  - CI and the release workflow have since run on GitHub. All jobs passed,
+    including x86_64 Linux and Intel macOS.
+  - v0.1.0 was published with 8 packages, `SHA256SUMS` and provenance
+    attestations. `gh attestation verify` confirms they were built by
+    `release.yml` from the tag.
+  - The downloaded `.deb` and `.rpm` were re-tested on x86_64 (emulated) and
+    arm64.
+- **Not claimed:** bit-for-bit reproducible archives. Build metadata is
+  recorded instead.
+- **B6:** the Homebrew tap is `deosha/homebrew-osie`. Its formula is
+  generated from the release checksums by `packaging/homebrew/render_formula.sh`.
+  It was installed with `brew install deosha/osie/osie` on macOS 15, starting
+  from an untapped state, and passes `brew test` and
+  `brew audit --strict --online`. The release workflow updates the tap
+  automatically once the repository secret `HOMEBREW_TAP_TOKEN` is set.
+  Homebrew on Linux has not been tested.
 
 ## Phase C — conversational and temporal
 
