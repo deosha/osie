@@ -1,0 +1,211 @@
+id	group	text	intent	target_kind	target_value	concept	action
+h1	hand	my fan just kicked in, what's hammering the cpu?	top_cpu	host
+h2	hand	anything chewing through processor time right now	top_cpu	host
+h3	hand	Which processes are the CPU hogs at the moment?	top_cpu	host
+h4	hand	list whatever is burning the most cycles	top_cpu	host
+h5	hand	who's the top cpu offender	top_cpu	host
+h6	hand	show me what's keeping the cores busy	top_cpu	host
+h7	hand	top 8 cpu-heavy tasks please	top_cpu	host
+h8	hand	what's the busiest process on here	top_cpu	host
+h9	hand	sort running programs by cpu	top_cpu	host
+h10	hand	cpu hogs?	top_cpu	host
+h11	hand	which program is eating the most RAM right now	top_memory	host
+h12	hand	what's taking up all my memory	top_memory	host
+h13	hand	list the processes with the biggest memory footprint	top_memory	host
+h14	hand	show me ram hogs	top_memory	host
+h15	hand	which app uses the most memory on this mac	top_memory	host
+h16	hand	top 6 memory consumers	top_memory	host
+h17	hand	who's sitting on the most ram	top_memory	host
+h18	hand	what is using up my 16 gigs of memory	top_memory	host
+h19	hand	biggest memory users?	top_memory	host
+h20	hand	sort processes by memory usage	top_memory	host
+h21	hand	why is my processor constantly at 90 percent	diagnose_cpu	host
+h22	hand	the cpu graph is pinned at max, what's going on	diagnose_cpu	host
+h23	hand	why is the load so high on this box	diagnose_cpu	host
+h24	hand	Why has CPU usage been so high since this morning?	diagnose_cpu	host
+h25	hand	cpu is through the roof and i'm only browsing, why	diagnose_cpu	host
+h26	hand	can you figure out why the cpu is so busy	diagnose_cpu	host
+h27	hand	what's behind the high cpu load	diagnose_cpu	host
+h28	hand	is my cpu saturated	diagnose_cpu	host
+h29	hand	why does the processor keep spiking	diagnose_cpu	host
+h30	hand	explain why cpu utilization is so high	diagnose_cpu	host
+h31	hand	why is my mac almost out of ram	diagnose_memory	host
+h32	hand	memory pressure is red, why	diagnose_memory	host
+h33	hand	why is so much stuff in swap	diagnose_memory	host
+h34	hand	is the machine short on memory	diagnose_memory	host
+h35	hand	why is ram usage at 95%	diagnose_memory	host
+h36	hand	what's causing all this swapping	diagnose_memory	host
+h37	hand	do i need more ram? things seem to be swapping	diagnose_memory	host
+h38	hand	why is memory so tight on this server	diagnose_memory	host
+h39	hand	check whether there's memory pressure	diagnose_memory	host
+h40	hand	why is the compressor holding so much memory	diagnose_memory	host
+h41	hand	why is my macbook crawling today	diagnose_slow	host
+h42	hand	Everything takes ages to respond. Why?	diagnose_slow	host
+h43	hand	the whole system feels sluggish	diagnose_slow	host
+h44	hand	why does typing lag on this machine	diagnose_slow	host
+h45	hand	what's slowing my computer down	diagnose_slow	host
+h46	hand	my laptop got really slow after the update, why	diagnose_slow	host
+h47	hand	why do apps hang for a few seconds	diagnose_slow	host
+h48	hand	why is this server so unresponsive	diagnose_slow	host
+h49	hand	performance has been awful lately	diagnose_slow	host
+h50	hand	figure out why everything is lagging	diagnose_slow	host
+h51	hand	why is Plex Media Server using so much cpu	process_cpu	process_name	Plex Media Server
+h52	hand	how much processor is Raycast taking	process_cpu	process_name	Raycast
+h53	hand	why is fseventsd burning cpu	process_cpu	process_name	fseventsd
+h54	hand	is Obsidian using a lot of cpu	process_cpu	process_name	Obsidian
+h55	hand	what's the cpu usage of nsurlsessiond	process_cpu	process_name	nsurlsessiond
+h56	hand	why is pid 8812 pegging a core	process_cpu	pid	8812
+h57	hand	how much cpu does process 31337 use	process_cpu	pid	31337
+h58	hand	why is that one using so much cpu	process_cpu	reference	that one
+h59	hand	how much cpu is the second one using	process_cpu	reference	the second one
+h60	hand	why does Parallels Desktop eat so much cpu	process_cpu	process_name	Parallels Desktop
+h61	hand	why is terraform using 200% cpu	process_cpu	process_name	terraform
+h62	hand	cpu usage of Postman?	process_cpu	process_name	Postman
+h63	hand	is airportd hogging the processor	process_cpu	process_name	airportd
+h64	hand	why is it using so much cpu	process_cpu	reference	it
+h65	hand	how hard is DBeaver working the cpu	process_cpu	process_name	DBeaver
+h66	hand	why is Anki using so much memory	process_memory	process_name	Anki
+h67	hand	how much ram does 1Password use	process_memory	process_name	1Password
+h68	hand	why is Battle.net eating 3 GB of RAM	process_memory	process_name	Battle.net
+h69	hand	is Logseq leaking memory	process_memory	process_name	Logseq
+h70	hand	memory footprint of TablePlus?	process_memory	process_name	TablePlus
+h71	hand	how much memory is pid 4410 using	process_memory	pid	4410
+h72	hand	why is process 902 using so much ram	process_memory	pid	902
+h73	hand	why does it need so much memory	process_memory	reference	it
+h74	hand	how much ram does that app take	process_memory	reference	that app
+h75	hand	why is the first one using so much memory	process_memory	reference	the first one
+h76	hand	why is Minecraft so memory hungry	process_memory	process_name	Minecraft
+h77	hand	how much memory is warp taking	process_memory	process_name	warp
+h78	hand	does vagrant have a memory leak	process_memory	process_name	vagrant
+h79	hand	why is UTM holding 8gb of memory	process_memory	process_name	UTM
+h80	hand	ram usage of alacritty	process_memory	process_name	alacritty
+h81	hand	what is Bartender	process_info	process_name	Bartender
+h82	hand	tell me about the CleanMyMac process	process_info	process_name	CleanMyMac
+h83	hand	show me info about pid 777	process_info	pid	777
+h84	hand	is Fantastical running	process_info	process_name	Fantastical
+h85	hand	what is ssh-agent doing	process_info	process_name	ssh-agent
+h86	hand	details on process 6021	process_info	pid	6021
+h87	hand	tell me more about that one	process_info	reference	that one
+h88	hand	what's the status of gpg-agent	process_info	process_name	gpg-agent
+h89	hand	describe the last one	process_info	reference	the last one
+h90	hand	where is the kitty binary located	process_info	process_name	kitty
+h91	hand	who started Postman	process_tree	process_name	Postman
+h92	hand	what launched pid 5150	process_tree	pid	5150
+h93	hand	what is the parent process of colima	process_tree	process_name	colima
+h94	hand	which service is responsible for these processes	process_tree	reference	these processes
+h95	hand	list the children of Hyper	process_tree	process_name	Hyper
+h96	hand	what did ansible spawn	process_tree	process_name	ansible
+h97	hand	which daemon owns that process	process_tree	reference	that process
+h98	hand	show the process tree under pid 300	process_tree	pid	300
+h99	hand	who is the parent of it	process_tree	reference	it
+h100	hand	which service manages lima	process_tree	process_name	lima
+h101	hand	what os am i on	system_info	host
+h102	hand	which kernel release is this	system_info	host
+h103	hand	how long since the last reboot	system_info	host
+h104	hand	what model of mac is this	system_info	host
+h105	hand	what distribution and version is installed	system_info	host
+h106	hand	when was this machine last booted	system_info	host
+h107	hand	what's the hostname	system_info	host
+h108	hand	show me the os details	system_info	host
+h109	hand	how many cores does this thing have	cpu_topology	host
+h110	hand	what cpu is in this machine	cpu_topology	host
+h111	hand	how many efficiency cores are there	cpu_topology	host
+h112	hand	count the logical cpus	cpu_topology	host
+h113	hand	what's the l3 cache size	cpu_topology	host
+h114	hand	which processor chip does the mac use	cpu_topology	host
+h115	hand	how many threads can run in parallel on this cpu	cpu_topology	host
+h116	hand	how much ram is in this mac	memory_status	host
+h117	hand	how much free memory do i have right now	memory_status	host
+h118	hand	what's the current swap usage	memory_status	host
+h119	hand	how much memory is available	memory_status	host
+h120	hand	memory stats please	memory_status	host
+h121	hand	how much ram is being used	memory_status	host
+h122	hand	what's my total memory	memory_status	host
+h123	hand	how much space is left on my drive	disk_usage	host
+h124	hand	am i running low on storage	disk_usage	host
+h125	hand	show me the mounted volumes	disk_usage	host
+h126	hand	how full is the root filesystem	disk_usage	host
+h127	hand	free disk space?	disk_usage	host
+h128	hand	what's the capacity of each disk	disk_usage	host
+h129	hand	is my ssd almost full	disk_usage	host
+h130	hand	what ip does this machine have	network_status	host
+h131	hand	how much traffic is going through wifi	network_status	host
+h132	hand	show me the network adapters	network_status	host
+h133	hand	is ethernet connected	network_status	host
+h134	hand	how many packets has en0 received	network_status	host
+h135	hand	what's the network throughput	network_status	host
+h136	hand	list network interfaces and their addresses	network_status	host
+h137	hand	is my laptop getting too hot	thermal_status	host
+h138	hand	why are the fans screaming	thermal_status	host
+h139	hand	what's the thermal state	thermal_status	host
+h140	hand	is the mac thermally throttling	thermal_status	host
+h141	hand	is low power mode enabled	thermal_status	host
+h142	hand	the bottom of the macbook is scorching, is it overheating	thermal_status	host
+h143	hand	what is memory compression and why does macos use it	explain_concept	none		memory_compression
+h144	hand	explain the run queue	explain_concept	none		run_queue
+h145	hand	how does swap work	explain_concept	none		swapping
+h146	hand	what does the load average actually measure	explain_concept	none		load_average
+h147	hand	what is psi in linux	explain_concept	none		psi_cpu
+h148	hand	how does a cpu quota cause throttling	explain_concept	none		cgroup_cpu_quota
+h149	hand	what are efficiency cores for	explain_concept	none		heterogeneous_cores
+h150	hand	explain the page cache	explain_concept	none		page_cache
+h151	hand	what's the oom killer	explain_concept	none		out_of_memory_kill
+h152	hand	how does the scheduler decide what runs	explain_concept	none		scheduler
+h153	hand	what is virtual memory	explain_concept	none		virtual_memory
+h154	hand	what is steal time	explain_concept	none		hypervisor_steal
+h155	hand	how does paging affect performance	explain_concept	none		paging
+h156	hand	what is memory pressure	explain_concept	none		memory_pressure
+h157	hand	what would happen if i cut the cpu limit in half	what_if	host
+h158	hand	what if i turn off swap	what_if	host
+h159	hand	what happens if i give the container more memory	what_if	host
+h160	hand	if i raise the cpu quota will it run faster	what_if	host
+h161	hand	what would happen if i lowered swappiness	what_if	host
+h162	hand	what if i reduce the memory limit to 512mb	what_if	host
+h163	hand	why is my docker container getting throttled	container_throttle	host
+h164	hand	is the container hitting its cpu quota	container_throttle	host
+h165	hand	check whether my cgroup is throttled	container_throttle	host
+h166	hand	why does this container keep getting cpu throttled	container_throttle	host
+h167	hand	are my containers cpu limited	container_throttle	host
+h168	hand	kill Plex Media Server	action_request	process_name	Plex Media Server		terminate
+h169	hand	terminate pid 4410	action_request	pid	4410		terminate
+h170	hand	please force quit Minecraft	action_request	process_name	Minecraft		terminate
+h171	hand	kill it	action_request	reference	it		terminate
+h172	hand	renice pid 8812 to 19	action_request	pid	8812		set_priority
+h173	hand	restart the docker daemon	action_request	host
+h174	hand	set vm.swappiness to 1	action_request	host			kernel_parameter
+h175	hand	can you free up some ram	action_request	host
+h176	hand	lower the priority of Raycast	action_request	process_name	Raycast		set_priority
+h177	hand	clean up my mac	action_request	host
+h178	hand	close that one	action_request	reference	that one		terminate
+h179	hand	stop terraform	action_request	process_name	terraform		terminate
+h180	hand	please restart Postman	action_request	process_name	Postman		restart_service
+h181	hand	why is my pod stuck in pending	kubernetes	none
+h182	hand	can you rightsize my k8s workloads	kubernetes	none
+h183	hand	which pods are using the most memory	kubernetes	none
+h184	hand	optimize the kubernetes cluster without downtime	kubernetes	none
+h185	hand	why did my deployment get oomkilled	kubernetes	none
+h186	hand	what can you help me with	help	none
+h187	hand	hello there	help	none
+h188	hand	help please	help	none
+h189	hand	what sort of questions do you understand	help	none
+h190	hand	write a limerick about linux	unsupported	none
+h191	hand	what's the score of the game	unsupported	none
+h192	hand	how do i make pancakes	unsupported	none
+h193	hand	who wrote hamlet	unsupported	none
+h194	hand	plan a trip to rome	unsupported	none
+h195	hand	what's 2 plus 2	unsupported	none
+h196	hand	tell me something funny	unsupported	none
+h197	hand	recommend a podcast	unsupported	none
+h198	hand	what is the population of canada	unsupported	none
+h199	hand	write a bash script to rename files	unsupported	none
+h200	hand	why is the sky blue	unsupported	none
+h201	hand	why is Obsidian slow	process_cpu	process_name	Obsidian
+h202	hand	what is using my cpu and memory	top_cpu	host
+h203	hand	is anything leaking memory	diagnose_memory	host
+h204	hand	why is kernel_task so high	process_cpu	process_name	kernel_task
+h205	hand	which of these is the memory hog	top_memory	host
+h206	hand	is the system overloaded	diagnose_slow	host
+h207	hand	how many cpus can this container use	container_throttle	host
+h208	hand	why is WindowServer using so much cpu	process_cpu	process_name	WindowServer
+h209	hand	what's eating my battery	top_cpu	host
+h210	hand	the beachball keeps appearing	diagnose_slow	host

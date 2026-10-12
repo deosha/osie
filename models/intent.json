@@ -1,0 +1,116 @@
+{
+  "arch": "bag",
+  "buckets": 8192,
+  "dim": 32,
+  "hidden": 48,
+  "ngram": [
+    2,
+    4
+  ],
+  "params": 266303,
+  "artifact_bytes": 1065789,
+  "artifact_bytes_int8": 312124,
+  "train_examples": 6798,
+  "train_fraction": 1.0,
+  "epochs_run": 13,
+  "tokens_per_epoch": 50090,
+  "avg_features_per_token": 15.211259732481533,
+  "train_flops_est": 9671359776.000002,
+  "forward_flops_per_token_est": 4950.76031143941,
+  "train_seconds": 4.406825065612793,
+  "prep_seconds": 0.14144301414489746,
+  "peak_rss_bytes": 324747264,
+  "threads": 4,
+  "dropout": 0.3,
+  "word_dropout": 0.15,
+  "feat_dropout": 0.0,
+  "knowledge": true,
+  "dev_intent_acc": 0.8629629629629629,
+  "dev_tag_acc": 0.9797809604043808,
+  "history": [
+    {
+      "epoch": 1,
+      "dev_intent_acc": 0.10740740740740741,
+      "dev_tag_acc": 0.9588879528222409,
+      "loss": 3.1355457305908203
+    },
+    {
+      "epoch": 2,
+      "dev_intent_acc": 0.3296296296296296,
+      "dev_tag_acc": 0.9619208087615838,
+      "loss": 2.059701442718506
+    },
+    {
+      "epoch": 3,
+      "dev_intent_acc": 0.7395061728395061,
+      "dev_tag_acc": 0.9649536647009267,
+      "loss": 1.032218337059021
+    },
+    {
+      "epoch": 4,
+      "dev_intent_acc": 0.817283950617284,
+      "dev_tag_acc": 0.9659646166807077,
+      "loss": 1.2418291568756104
+    },
+    {
+      "epoch": 5,
+      "dev_intent_acc": 0.8345679012345679,
+      "dev_tag_acc": 0.9711878685762426,
+      "loss": 0.4190908372402191
+    },
+    {
+      "epoch": 6,
+      "dev_intent_acc": 0.8493827160493828,
+      "dev_tag_acc": 0.9764111204717776,
+      "loss": 0.5090318322181702
+    },
+    {
+      "epoch": 7,
+      "dev_intent_acc": 0.8320987654320988,
+      "dev_tag_acc": 0.977927548441449,
+      "loss": 0.4683654010295868
+    },
+    {
+      "epoch": 8,
+      "dev_intent_acc": 0.8493827160493828,
+      "dev_tag_acc": 0.97893850042123,
+      "loss": 0.5597886443138123
+    },
+    {
+      "epoch": 9,
+      "dev_intent_acc": 0.8629629629629629,
+      "dev_tag_acc": 0.9797809604043808,
+      "loss": 0.4049183428287506
+    },
+    {
+      "epoch": 10,
+      "dev_intent_acc": 0.8518518518518519,
+      "dev_tag_acc": 0.9804549283909014,
+      "loss": 0.13565027713775635
+    },
+    {
+      "epoch": 11,
+      "dev_intent_acc": 0.8345679012345679,
+      "dev_tag_acc": 0.9804549283909014,
+      "loss": 0.09304936975240707
+    },
+    {
+      "epoch": 12,
+      "dev_intent_acc": 0.854320987654321,
+      "dev_tag_acc": 0.9802864363942713,
+      "loss": 0.30549755692481995
+    },
+    {
+      "epoch": 13,
+      "dev_intent_acc": 0.8469135802469135,
+      "dev_tag_acc": 0.9780960404380792,
+      "loss": 0.16895067691802979
+    }
+  ],
+  "parity": {
+    "max_abs_diff": 6.799793243472685e-07,
+    "argmax_agreement": 1.0
+  },
+  "torch": "2.9.1",
+  "seed": 1
+}

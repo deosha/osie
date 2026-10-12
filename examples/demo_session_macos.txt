@@ -1,0 +1,123 @@
+osie> What is using CPU?
+
+Processes using the most CPU (over the last 0.5 s; 100% = one full core):
+  1. Code Helper (Renderer) (pid 39758)  41.8%  23 threads
+  2. Webex (pid 654)  14.4%  14 threads
+  3. com.apple.Virtualization.VirtualMachine (pid 27353)  9.6%  29 threads
+  4. Creative Cloud UI Helper (Renderer) (pid 48471)  7.4%  29 threads
+  5. Code Helper (pid 14272)  4.9%  21 threads
+Machine total: 11.7% busy across 12 logical CPUs.
+Note: 188 processes of other users (root daemons) are not readable without privileges and are not ranked.
+
+  (rules, intent=top_cpu, 550 ms)
+
+osie> Which one is using the most memory?
+
+Processes using the most memory (physical footprint):
+  1. com.apple.Virtualization.VirtualMachine (pid 27353)  7.9 GiB  (33.0% of RAM)
+System memory pressure: warning.
+Note: 188 processes of other users are not readable without privileges.
+
+  (rules, intent=top_memory, 539 ms)
+
+osie> Why might it be consuming so much memory?
+
+com.apple.Virtualization.VirtualMachine (pid 27353) is using 7.9 GiB (33.0% of RAM).
+
+Evidence (observed):
+  - com.apple.Virtualization.VirtualMachine (pid 27353) uses 7.9 GiB (33.0% of RAM)
+  - footprint 7.9 GiB vs resident 2.6 GiB
+  - virtual size 399.7 GiB
+  - 29 threads
+  - 1 related processes (children or 'com.apple.Virtualization.VirtualMachine*' helpers) use another 1.9 GiB
+  - kernel memory-pressure level: warning
+  - compressor holds 9.7 GiB (40.5% of RAM)
+
+Analysis:
+  [Observed, high] This is the process's physical footprint: memory it is responsible for, including compressed pages, excluding shared file cache. Its virtual size is much larger by design and is not a measure of RAM use.
+  [Hypothesis, low] Large usage is most often by design: caches, loaded documents/media, JIT heaps or per-tab/per-view state that grows with what is open.
+  [Observed, moderate] The application is split across 2 processes; together they use 9.8 GiB.
+  [Hypothesis, low] A memory leak is possible only if usage keeps growing without a corresponding workload; one sample cannot show that.
+  [Correlation, limited] The system shows memory pressure and this process holds 33.0% of RAM, so it is a likely contributor.
+      mechanism: Memory pressure -AFFECTS-> Paging (page-outs/page-ins) (invariant)
+
+Not observed / uncertain:
+  - memory growth over time (needs repeated samples)
+  - heap/allocation breakdown (requires debugging privileges OSIE does not use)
+
+Certainty: limited. Next: ask again later to compare; growth without more open work suggests a leak
+
+  (rules, intent=process_memory, target=it, 0 ms, reused observations)
+
+osie> what about cpu?
+
+com.apple.Virtualization.VirtualMachine (pid 27353) is using 6.0% of one CPU.
+
+Evidence (observed):
+  - com.apple.Virtualization.VirtualMachine (pid 27353) 6.0% of one CPU (0.5% of the machine)
+  - 29 threads
+  - state running
+
+Not observed / uncertain:
+  - per-thread CPU and call stacks (not read by OSIE V1)
+  - how long it has been this busy (single sample)
+
+Certainty: limited. Next: re-check in a few seconds to see whether the usage is sustained
+
+Unavailable on this system:
+  - cgroup (not available on macos)
+
+  (rules+context, intent=process_cpu, target=previous process, 527 ms)
+
+osie> Why is my Mac using so much CPU?
+
+CPU is mostly idle right now (17.2% busy).
+
+Evidence (observed):
+  - CPU busy 17.2% of 12 logical CPUs (user 11.8%, system 5.5%) over 0.50 s
+  - busiest logical CPU 48.0%; 0 CPUs >= 90%
+  - load average 8.52 / 7.54 / 6.01 (0.71 per CPU)
+  - mediaanalysisd (pid 15156) 97.1% of one CPU, 7 threads
+  - Webex (pid 654) 15.1% of one CPU, 14 threads
+  - Creative Cloud UI Helper (Renderer) (pid 48471) 6.7% of one CPU, 29 threads
+  - com.apple.Virtualization.VirtualMachine (pid 27353) 6.6% of one CPU, 29 threads
+  - 2.1.291 (pid 30015) 5.0% of one CPU, 26 threads
+
+Analysis:
+  [Hypothesis, limited] mediaanalysisd (pid 15156) uses about one full CPU. That pattern is consistent with one busy thread (e.g. a spin loop or a single-threaded computation); per-thread data would be needed to confirm.
+  [Observed, moderate] This Mac mixes performance and efficiency cores (8 Performance + 4 Efficiency); utilisation % counts both equally although efficiency cores do less work per second, and background-QoS work is preferentially placed on them.
+      mechanism: Quality-of-service classes -AFFECTS-> Heterogeneous cores (performance/efficiency) (hypothesized, p~0.80)
+
+Not observed / uncertain:
+  - CPU time of 188 processes owned by other users (requires privileges OSIE does not request)
+  - CPU temperature and clock frequency (no public API on Apple silicon)
+  - CPU history: only a 0.50 s window was sampled
+  - per-thread CPU breakdown
+
+Certainty: limited. Next: if slowness persists, check memory pressure
+
+Unavailable on this system:
+  - pressure_stall (not available on macos)
+  - cgroup (not available on macos)
+
+  (rules, intent=diagnose_cpu, 527 ms)
+
+osie> how does memory compression work?
+
+Memory compressor
+  - Memory compressor PART_OF Virtual memory: macOS compresses inactive anonymous pages before swapping (invariant)
+  - Memory compressor AFFECTS CPU saturation (demand exceeds CPUs): compressing/decompressing pages costs CPU time (hypothesized)
+  - Memory pressure AFFECTS Memory compressor: under pressure macOS compresses memory to free pages (invariant)
+Source: documentation reference: Apple: Activity Monitor User Guide, 'View memory usage' (memory pressure, compressed)
+
+  (rules, intent=explain_concept, 0 ms)
+
+osie> kill it
+
+I won't do that: V1 safety policy is read-only: actions with side effects are disabled.
+  capability: act.process.terminate (risk high, irreversible; requires signal_process)
+  side effects: process stops; unsaved data may be lost
+I can explain what the process is doing instead - ask 'why is mediaanalysisd using so much CPU?'
+
+  (rules, intent=action_request, target=it, 0 ms)
+

@@ -1,0 +1,279 @@
+{
+  "windows_train": 196,
+  "windows_test": 84,
+  "baseline_p95_us": 5604.42,
+  "features": [
+    "host_busy",
+    "host_user",
+    "host_system",
+    "host_iowait",
+    "runnable",
+    "blocked",
+    "load1",
+    "ctxt_per_s",
+    "psi_cpu_some",
+    "psi_mem_some",
+    "psi_io_some",
+    "psi_io_full",
+    "cg_usage_cores",
+    "cg_throttled_ratio",
+    "cg_throttled_frac",
+    "cg_quota_cores",
+    "cg_psi_cpu_some",
+    "cpuset"
+  ],
+  "classes": [
+    "none",
+    "contention",
+    "throttling",
+    "io"
+  ],
+  "models": {
+    "rules_a_priori": {
+      "test_acc": 0.9166666666666666,
+      "test_macro_f1": 0.9365079365079365,
+      "per_class_recall": {
+        "none": 1.0,
+        "contention": 0.75,
+        "throttling": 1.0,
+        "io": 1.0
+      },
+      "params": 3,
+      "train_seconds": 0.0
+    },
+    "rules_host_cpu_only": {
+      "test_acc": 0.4880952380952381,
+      "test_macro_f1": 0.38215488215488214,
+      "per_class_recall": {
+        "none": 1.0,
+        "contention": 0.0,
+        "throttling": 0.0,
+        "io": 0.9285714285714286
+      },
+      "params": 3,
+      "train_seconds": 0.0
+    },
+    "logreg": {
+      "test_acc": 0.6666666666666666,
+      "test_macro_f1": 0.6666666666666666,
+      "per_class_recall": {
+        "none": 0.0,
+        "contention": 1.0,
+        "throttling": 1.0,
+        "io": 1.0
+      },
+      "params": 76,
+      "features": [
+        "host_busy",
+        "host_user",
+        "host_system",
+        "host_iowait",
+        "runnable",
+        "blocked",
+        "load1",
+        "ctxt_per_s",
+        "psi_cpu_some",
+        "psi_mem_some",
+        "psi_io_some",
+        "psi_io_full",
+        "cg_usage_cores",
+        "cg_throttled_ratio",
+        "cg_throttled_frac",
+        "cg_quota_cores",
+        "cg_psi_cpu_some",
+        "cpuset"
+      ],
+      "train_seconds": 0.003111041965894401,
+      "python_predict_us": 14.797499752603471,
+      "abstain_at_0.8": {
+        "coverage": 0.9880952380952381,
+        "acc_on_covered": 0.6746987951807228
+      }
+    },
+    "tree_d3": {
+      "test_acc": 0.6666666666666666,
+      "test_macro_f1": 0.6166666666666667,
+      "per_class_recall": {
+        "none": 0.0,
+        "contention": 1.0,
+        "throttling": 1.0,
+        "io": 1.0
+      },
+      "params": 7,
+      "features": [
+        "host_busy",
+        "host_user",
+        "host_system",
+        "host_iowait",
+        "runnable",
+        "blocked",
+        "load1",
+        "ctxt_per_s",
+        "psi_cpu_some",
+        "psi_mem_some",
+        "psi_io_some",
+        "psi_io_full",
+        "cg_usage_cores",
+        "cg_throttled_ratio",
+        "cg_throttled_frac",
+        "cg_quota_cores",
+        "cg_psi_cpu_some",
+        "cpuset"
+      ],
+      "train_seconds": 0.0015352499904111028,
+      "python_predict_us": 16.668749740347266,
+      "abstain_at_0.8": {
+        "coverage": 1.0,
+        "acc_on_covered": 0.6666666666666666
+      }
+    },
+    "mlp_16": {
+      "test_acc": 0.6785714285714286,
+      "test_macro_f1": 0.6859160781055256,
+      "per_class_recall": {
+        "none": 0.03571428571428571,
+        "contention": 1.0,
+        "throttling": 1.0,
+        "io": 1.0
+      },
+      "params": 372,
+      "features": [
+        "host_busy",
+        "host_user",
+        "host_system",
+        "host_iowait",
+        "runnable",
+        "blocked",
+        "load1",
+        "ctxt_per_s",
+        "psi_cpu_some",
+        "psi_mem_some",
+        "psi_io_some",
+        "psi_io_full",
+        "cg_usage_cores",
+        "cg_throttled_ratio",
+        "cg_throttled_frac",
+        "cg_quota_cores",
+        "cg_psi_cpu_some",
+        "cpuset"
+      ],
+      "train_seconds": 0.0550964999711141,
+      "python_predict_us": 41.09479021281004,
+      "abstain_at_0.8": {
+        "coverage": 0.6785714285714286,
+        "acc_on_covered": 0.9824561403508771
+      }
+    },
+    "logreg_mechanistic": {
+      "test_acc": 1.0,
+      "test_macro_f1": 1.0,
+      "per_class_recall": {
+        "none": 1.0,
+        "contention": 1.0,
+        "throttling": 1.0,
+        "io": 1.0
+      },
+      "params": 36,
+      "features": [
+        "psi_cpu_some",
+        "psi_mem_some",
+        "psi_io_some",
+        "psi_io_full",
+        "cg_usage_cores",
+        "cg_throttled_ratio",
+        "cg_throttled_frac",
+        "cg_psi_cpu_some"
+      ],
+      "train_seconds": 0.001708082971163094,
+      "python_predict_us": 16.205210122279823,
+      "abstain_at_0.8": {
+        "coverage": 0.6785714285714286,
+        "acc_on_covered": 1.0
+      }
+    },
+    "tree_d3_mechanistic": {
+      "test_acc": 1.0,
+      "test_macro_f1": 1.0,
+      "per_class_recall": {
+        "none": 1.0,
+        "contention": 1.0,
+        "throttling": 1.0,
+        "io": 1.0
+      },
+      "params": 7,
+      "features": [
+        "psi_cpu_some",
+        "psi_mem_some",
+        "psi_io_some",
+        "psi_io_full",
+        "cg_usage_cores",
+        "cg_throttled_ratio",
+        "cg_throttled_frac",
+        "cg_psi_cpu_some"
+      ],
+      "train_seconds": 0.0003952499246224761,
+      "python_predict_us": 18.076460110023618,
+      "abstain_at_0.8": {
+        "coverage": 1.0,
+        "acc_on_covered": 1.0
+      }
+    },
+    "mlp_16_mechanistic": {
+      "test_acc": 1.0,
+      "test_macro_f1": 1.0,
+      "per_class_recall": {
+        "none": 1.0,
+        "contention": 1.0,
+        "throttling": 1.0,
+        "io": 1.0
+      },
+      "params": 212,
+      "features": [
+        "psi_cpu_some",
+        "psi_mem_some",
+        "psi_io_some",
+        "psi_io_full",
+        "cg_usage_cores",
+        "cg_throttled_ratio",
+        "cg_throttled_frac",
+        "cg_psi_cpu_some"
+      ],
+      "train_seconds": 0.110582166002132,
+      "python_predict_us": 40.45145527925342,
+      "abstain_at_0.8": {
+        "coverage": 1.0,
+        "acc_on_covered": 1.0
+      }
+    }
+  },
+  "tree_rules": "|--- load1 <= -0.04\n|   |--- class: 0\n|--- load1 >  -0.04\n|   |--- host_user <= 0.20\n|   |   |--- psi_io_some <= 0.34\n|   |   |   |--- class: 2\n|   |   |--- psi_io_some >  0.34\n|   |   |   |--- class: 3\n|   |--- host_user >  0.20\n|   |   |--- class: 1\n",
+  "tree_rules_mechanistic": "|--- cg_psi_cpu_some <= -0.54\n|   |--- psi_io_some <= 0.36\n|   |   |--- class: 0\n|   |--- psi_io_some >  0.36\n|   |   |--- class: 3\n|--- cg_psi_cpu_some >  -0.54\n|   |--- cg_throttled_ratio <= 0.70\n|   |   |--- class: 1\n|   |--- cg_throttled_ratio >  0.70\n|   |   |--- class: 2\n",
+  "degradation": {
+    "rate_test": 0.16666666666666666,
+    "rules_a_priori_acc": 0.5833333333333334,
+    "rules_host_cpu_only_acc": 0.6785714285714286,
+    "logreg_acc": 1.0
+  },
+  "p95_latency_by_run_us": {
+    "contention_duty6_t": 4877.02,
+    "contention_hash3_t": 5456.27,
+    "contention_spin2_a": 6120.38,
+    "contention_spin2_b": 5639.045,
+    "contention_spin4_a": 5092.9,
+    "contention_spin4_b": 5173.23,
+    "elsewhere_hash4_t": 3828.71,
+    "elsewhere_spin4_a": 3587.505,
+    "elsewhere_spin4_b": 4383.835,
+    "io_w2_a": 3208.835,
+    "io_w2_b": 3549.52,
+    "io_w4_t": 4161.395,
+    "none_a": 5660.235000000001,
+    "none_b": 5937.9,
+    "none_c": 5260.465,
+    "none_t": 5903.27,
+    "throttle_q30_a": 82735.55,
+    "throttle_q50_a": 59796.35,
+    "throttle_q50_b": 60353.55,
+    "throttle_q80_duty2_t": 31551.7
+  }
+}
