@@ -1,0 +1,16 @@
+{
+ "collected_at": "2026-10-13T12:51:01+00:00",
+ "kernel": "6.17.0-1022-azure",
+ "os": "Ubuntu 24.04.5 LTS",
+ "architecture": "aarch64",
+ "vm_cpus": 4,
+ "vm_memory_bytes": 16722006016,
+ "cgroup_version": "2",
+ "cgroup_driver": "systemd",
+ "container_runtime": "docker 28.0.4",
+ "hypervisor": "Microsoft Corporation Virtual Machine",
+ "host_machine": "aarch64",
+ "host_cpus": 4,
+ "cpu_frequency": "not exposed inside the VM",
+ "image": "sha256:17060b73b52de2ff0239c848d8bbd3cb0a8c1acffc11f77b2a66b57348aeda91"
+}

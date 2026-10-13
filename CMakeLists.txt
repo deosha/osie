@@ -97,14 +97,16 @@ target_compile_definitions(osie PRIVATE OSIE_VERSION="${PROJECT_VERSION}")
 # The binary never embeds a source-tree path. In the build tree the model is
 # copied to the same relative location as an installation
 # (<build>/share/osie/models), so lookup works identically in both.
-add_custom_command(TARGET osie POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/intent.osiem
-          ${CMAKE_BINARY_DIR}/share/osie/models/intent.osiem)
+# Models are copied into the build tree on every build (not only when osie
+# relinks), so a replaced model file is never silently stale.
+set(OSIE_MODEL_COPY ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/intent.osiem
+    ${CMAKE_BINARY_DIR}/share/osie/models/intent.osiem)
 if(EXISTS ${CMAKE_SOURCE_DIR}/models/world_cpu.osiewm)
-  add_custom_command(TARGET osie POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/world_cpu.osiewm
-            ${CMAKE_BINARY_DIR}/share/osie/models/world_cpu.osiewm)
+  list(APPEND OSIE_MODEL_COPY COMMAND ${CMAKE_COMMAND} -E copy_if_different
+       ${CMAKE_SOURCE_DIR}/models/world_cpu.osiewm ${CMAKE_BINARY_DIR}/share/osie/models/world_cpu.osiewm)
 endif()
+add_custom_target(osie_models ALL COMMAND ${OSIE_MODEL_COPY})
+add_dependencies(osie osie_models)
 if(OSIE_PORTABLE AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # Release archives: avoid depending on the target system's libstdc++ version.
   target_link_options(osie PRIVATE -static-libstdc++ -static-libgcc)

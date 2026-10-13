@@ -38,28 +38,24 @@ it was validated; outside it OSIE answers "Prediction unavailable".
 
 | Dimension | Envelope | Basis |
 |---|---|---|
-| CPU architecture | aarch64 | development data |
-| Kernel | 6.10 | development data |
+| CPU architecture | aarch64, x86_64 | measured on both (Docker Desktop VM, GitHub-hosted VMs) |
+| Kernel | 6.10–6.17 | only 6.10 and 6.17 observed; the kernels in between are assumed |
 | cgroup | v2, `throttled_usec` summed per CPU | measured (`WORLD_MODEL.md`) |
 | Capacity after the change | 0.5–3 cores | training range |
 | Actions | CPU quota 0.5–3 cores; cpuset 1–4 CPUs; offered load ×0.5–2 | training range |
-| Workloads | synthetic request servers (`arith`, `hash`, `short`, `burst`, `mixed`) and batch threads | training data |
-| Host CPUs | 12 (an unintended consequence of the training data: W8) | feature ranges |
+| Workloads | synthetic request servers (`arith`, `hash`, `short`, `burst`, `mixed`, `variable`, `closed`, `wide`, `hashbig`) and batch threads | training data |
+| Host CPUs | 4 and 12 observed; not range-checked since model C | W8 fix |
 
-How the frozen model did on data collected after it was frozen, including
-other kernels and x86-64, is in
-[`WORLD_MODEL_RESULTS.md`](WORLD_MODEL_RESULTS.md) ("v0.2 confirmatory
-results"). The envelope was not widened on the basis of those results; see
-[`V0_2_RELEASE_READINESS.md`](V0_2_RELEASE_READINESS.md).
+This is the envelope of the shipped model C. It was widened by training on
+the round-1 data and then confirmed on round-2 data collected after it was
+frozen ([`WORLD_MODEL_RESULTS.md`](WORLD_MODEL_RESULTS.md), section 4b).
 
 ## Known prediction failure modes
 
-- **Host CPU count (open defect W8).** Every training host had 12 CPUs, so
-  the out-of-distribution check withholds every prediction on a host with a
-  different CPU count, even with a supported architecture and kernel. In
-  practice predictions are given only on 12-CPU aarch64 Linux 6.10 hosts.
-  Data from 4-CPU x86-64 and arm64 hosts on kernel 6.17 show that the
-  predictor would have transferred (see the results).
+- **Throttling after a cut, from an unsaturated state.** The throttled-time
+  interval covered only 0.75–0.87 at the 95% level in round 2. The "low"
+  assessment was never wrong (0 of 298), but the *amount* of throttling in
+  this regime is less certain than the interval says.
 - Real services with application-level backpressure, caches or garbage
   collection are not in the training data.
 - CPU pressure (PSI) predictions are experimental; their interval coverage on

@@ -633,6 +633,72 @@ gets.
 - **No other clamping.** Usage, throttled time and ratio were never clamped:
   they are bounded by construction.
 
+### 4b. Confirmatory round 2: model C (shipped)
+
+Round 1 exposed defect W8: the host CPU count was constant in training, so
+every other host was out of distribution. Model C keeps model B's design
+unchanged, with no new selection decisions. Changes:
+- `g_host_cpus` is dropped from the inputs and from the range check;
+- it is fitted and calibrated on development plus round-1 data: 113 fit and
+  51 calibration runs, every calibration stratum with ≥ 19 runs;
+- its envelope is the environments those data cover: aarch64 and x86-64,
+  Linux 6.10–6.17.
+
+C and a decision rule (`results/v02/decision_rule_B_vs_C.md`) were committed
+before round 2 was collected. Round 2 used new seeds and run ids:
+
+| Environment | Runs | Episodes |
+|---|---|---|
+| local VM (6.10, aarch64) | 30 | 294 |
+| GitHub x86-64 runner (6.17) | 30 | 294 |
+| GitHub arm64 runner (6.17) | 30 | 294 |
+
+| Environment | Group | Episodes / runs | usage MAE vs no change | throttled MAE vs no change | CPU pressure MAE vs no change | 95% coverage usage / throttled (C) | Withheld, B → C |
+|---|---|---|---|---|---|---|---|
+| local 6.10 aarch64 | held_in | 150 / 15 | 0.077 vs 0.193 | 0.156 vs 0.329 | 0.063 vs 0.142 | 0.99 / 0.96 | 9% → 3% |
+| local 6.10 aarch64 | new | 120 / 12 | 0.105 vs 0.314 | 0.196 vs 0.559 | 0.057 vs 0.179 | 0.97 / 0.97 | 27% → 2% |
+| local 6.10 aarch64 | batch | 24 / 3 | 0.007 vs 0.623 | 0.008 vs 0.627 | 0.040 vs 0.217 | 1.00 / 1.00 | 8% → 0% |
+| runner 6.17 x86-64 | held_in | 150 / 15 | 0.081 vs 0.164 | 0.260 vs 0.405 | 0.054 vs 0.155 | 0.98 / 0.94 | 100% → 1% |
+| runner 6.17 x86-64 | new | 120 / 12 | 0.084 vs 0.349 | 0.243 vs 0.668 | 0.070 vs 0.196 | 0.99 / 0.94 | 100% → 2% |
+| runner 6.17 x86-64 | batch | 24 / 3 | 0.006 vs 0.730 | 0.013 vs 0.742 | 0.062 vs 0.312 | 1.00 / 1.00 | 100% → 0% |
+| runner 6.17 arm64 | held_in | 150 / 15 | 0.071 vs 0.152 | 0.192 vs 0.332 | 0.052 vs 0.143 | 0.99 / 0.96 | 100% → 1% |
+| runner 6.17 arm64 | new | 120 / 12 | 0.077 vs 0.339 | 0.249 vs 0.644 | 0.072 vs 0.199 | 0.99 / 0.96 | 100% → 3% |
+| runner 6.17 arm64 | batch | 24 / 3 | 0.005 vs 0.730 | 0.006 vs 0.740 | 0.063 vs 0.320 | 1.00 / 1.00 | 100% → 0% |
+
+| Environment | C: deployed "low" assessments | false-safe among them | throttled 95% coverage, pre unsaturated → throttled after | CPU-pressure clamping |
+|---|---|---|---|---|
+| local 6.10 aarch64 | 103 of 217 changes | 0 | 0.87 (n=30) | 10.5% |
+| runner 6.17 x86-64 | 95 of 216 changes | 0 | 0.75 (n=36) | 8.8% |
+| runner 6.17 arm64 | 100 of 216 changes | 0 | 0.82 (n=34) | 12.6% |
+
+
+**Rule outcome.** C met every condition in every environment:
+1. 1–3% withheld on `held_in` workloads (limit 25%);
+2. 95% coverage of usage 0.97–1.00 and of throttled time 0.94–1.00 in every
+   group (limit 0.90);
+3. 0 false-safe among 298 deployed "low" assessments;
+4. usage error below no-change in every group.
+
+C replaced B as the shipped model (`models/world_cpu.osiewm`, sha256
+`568aaaa7…906aa`). Point predictions for usage and throttling are identical
+in B and C: both are the mechanism. The difference is that C answers on the
+hosts where B withheld everything.
+
+**Still not solved.**
+- **Throttling after a cut, from an unsaturated state.** C's 95% coverage of
+  throttled time is 0.75–0.87 in this regime: lower than B's 0.97 in round
+  1, and below nominal. Pooling round-1 data into calibration made the
+  half-widths narrower, and this regime is where the residuals have the
+  heaviest tails.
+  - The throttling *assessment* was still never wrong, because "low" is
+    given only when even the upper bound is 0.
+  - The *interval* for the amount of throttling in that regime should not be
+    read as a 95% interval.
+  - A next model should calibrate this regime separately (Mondrian on
+    pre-saturation as well as rho) and be confirmed on new runs.
+- **CPU-pressure clamping.** It still occurs in 9–13% of predictions (W10).
+- **Kernel range.** It is interpolated: only 6.10 and 6.17 were observed.
+
 ### 5. Hypotheses, revisited
 
 The long-run hypothesis was that explicit OS mechanisms plus selective
@@ -664,8 +730,9 @@ world models.
 - **Workloads.** Real services with application-level backpressure, garbage
   collection or caches were not tested. Neither was I/O-bound blocking beyond
   sleep-based blocking.
-- **Envelope.** It was not widened, although the runner data support 6.17 on
-  x86-64 and arm64. Widening it on the strength of the confirmatory data
+- **Envelope (round 1).** Model B's envelope was not widened on the round-1
+  data. Model C widened it by *training* on those data and was then confirmed
+  on round 2 (section 4b). Widening it on the strength of the confirmatory data
   would make them training evidence. A future model should declare the wider
   envelope and be confirmed on new runs. The same model should drop or
   re-range host-CPU-count features (W8).

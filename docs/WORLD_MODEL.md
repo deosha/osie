@@ -28,7 +28,9 @@ between 0.7 and 1.3, or at least 1.3. Below 0.7 the throttling interval
 is exactly 0, which lets the assessment say "low". The first frozen model
 used one half-width per target. It under-covered the cases where throttling
 appears after a cut, and it never said "low". It was replaced by a
-pre-registered rule (see the results).
+pre-registered rule (see the results). The shipped model (C) also drops the
+host CPU count from its inputs and range check (audit W8), and its envelope
+is aarch64 and x86-64, Linux 6.10–6.17.
 
 The selection between these and every learned alternative is described in
 [`WORLD_MODEL_EXPERIMENTS.md`](WORLD_MODEL_EXPERIMENTS.md) ("v0.2 protocol").

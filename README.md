@@ -189,12 +189,13 @@ CI (`.github/workflows/ci.yml`) runs:
 
 ## Key results (details in [`docs/RESEARCH.md`](docs/RESEARCH.md) and [`docs/WORLD_MODEL_RESULTS.md`](docs/WORLD_MODEL_RESULTS.md))
 
-- **Predicting the effect of a CPU quota change: the mechanism beat learning outside the training workloads.** The setup was 752 randomised interventions in disposable Linux containers (one VM environment).
-  - A zero-parameter model built on one measured kernel fact (demand ≈ usage + throttled CPU time) was best for usage and throttling on unseen workload families, quotas and workload classes. On batch jobs its error was 0.005 cores.
-  - A 660-parameter learned hybrid won only on runs of the training families. On batch jobs it was off by 0.4 cores.
-  - OSIE ships the mechanism plus a small learned model for CPU pressure. Prediction takes ~1 µs.
-  - Application latency could not be predicted from OS telemetry on unseen workloads, so OSIE never predicts it.
-
+- **Safety routing (v0.2).** On a frozen, family-split test set written before the parser changes, end-to-end accuracy rose from 47.8% to 89.1%. Action requests routed to an informational intent fell from 51.9% to 0 (27 requests).
+- **Predicting the effect of a CPU quota change: the mechanism beat learning, and it transfers.**
+  - A zero-parameter model built on kernel semantics (demand ≈ usage + throttled CPU time, verified against lab ground truth on Linux 6.10 and 6.17) beat every learned and hybrid model under workload shift.
+  - On data collected *after* the model was frozen (two rounds: 4 new workload families, x86-64 and arm64, kernel 6.17), it beat no-change everywhere: usage error 0.005–0.105 cores against 0.15–0.73.
+  - Regime-conditional intervals made the throttling assessment informative. In round 2, 298 changes were assessed "low" risk and none of them was in fact throttled.
+  - It is still **experimental and opt-in**. Intervals under-cover where throttling first appears after a cut, CPU-pressure predictions are experimental, and all workloads are synthetic.
+  - Latency could not be predicted from OS telemetry on unseen workloads, so OSIE never predicts it.
 - **Rules ≈ tiny models for language.**
   - On held-out sets the zero-parameter rule parser scores 65.5% (synthetic test) and 71.0% (hand-written) end-to-end.
   - The best tiny hybrid scores 67.6% / 73.0%. The dev-selected configuration averages 64.8% / 70.8% over 3 seeds; the shipped seed scores 63.2% / 69.5%.
@@ -230,7 +231,7 @@ packaging/          release builder image, Linux package script, clean-environme
 
 - **Read-only.** OSIE observes and explains; it never tunes. Predictions are never presented as observations.
 - **No privileges.** It does not escalate. On macOS about 190 root-owned processes are only partly visible, and OSIE says so.
-- **Predictions are experimental and opt-in.** The shipped model's support envelope is the one environment it was trained in (Linux 6.10, aarch64). Data collected after freezing, including other kernels and x86-64, are reported in [`docs/WORLD_MODEL_RESULTS.md`](docs/WORLD_MODEL_RESULTS.md), but the envelope was not widened on that basis. Workloads are synthetic; CPU-pressure predictions are marked experimental.
+- **Predictions are experimental and opt-in.** The support envelope is aarch64 and x86-64 on Linux 6.10–6.17; only 6.10 and 6.17 were measured, and only in VMs. Workloads are synthetic, and CPU-pressure predictions are marked experimental. See [`docs/WORLD_MODEL_RESULTS.md`](docs/WORLD_MODEL_RESULTS.md).
 - **Short history only.** One 0.5 s sampling window per question. Trends need samples recorded in the same session (`--watch`); nothing is persisted between sessions.
 - **macOS gaps.** No public API for temperatures or CPU frequency, or for mapping a PID to its launchd job label.
 - **Templated answers.** Answers are deterministic templates, not open-ended conversation. The intent model (~0.3M parameters) classifies questions; it does not generate text.

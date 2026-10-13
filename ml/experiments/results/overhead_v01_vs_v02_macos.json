@@ -1,0 +1,16 @@
+{
+ "v0.1.0 (Homebrew release)": {
+  "wall_s_median": 0.52,
+  "wall_s_max": 0.56,
+  "peak_rss_mb_median": 7.25,
+  "peak_rss_mb_max": 8.015625,
+  "n": 15
+ },
+ "v0.2.0 (release build)": {
+  "wall_s_median": 0.53,
+  "wall_s_max": 1.12,
+  "peak_rss_mb_median": 7.515625,
+  "peak_rss_mb_max": 8.546875,
+  "n": 15
+ }
+}

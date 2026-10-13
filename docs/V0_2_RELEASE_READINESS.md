@@ -25,7 +25,19 @@ opt-in research preview.**
 The decision on a tag and a GitHub release is the repository owner's; this
 document does not create either.
 
-ROUND2_PLACEHOLDER
+**Shipped CPU model: C** (`models/world_cpu.osiewm`, sha256
+`568aaaa7bf0d18eef150fdd9f148ee0f3ba34474f8d9930e022aab13ff0906aa`).
+Envelope: aarch64 and x86-64, Linux 6.10–6.17 (only 6.10 and 6.17
+observed), cgroup v2. C was frozen with a pre-registered rule before
+confirmatory round 2 and met it in all three environments:
+- 1–3% of predictions withheld on familiar workloads;
+- 95% coverage of usage 0.97–1.00 and of throttled time 0.94–1.00;
+- 0 false-safe among 298 "low" throttling assessments;
+- error below no-change everywhere.
+
+Open: in the regime where a cgroup that was not saturated becomes
+throttled after a cut, the throttled-time interval covers only 0.75–0.87
+(see [`WORLD_MODEL_RESULTS.md`](WORLD_MODEL_RESULTS.md), section 4b).
 
 ## Engineering gates
 
@@ -49,7 +61,7 @@ ROUND2_PLACEHOLDER
 | Independent model calibration | pass | Separate calibration runs; group-aware split conformal; regime-conditional half-widths |
 | The final test data were not used for selection | pass, with one disclosed exception | Model A was frozen before round 1. Model B was frozen with a pre-registered decision rule before the runner data were read; the local round-1 data motivated it. Model C was frozen with a pre-registered rule before round 2. See [`WORLD_MODEL_RESULTS.md`](WORLD_MODEL_RESULTS.md). |
 | False-safe predictions measured | pass | The assessment uses the 95% upper bound, never the point estimate. Results are reported per environment. The point-estimate rule's false-safe rate is reported for comparison. |
-| Problematic workloads fall back or abstain | partial | Out-of-envelope machines: 100% withheld. Unfamiliar families: `wide` 65% and `closed` 42% withheld locally. The `g_host_cpus` defect (W8) made the check withhold *too much* on other hosts; model C fixes it, subject to round 2. |
+| Problematic workloads fall back or abstain | pass, with a limitation | Out-of-envelope machines are withheld (round 1: 100% for model B). W8 was fixed in model C: 1–3% withheld in round 2. Model C was trained on every workload class tested, so withholding on genuinely new workloads is not established beyond round 1. |
 | Calibration reported by operating regime | pass | Coverage by regime (pre-saturated or not × throttled after or not), and by environment and workload group |
 | Unsupported kernels and hardware detected | pass | OSIEWM2 support envelope, checked at prediction time (`WorldModelV2.OutsideTheEnvelopeIsWithheld`) |
 | Predictions state assumptions and limitations | pass | The CLI output lists assumptions, the graph mechanisms with their epistemic status, the envelope and target status |
@@ -75,8 +87,9 @@ See [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 ## Outstanding defects and limitations
 
-- **W8:** host-size feature in model B's out-of-distribution check (see the
-  round-2 decision above).
+- **W8:** fixed in the shipped model C (confirmed in round 2).
+- **Throttling interval:** under-covered (0.75–0.87 at 95%) where throttling
+  first appears after a cut. The "low" assessment is unaffected.
 - **W10:** the CPU-pressure residual is clamped at 0 in 12–14% of
   predictions, and its 80% interval under-covers for batch threads.
 - **Same-author intent evaluation set.** No utterances from people who have

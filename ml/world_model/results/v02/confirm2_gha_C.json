@@ -1,0 +1,3709 @@
+{
+ "model_sha256": "568aaaa7bf0d18eef150fdd9f148ee0f3ba34474f8d9930e022aab13ff0906aa",
+ "environments": {
+  "wm-ubuntu-24.04": {
+   "environment": {
+    "kernel": "6.17.0-1022-azure",
+    "architecture": "x86_64",
+    "os": "Ubuntu 24.04.5 LTS",
+    "hypervisor": "Microsoft Corporation Virtual Machine (virtual machine)",
+    "host_machine": "AMD EPYC 7763 64-Core Processor",
+    "vm_cpus": 4,
+    "cgroup_driver": "systemd",
+    "collected_at": "2026-10-13T12:09:53+00:00"
+   },
+   "all": {
+    "episodes": 294,
+    "runs": 30,
+    "usage_cores": {
+     "mae": 0.07616748526077098,
+     "ci95": [
+      0.04674868771382155,
+      0.11220723516801191
+     ],
+     "norm_mae": 0.14672076657037497,
+     "no_change_mae": 0.28578509869614505,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8673469387755102,
+       "mean_width": 0.1275534850340136
+      },
+      "0.95": {
+       "coverage": 0.9863945578231292,
+       "mean_width": 1.1768720591836737
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.23286592846712015,
+     "ci95": [
+      0.15544689279654172,
+      0.32534830369167395
+     ],
+     "norm_mae": 0.2674116439523953,
+     "no_change_mae": 0.5401325046048753,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8503401360544217,
+       "mean_width": 0.6233576520408164
+      },
+      "0.95": {
+       "coverage": 0.9455782312925171,
+       "mean_width": 1.4966010778911563
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.07836356746031746,
+     "ci95": [
+      0.052282971827815834,
+      0.1076895133116598
+     ],
+     "norm_mae": 0.19554273578779088,
+     "no_change_mae": 0.26925547959183677,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9183673469387755,
+       "mean_width": 0.23650803061224485
+      },
+      "0.95": {
+       "coverage": 0.9965986394557823,
+       "mean_width": 0.5510204081632653
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.061442279151303854,
+     "ci95": [
+      0.04589819030936389,
+      0.07928490472633994
+     ],
+     "norm_mae": 0.21611302481441036,
+     "no_change_mae": 0.1844687823601474,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8333333333333334,
+       "mean_width": 0.1467250663265306
+      },
+      "0.95": {
+       "coverage": 0.9591836734693877,
+       "mean_width": 0.511197048707483
+      }
+     },
+     "clamped_rate": 0.08843537414965986
+    },
+    "deployed_abstention_rate": 0.017006802721088437,
+    "abstention_reasons": {
+     "the observed state is unlike the training data": 5
+    },
+    "forced_ood_rate": 0.017006802721088437,
+    "false_safe_forced": {
+     "changes": 216,
+     "assessed_low": 95,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 3,
+     "assessments": {
+      "possible": 105,
+      "low": 95,
+      "likely": 13,
+      "unknown": 3
+     },
+     "point_estimate_rule_false_safe": "7/139"
+    },
+    "false_safe_deployed": {
+     "changes": 216,
+     "assessed_low": 95,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 3,
+     "assessments": {
+      "possible": 105,
+      "low": 95,
+      "likely": 13,
+      "unknown": 3
+     },
+     "point_estimate_rule_false_safe": "7/139"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/not_throttled_after": {
+      "coverage": 0.9,
+      "n": 50
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 149
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.75,
+      "n": 36
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 0.9661016949152542,
+      "n": 59
+     }
+    }
+   },
+   "held_in": {
+    "episodes": 150,
+    "runs": 15,
+    "usage_cores": {
+     "mae": 0.08144751000000001,
+     "ci95": [
+      0.03877480091666666,
+      0.13493173938888886
+     ],
+     "norm_mae": 0.15689163245360535,
+     "no_change_mae": 0.164083729,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8733333333333333,
+       "mean_width": 0.128475384
+      },
+      "0.95": {
+       "coverage": 0.98,
+       "mean_width": 1.1523415726666668
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.26009190668000004,
+     "ci95": [
+      0.16301833623136108,
+      0.36470916882966664
+     ],
+     "norm_mae": 0.2986766024632592,
+     "no_change_mae": 0.4054438104522222,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.84,
+       "mean_width": 0.47016423533333335
+      },
+      "0.95": {
+       "coverage": 0.94,
+       "mean_width": 1.2062727233333335
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.07377777777777778,
+     "ci95": [
+      0.03176666666666667,
+      0.1195666666666666
+     ],
+     "norm_mae": 0.18409969038629964,
+     "no_change_mae": 0.2394814811111111,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9266666666666666,
+       "mean_width": 0.20488896
+      },
+      "0.95": {
+       "coverage": 0.9933333333333333,
+       "mean_width": 0.46
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.054462269452333324,
+     "ci95": [
+      0.03751607596737222,
+      0.07226094844832774
+     ],
+     "norm_mae": 0.19156199854854253,
+     "no_change_mae": 0.15458907267444444,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8533333333333334,
+       "mean_width": 0.13900756573333334
+      },
+      "0.95": {
+       "coverage": 0.9666666666666667,
+       "mean_width": 0.49441687693333336
+      }
+     },
+     "clamped_rate": 0.08666666666666667
+    },
+    "deployed_abstention_rate": 0.013333333333333334,
+    "abstention_reasons": {
+     "the observed state is unlike the training data": 2
+    },
+    "forced_ood_rate": 0.013333333333333334,
+    "false_safe_forced": {
+     "changes": 110,
+     "assessed_low": 60,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 1,
+     "assessments": {
+      "low": 60,
+      "possible": 47,
+      "unknown": 1,
+      "likely": 2
+     },
+     "point_estimate_rule_false_safe": "6/85"
+    },
+    "false_safe_deployed": {
+     "changes": 110,
+     "assessed_low": 60,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 1,
+     "assessments": {
+      "low": 60,
+      "possible": 47,
+      "unknown": 1,
+      "likely": 2
+     },
+     "point_estimate_rule_false_safe": "6/85"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 95
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 0.8333333333333334,
+      "n": 18
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.7777777777777778,
+      "n": 18
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 0.8947368421052632,
+      "n": 19
+     }
+    }
+   },
+   "new": {
+    "episodes": 120,
+    "runs": 12,
+    "usage_cores": {
+     "mae": 0.0836039375,
+     "ci95": [
+      0.037485521875000004,
+      0.1394277638888889
+     ],
+     "norm_mae": 0.16104554005302546,
+     "no_change_mae": 0.3491054416666666,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8333333333333334,
+       "mean_width": 0.1302103666666667
+      },
+      "0.95": {
+       "coverage": 0.9916666666666667,
+       "mean_width": 1.1976846374999999
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.2428556740611111,
+     "ci95": [
+      0.10905929077781253,
+      0.4178793892284027
+     ],
+     "norm_mae": 0.2788833706645859,
+     "no_change_mae": 0.6680377697305555,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8333333333333334,
+       "mean_width": 0.7366260558333333
+      },
+      "0.95": {
+       "coverage": 0.9416666666666667,
+       "mean_width": 1.7503189116666666
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.08115740694444444,
+     "ci95": [
+      0.045273148125,
+      0.12454398055555553
+     ],
+     "norm_mae": 0.20251427924584986,
+     "no_change_mae": 0.2781018513888889,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9083333333333333,
+       "mean_width": 0.268889
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.6333333333333333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.07013218931791666,
+     "ci95": [
+      0.04050660520941319,
+      0.10892908333998606
+     ],
+     "norm_mae": 0.2466783423353887,
+     "no_change_mae": 0.19639331926263892,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8166666666666667,
+       "mean_width": 0.1528425145
+      },
+      "0.95": {
+       "coverage": 0.9416666666666667,
+       "mean_width": 0.5209573475
+      }
+     },
+     "clamped_rate": 0.09166666666666666
+    },
+    "deployed_abstention_rate": 0.025,
+    "abstention_reasons": {
+     "the observed state is unlike the training data": 3
+    },
+    "forced_ood_rate": 0.025,
+    "false_safe_forced": {
+     "changes": 82,
+     "assessed_low": 28,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 2,
+     "assessments": {
+      "possible": 44,
+      "low": 28,
+      "likely": 8,
+      "unknown": 2
+     },
+     "point_estimate_rule_false_safe": "1/42"
+    },
+    "false_safe_deployed": {
+     "changes": 82,
+     "assessed_low": 28,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 2,
+     "assessments": {
+      "possible": 44,
+      "low": 28,
+      "likely": 8,
+      "unknown": 2
+     },
+     "point_estimate_rule_false_safe": "1/42"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/not_throttled_after": {
+      "coverage": 0.9166666666666666,
+      "n": 24
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 50
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.6875,
+      "n": 16
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 30
+     }
+    }
+   },
+   "batch": {
+    "episodes": 24,
+    "runs": 3,
+    "usage_cores": {
+     "mae": 0.005985069444444428,
+     "ci95": [
+      0.0008378958333332964,
+      0.009102291666666693
+     ],
+     "norm_mae": 0.01152898738693275,
+     "no_change_mae": 0.7298169444444444,
+     "coverage": {
+      "0.8": {
+       "coverage": 1.0,
+       "mean_width": 0.10850720833333334
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 1.2261247083333335
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.012754836666666644,
+     "ci95": [
+      0.0012207368749999655,
+      0.01991052854166662
+     ],
+     "norm_mae": 0.014647019698543873,
+     "no_change_mae": 0.7424105174305554,
+     "coverage": {
+      "0.8": {
+       "coverage": 1.0,
+       "mean_width": 1.0144744875
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 2.042564125
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.09305555555555556,
+     "ci95": [
+      0.05000000000000001,
+      0.14999999999999997
+     ],
+     "norm_mae": 0.2322040522568162,
+     "no_change_mae": 0.41111111111111115,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9166666666666666,
+       "mean_width": 0.27222237499999996
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.7083333333333334
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.06161778893680556,
+     "ci95": [
+      0.05215966926875002,
+      0.07642072690208333
+     ],
+     "norm_mae": 0.21673035137119218,
+     "no_change_mae": 0.31159428338333334,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.7916666666666666,
+       "mean_width": 0.16437220416666667
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.5672716283333333
+      }
+     },
+     "clamped_rate": 0.08333333333333333
+    },
+    "deployed_abstention_rate": 0.0,
+    "abstention_reasons": {},
+    "forced_ood_rate": 0.0,
+    "false_safe_forced": {
+     "changes": 24,
+     "assessed_low": 7,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 0,
+     "assessments": {
+      "likely": 3,
+      "low": 7,
+      "possible": 14
+     },
+     "point_estimate_rule_false_safe": "0/12"
+    },
+    "false_safe_deployed": {
+     "changes": 24,
+     "assessed_low": 7,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 0,
+     "assessments": {
+      "likely": 3,
+      "low": 7,
+      "possible": 14
+     },
+     "point_estimate_rule_false_safe": "0/12"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 10
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 8
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 4
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 2
+     }
+    }
+   },
+   "by_family": {
+    "arith": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.08752774444444446,
+      "ci95": [
+       0.028043549999999973,
+       0.18114410000000009
+      ],
+      "norm_mae": 0.16860393535506335,
+      "no_change_mae": 0.28197937777777776,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.10592710000000004
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.047015466666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.4118134537777777,
+      "ci95": [
+       0.26126775,
+       0.6770612446666668
+      ],
+      "norm_mae": 0.4729060769058724,
+      "no_change_mae": 0.7269491267944446,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.97079235
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 1.8894021
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.09,
+      "ci95": [
+       0.0,
+       0.16999999999999998
+      ],
+      "norm_mae": 0.22457944158569684,
+      "no_change_mae": 0.2388888888888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.23555569999999998
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.6333333333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.055479921477777784,
+      "ci95": [
+       0.051984900316666666,
+       0.06166029553333333
+      ],
+      "norm_mae": 0.19514142073901392,
+      "no_change_mae": 0.19591567073888888,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.15205892000000001
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.5420871340000001
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "deployed_abstention_rate": 0.03333333333333333,
+     "abstention_reasons": {
+      "the observed state is unlike the training data": 1
+     },
+     "forced_ood_rate": 0.03333333333333333,
+     "false_safe_forced": {
+      "changes": 22,
+      "assessed_low": 8,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "possible": 12,
+       "low": 8,
+       "unknown": 1,
+       "likely": 1
+      },
+      "point_estimate_rule_false_safe": "1/12"
+     },
+     "false_safe_deployed": {
+      "changes": 22,
+      "assessed_low": 8,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "possible": 12,
+       "low": 8,
+       "unknown": 1,
+       "likely": 1
+      },
+      "point_estimate_rule_false_safe": "1/12"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 0.9090909090909091,
+       "n": 11
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 13
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.75,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.5,
+       "n": 2
+      }
+     }
+    },
+    "batch_spin": {
+     "episodes": 24,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.005985069444444428,
+      "ci95": [
+       0.0008378958333332964,
+       0.009102291666666693
+      ],
+      "norm_mae": 0.01152898738693275,
+      "no_change_mae": 0.7298169444444444,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.10850720833333334
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.2261247083333335
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.012754836666666644,
+      "ci95": [
+       0.0012207368749999655,
+       0.01991052854166662
+      ],
+      "norm_mae": 0.014647019698543873,
+      "no_change_mae": 0.7424105174305554,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 1.0144744875
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.042564125
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.09305555555555556,
+      "ci95": [
+       0.05000000000000001,
+       0.14999999999999997
+      ],
+      "norm_mae": 0.2322040522568162,
+      "no_change_mae": 0.41111111111111115,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9166666666666666,
+        "mean_width": 0.27222237499999996
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.7083333333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.06161778893680556,
+      "ci95": [
+       0.05215966926875002,
+       0.07642072690208333
+      ],
+      "norm_mae": 0.21673035137119218,
+      "no_change_mae": 0.31159428338333334,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7916666666666666,
+        "mean_width": 0.16437220416666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.5672716283333333
+       }
+      },
+      "clamped_rate": 0.08333333333333333
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 24,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "likely": 3,
+       "low": 7,
+       "possible": 14
+      },
+      "point_estimate_rule_false_safe": "0/12"
+     },
+     "false_safe_deployed": {
+      "changes": 24,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "likely": 3,
+       "low": 7,
+       "possible": 14
+      },
+      "point_estimate_rule_false_safe": "0/12"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 10
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 8
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      }
+     }
+    },
+    "burst": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.2355884777777778,
+      "ci95": [
+       0.1036200333333333,
+       0.34491573333333325
+      ],
+      "norm_mae": 0.4538120424530533,
+      "no_change_mae": 0.18258217777777783,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7,
+        "mean_width": 0.1685248333333334
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.2384547000000006
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.19474577211666663,
+      "ci95": [
+       0.09920199983333329,
+       0.33912496783333335
+      ],
+      "norm_mae": 0.2236363534043131,
+      "no_change_mae": 0.4894842581611111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7333333333333333,
+        "mean_width": 0.32954702666666663
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.4035096766666664
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.1788888888888889,
+      "ci95": [
+       0.07333333333333332,
+       0.28
+      ],
+      "norm_mae": 0.4463862974728049,
+      "no_change_mae": 0.37851851666666664,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.2955556
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.5666666666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.054653341483888875,
+      "ci95": [
+       0.01992118887166665,
+       0.07900790739333333
+      ],
+      "norm_mae": 0.19223406272433946,
+      "no_change_mae": 0.20830523874444443,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.13951295333333333
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.4817568666666666
+       }
+      },
+      "clamped_rate": 0.3333333333333333
+     },
+     "deployed_abstention_rate": 0.03333333333333333,
+     "abstention_reasons": {
+      "the observed state is unlike the training data": 1
+     },
+     "forced_ood_rate": 0.03333333333333333,
+     "false_safe_forced": {
+      "changes": 24,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 10,
+       "possible": 14
+      },
+      "point_estimate_rule_false_safe": "3/20"
+     },
+     "false_safe_deployed": {
+      "changes": 24,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 10,
+       "possible": 14
+      },
+      "point_estimate_rule_false_safe": "3/20"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 16
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.8571428571428571,
+       "n": 7
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.8,
+       "n": 5
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      }
+     }
+    },
+    "closed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.01832846666666667,
+      "ci95": [
+       0.007926966666666646,
+       0.027273066666666675
+      ],
+      "norm_mae": 0.035305966452563425,
+      "no_change_mae": 0.18517317222222224,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.12554423333333337
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1342098666666665
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.1273164276333333,
+      "ci95": [
+       0.07631493333333332,
+       0.22177208431666665
+      ],
+      "norm_mae": 0.14620384974173237,
+      "no_change_mae": 0.22288323820000003,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.4467680499999999
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.1263119366666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.05222222222222222,
+      "ci95": [
+       0.0033333333333333327,
+       0.08
+      ],
+      "norm_mae": 0.13031152783367594,
+      "no_change_mae": 0.1857407388888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.19333339999999996
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.43333333333333335
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.022486709150555555,
+      "ci95": [
+       0.007160412898333346,
+       0.04572619183666666
+      ],
+      "norm_mae": 0.07909326932162337,
+      "no_change_mae": 0.09148165906833333,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.129796756
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.46369659999999996
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 18,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "possible": 9,
+       "low": 9
+      },
+      "point_estimate_rule_false_safe": "0/13"
+     },
+     "false_safe_deployed": {
+      "changes": 18,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "possible": 9,
+       "low": 9
+      },
+      "point_estimate_rule_false_safe": "0/13"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.8333333333333334,
+       "n": 6
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 18
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "hash": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.01436083888888887,
+      "ci95": [
+       0.011202199999999978,
+       0.018909866666666643
+      ],
+      "norm_mae": 0.02766315945915344,
+      "no_change_mae": 0.11087759444444446,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.15065160000000002
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1970515333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.18402519727777777,
+      "ci95": [
+       0.06860507516666668,
+       0.3837962616666666
+      ],
+      "norm_mae": 0.21132537875614021,
+      "no_change_mae": 0.15244930061111112,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.10713941666666664
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.7464039999999998
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.005555555555555558,
+      "ci95": [
+       0.0033333333333333335,
+       0.010000000000000009
+      ],
+      "norm_mae": 0.013862928492944257,
+      "no_change_mae": 0.1322222222222222,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.18888889999999994
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.3333333333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.0490473027888889,
+      "ci95": [
+       0.019626060250000004,
+       0.07856805078333332
+      ],
+      "norm_mae": 0.17251575154939722,
+      "no_change_mae": 0.1036714123111111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.12893865966666668
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.44533355
+       }
+      },
+      "clamped_rate": 0.03333333333333333
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 20,
+      "assessed_low": 13,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 13,
+       "possible": 7
+      },
+      "point_estimate_rule_false_safe": "1/18"
+     },
+     "false_safe_deployed": {
+      "changes": 20,
+      "assessed_low": 13,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 13,
+       "possible": 7
+      },
+      "point_estimate_rule_false_safe": "1/18"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 27
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.6666666666666666,
+       "n": 3
+      }
+     }
+    },
+    "hashbig": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.0461533055555555,
+      "ci95": [
+       0.0064778833333333005,
+       0.10357813333333325
+      ],
+      "norm_mae": 0.08890471239380006,
+      "no_change_mae": 0.5738586499999999,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.1064625666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1411330333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.05664632638888892,
+      "ci95": [
+       0.013106086500000065,
+       0.14234395100000002
+      ],
+      "norm_mae": 0.06504982228714308,
+      "no_change_mae": 0.6213209761111111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.1511771600000003
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.3121862766666665
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.044444444444444446,
+      "ci95": [
+       0.016666666666666663,
+       0.07333333333333333
+      ],
+      "norm_mae": 0.110903427943554,
+      "no_change_mae": 0.1622222222222222,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.2822224
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.7666666666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.04636033445999998,
+      "ci95": [
+       0.02245034863499997,
+       0.08313880621499997
+      ],
+      "norm_mae": 0.16306478616924364,
+      "no_change_mae": 0.2034189874283333,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.1639284933333333
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.54654545
+       }
+      },
+      "clamped_rate": 0.13333333333333333
+     },
+     "deployed_abstention_rate": 0.06666666666666667,
+     "abstention_reasons": {
+      "the observed state is unlike the training data": 2
+     },
+     "forced_ood_rate": 0.06666666666666667,
+     "false_safe_forced": {
+      "changes": 19,
+      "assessed_low": 4,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 4,
+       "possible": 9,
+       "likely": 5,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "0/6"
+     },
+     "false_safe_deployed": {
+      "changes": 19,
+      "assessed_low": 4,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 4,
+       "possible": 9,
+       "likely": 5,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "0/6"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 8
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 15
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      }
+     }
+    },
+    "mixed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.01620333333333334,
+      "ci95": [
+       0.007338833333333327,
+       0.026864816666666676
+      ],
+      "norm_mae": 0.031212340535107654,
+      "no_change_mae": 0.05358177277777781,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.10888165333333336
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.0505348300000001
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.07547967800555555,
+      "ci95": [
+       0.02094505,
+       0.13951211666666666
+      ],
+      "norm_mae": 0.08667710606411447,
+      "no_change_mae": 0.08484000506666668,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.19327107333333335
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.47425266666666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.03444444444444445,
+      "ci95": [
+       0.0,
+       0.10333333333333333
+      ],
+      "norm_mae": 0.08595015665625437,
+      "no_change_mae": 0.1,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.0866667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.2
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.009943012833333332,
+      "ci95": [
+       0.000796565833333332,
+       0.019292167166666672
+      ],
+      "norm_mae": 0.034972898285375004,
+      "no_change_mae": 0.03269826183333333,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.11613564666666663
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.43787133333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 22,
+      "assessed_low": 19,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 19,
+       "possible": 3
+      },
+      "point_estimate_rule_false_safe": "1/20"
+     },
+     "false_safe_deployed": {
+      "changes": 22,
+      "assessed_low": 19,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 19,
+       "possible": 3
+      },
+      "point_estimate_rule_false_safe": "1/20"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 26
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      }
+     }
+    },
+    "short": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.05355715555555556,
+      "ci95": [
+       0.013099866666666727,
+       0.09290664999999998
+      ],
+      "norm_mae": 0.10316668446564897,
+      "no_change_mae": 0.19139772222222223,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.10839173333333335
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.2286513333333338
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.43439543222222216,
+      "ci95": [
+       0.15020391500000002,
+       0.6714730816666666
+      ],
+      "norm_mae": 0.4988380971858554,
+      "no_change_mae": 0.5734963616277776,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.7500713100000003
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 1.5177951733333335
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.05999999999999999,
+      "ci95": [
+       0.0,
+       0.18
+      ],
+      "norm_mae": 0.14971962772379788,
+      "no_change_mae": 0.3477777777777778,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.2177779
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.5666666666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.10318776867777778,
+      "ci95": [
+       0.072946661,
+       0.14246813481666662
+      ],
+      "norm_mae": 0.3629458594445873,
+      "no_change_mae": 0.2323547797444444,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7,
+        "mean_width": 0.15839164900000002
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.5650355006666666
+       }
+      },
+      "clamped_rate": 0.06666666666666667
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 22,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 10,
+       "likely": 1,
+       "possible": 11
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "false_safe_deployed": {
+      "changes": 22,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 10,
+       "likely": 1,
+       "possible": 11
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 13
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.8571428571428571,
+       "n": 7
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 0.8,
+       "n": 5
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.8,
+       "n": 5
+      }
+     }
+    },
+    "variable": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.12571762222222224,
+      "ci95": [
+       0.025649816666666624,
+       0.2227708666666667
+      ],
+      "norm_mae": 0.24216876585459884,
+      "no_change_mae": 0.3594285055555556,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.1486319
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.2267989233333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.31905752666666665,
+      "ci95": [
+       0.07125983550000005,
+       0.5950410795
+      ],
+      "norm_mae": 0.3663897861011701,
+      "no_change_mae": 0.850413817611111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6666666666666666,
+        "mean_width": 0.6470388533333333
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.7929796666666669
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.1446296277777778,
+      "ci95": [
+       0.05388888333333334,
+       0.26333333333333336
+      ],
+      "norm_mae": 0.36089823381200586,
+      "no_change_mae": 0.4088888888888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.32000009999999995
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.7
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.06417068100000001,
+      "ci95": [
+       0.05206705385000001,
+       0.08212418971666667
+      ],
+      "norm_mae": 0.2257097257274565,
+      "no_change_mae": 0.24501116445944446,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.14939486333333332
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.5133769433333333
+       }
+      },
+      "clamped_rate": 0.1
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 25,
+      "assessed_low": 8,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "possible": 16,
+       "low": 8,
+       "likely": 1
+      },
+      "point_estimate_rule_false_safe": "0/11"
+     },
+     "false_safe_deployed": {
+      "changes": 25,
+      "assessed_low": 8,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "possible": 16,
+       "low": 8,
+       "likely": 1
+      },
+      "point_estimate_rule_false_safe": "0/11"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 6
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 13
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.6666666666666666,
+       "n": 6
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      }
+     }
+    },
+    "wide": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.1442163555555556,
+      "ci95": [
+       0.01906583333333343,
+       0.3067373499999999
+      ],
+      "norm_mae": 0.2778027155111395,
+      "no_change_mae": 0.2779614388888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.1402027666666667
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.2885967266666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.4684024155555555,
+      "ci95": [
+       0.07470546666666668,
+       0.9519239299999999
+      ],
+      "norm_mae": 0.5378900245282979,
+      "no_change_mae": 0.9775330469999999,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.70152016
+       },
+       "0.95": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 1.7697977666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.08333333333333333,
+      "ci95": [
+       0.0,
+       0.15
+      ],
+      "norm_mae": 0.20794392739416373,
+      "no_change_mae": 0.35555555555555557,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.2800001
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.6333333333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.14751103266111107,
+      "ci95": [
+       0.07393907733333331,
+       0.23842611611666664
+      ],
+      "norm_mae": 0.5188455881232311,
+      "no_change_mae": 0.24566146609444448,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6333333333333333,
+        "mean_width": 0.16824994533333335
+       },
+       "0.95": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.5602103966666667
+       }
+      },
+      "clamped_rate": 0.13333333333333333
+     },
+     "deployed_abstention_rate": 0.03333333333333333,
+     "abstention_reasons": {
+      "the observed state is unlike the training data": 1
+     },
+     "forced_ood_rate": 0.03333333333333333,
+     "false_safe_forced": {
+      "changes": 20,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 7,
+       "possible": 10,
+       "likely": 2,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "1/12"
+     },
+     "false_safe_deployed": {
+      "changes": 20,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 7,
+       "possible": 10,
+       "likely": 2,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "1/12"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.8571428571428571,
+       "n": 7
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 7
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 11
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.4,
+       "n": 5
+      }
+     }
+    }
+   }
+  },
+  "wm-ubuntu-24.04-arm": {
+   "environment": {
+    "kernel": "6.17.0-1022-azure",
+    "architecture": "aarch64",
+    "os": "Ubuntu 24.04.5 LTS",
+    "hypervisor": "Microsoft Corporation Virtual Machine",
+    "host_machine": "aarch64",
+    "vm_cpus": 4,
+    "cgroup_driver": "systemd",
+    "collected_at": "2026-10-13T12:09:50+00:00"
+   },
+   "all": {
+    "episodes": 294,
+    "runs": 30,
+    "usage_cores": {
+     "mae": 0.06834810810657595,
+     "ci95": [
+      0.04044013811162725,
+      0.10195076562587367
+     ],
+     "norm_mae": 0.1316583681435589,
+     "no_change_mae": 0.27532736621315196,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8877551020408163,
+       "mean_width": 0.12658934183673473
+      },
+      "0.95": {
+       "coverage": 0.9897959183673469,
+       "mean_width": 1.1643068487414965
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.2000596281463152,
+     "ci95": [
+      0.12545655197957867,
+      0.29097723857565966
+     ],
+     "norm_mae": 0.2297385212309615,
+     "no_change_mae": 0.49238605498633786,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8673469387755102,
+       "mean_width": 0.594906810782313
+      },
+      "0.95": {
+       "coverage": 0.9625850340136054,
+       "mean_width": 1.429653150680272
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.0753968253968254,
+     "ci95": [
+      0.05056398234969663,
+      0.10116604112909523
+     ],
+     "norm_mae": 0.18813974383281484,
+     "no_change_mae": 0.2420634920634921,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9251700680272109,
+       "mean_width": 0.22562367346938775
+      },
+      "0.95": {
+       "coverage": 0.9965986394557823,
+       "mean_width": 0.5272108843537415
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.0609639177929025,
+     "ci95": [
+      0.04388425509034967,
+      0.08245187003106266
+     ],
+     "norm_mae": 0.2144304680872442,
+     "no_change_mae": 0.18021444080956348,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8401360544217688,
+       "mean_width": 0.1443080145607483
+      },
+      "0.95": {
+       "coverage": 0.9591836734693877,
+       "mean_width": 0.5072571407823129
+      }
+     },
+     "clamped_rate": 0.12585034013605442
+    },
+    "deployed_abstention_rate": 0.02040816326530612,
+    "abstention_reasons": {
+     "the observed state is unlike the training data": 6
+    },
+    "forced_ood_rate": 0.02040816326530612,
+    "false_safe_forced": {
+     "changes": 216,
+     "assessed_low": 100,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 3,
+     "assessments": {
+      "possible": 101,
+      "low": 100,
+      "likely": 12,
+      "unknown": 3
+     },
+     "point_estimate_rule_false_safe": "6/144"
+    },
+    "false_safe_deployed": {
+     "changes": 216,
+     "assessed_low": 100,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 3,
+     "assessments": {
+      "possible": 101,
+      "low": 100,
+      "likely": 12,
+      "unknown": 3
+     },
+     "point_estimate_rule_false_safe": "6/144"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/not_throttled_after": {
+      "coverage": 0.9130434782608695,
+      "n": 46
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 0.9936708860759493,
+      "n": 158
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.8235294117647058,
+      "n": 34
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 56
+     }
+    }
+   },
+   "held_in": {
+    "episodes": 150,
+    "runs": 15,
+    "usage_cores": {
+     "mae": 0.07119509744444442,
+     "ci95": [
+      0.03029781042777777,
+      0.12166795403055551
+     ],
+     "norm_mae": 0.13714249902486142,
+     "no_change_mae": 0.15152116111111114,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8933333333333333,
+       "mean_width": 0.12869309666666667
+      },
+      "0.95": {
+       "coverage": 0.9866666666666667,
+       "mean_width": 1.1300728035333334
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.19217956668344444,
+     "ci95": [
+      0.10220755811133332,
+      0.2886850961385805
+     ],
+     "norm_mae": 0.22068945078899807,
+     "no_change_mae": 0.3317348797976667,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8533333333333334,
+       "mean_width": 0.40663980380000003
+      },
+      "0.95": {
+       "coverage": 0.96,
+       "mean_width": 1.0939457399999999
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.06844444444444445,
+     "ci95": [
+      0.036222222222222225,
+      0.10422222222222222
+     ],
+     "norm_mae": 0.17079127903307317,
+     "no_change_mae": 0.2046666666666667,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9333333333333333,
+       "mean_width": 0.18977784
+      },
+      "0.95": {
+       "coverage": 0.9933333333333333,
+       "mean_width": 0.42
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.05161117821333334,
+     "ci95": [
+      0.03163351022275389,
+      0.07484427199832665
+     ],
+     "norm_mae": 0.18153375805692862,
+     "no_change_mae": 0.14298862064931114,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.86,
+       "mean_width": 0.13503043533333334
+      },
+      "0.95": {
+       "coverage": 0.9666666666666667,
+       "mean_width": 0.4843372278666667
+      }
+     },
+     "clamped_rate": 0.10666666666666667
+    },
+    "deployed_abstention_rate": 0.013333333333333334,
+    "abstention_reasons": {
+     "the observed state is unlike the training data": 2
+    },
+    "forced_ood_rate": 0.013333333333333334,
+    "false_safe_forced": {
+     "changes": 110,
+     "assessed_low": 64,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 1,
+     "assessments": {
+      "low": 64,
+      "possible": 43,
+      "unknown": 1,
+      "likely": 2
+     },
+     "point_estimate_rule_false_safe": "5/88"
+    },
+    "false_safe_deployed": {
+     "changes": 110,
+     "assessed_low": 64,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 1,
+     "assessments": {
+      "low": 64,
+      "possible": 43,
+      "unknown": 1,
+      "likely": 2
+     },
+     "point_estimate_rule_false_safe": "5/88"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 0.9902912621359223,
+      "n": 103
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 0.8571428571428571,
+      "n": 14
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.8125,
+      "n": 16
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 17
+     }
+    }
+   },
+   "new": {
+    "episodes": 120,
+    "runs": 12,
+    "usage_cores": {
+     "mae": 0.0773911263888889,
+     "ci95": [
+      0.032295163611111136,
+      0.12979362638888883
+     ],
+     "norm_mae": 0.14907785586785985,
+     "no_change_mae": 0.33923444861111113,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8583333333333333,
+       "mean_width": 0.12757605833333335
+      },
+      "0.95": {
+       "coverage": 0.9916666666666667,
+       "mean_width": 1.1949116166666665
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.24869351602777778,
+     "ci95": [
+      0.11420002592399306,
+      0.42502266128781246
+     ],
+     "norm_mae": 0.28558725786576156,
+     "no_change_mae": 0.6436528984736111,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8583333333333333,
+       "mean_width": 0.7466196549999999
+      },
+      "0.95": {
+       "coverage": 0.9583333333333334,
+       "mean_width": 1.7268977025
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.07888888888888888,
+     "ci95": [
+      0.04026388888888889,
+      0.12806249999999997
+     ],
+     "norm_mae": 0.19685358459980834,
+     "no_change_mae": 0.25833333333333336,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9166666666666666,
+       "mean_width": 0.261111225
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.625
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.07227153643905557,
+     "ci95": [
+      0.04099476878124098,
+      0.1159468640107597
+     ],
+     "norm_mae": 0.2542031409571781,
+     "no_change_mae": 0.1987917699835278,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.825,
+       "mean_width": 0.15159310317383337
+      },
+      "0.95": {
+       "coverage": 0.9416666666666667,
+       "mean_width": 0.52323944925
+      }
+     },
+     "clamped_rate": 0.15833333333333333
+    },
+    "deployed_abstention_rate": 0.03333333333333333,
+    "abstention_reasons": {
+     "the observed state is unlike the training data": 4
+    },
+    "forced_ood_rate": 0.03333333333333333,
+    "false_safe_forced": {
+     "changes": 82,
+     "assessed_low": 29,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 2,
+     "assessments": {
+      "possible": 44,
+      "low": 29,
+      "likely": 7,
+      "unknown": 2
+     },
+     "point_estimate_rule_false_safe": "1/44"
+    },
+    "false_safe_deployed": {
+     "changes": 82,
+     "assessed_low": 29,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 2,
+     "assessments": {
+      "possible": 44,
+      "low": 29,
+      "likely": 7,
+      "unknown": 2
+     },
+     "point_estimate_rule_false_safe": "1/44"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/not_throttled_after": {
+      "coverage": 0.9166666666666666,
+      "n": 24
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 51
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.8125,
+      "n": 16
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 29
+     }
+    }
+   },
+   "batch": {
+    "episodes": 24,
+    "runs": 3,
+    "usage_cores": {
+     "mae": 0.005339333333333314,
+     "ci95": [
+      0.0006352708333333054,
+      0.010220354166666529
+     ],
+     "norm_mae": 0.010285111513913852,
+     "no_change_mae": 0.7295807361111111,
+     "coverage": {
+      "0.8": {
+       "coverage": 1.0,
+       "mean_width": 0.10850729166666671
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 1.2252457916666666
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.006140572881944498,
+     "ci95": [
+      0.0007670477500000614,
+      0.010687181375000014
+     ],
+     "norm_mae": 0.007051528319232538,
+     "no_change_mae": 0.7401216824791668,
+     "coverage": {
+      "0.8": {
+       "coverage": 1.0,
+       "mean_width": 1.0130113833333334
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 2.0416017083333333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.1013888888888889,
+     "ci95": [
+      0.07083333333333333,
+      0.15
+     ],
+     "norm_mae": 0.2529984449962326,
+     "no_change_mae": 0.39444444444444443,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9166666666666666,
+       "mean_width": 0.27222237499999996
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.7083333333333334
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.06288044693444443,
+     "ci95": [
+      0.04985294663124998,
+      0.08171699474770833
+     ],
+     "norm_mae": 0.22117154142704726,
+     "no_change_mae": 0.31998917094131946,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.7916666666666666,
+       "mean_width": 0.16586744166666667
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.5705950541666667
+      }
+     },
+     "clamped_rate": 0.08333333333333333
+    },
+    "deployed_abstention_rate": 0.0,
+    "abstention_reasons": {},
+    "forced_ood_rate": 0.0,
+    "false_safe_forced": {
+     "changes": 24,
+     "assessed_low": 7,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 0,
+     "assessments": {
+      "likely": 3,
+      "low": 7,
+      "possible": 14
+     },
+     "point_estimate_rule_false_safe": "0/12"
+    },
+    "false_safe_deployed": {
+     "changes": 24,
+     "assessed_low": 7,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 0,
+     "assessments": {
+      "likely": 3,
+      "low": 7,
+      "possible": 14
+     },
+     "point_estimate_rule_false_safe": "0/12"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 10
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 8
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 4
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 2
+     }
+    }
+   },
+   "by_family": {
+    "arith": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.08552042777777775,
+      "ci95": [
+       0.014663999999999983,
+       0.1854256833333333
+      ],
+      "norm_mae": 0.16473725866126793,
+      "no_change_mae": 0.27582039999999997,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.1059381666666667
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.0230590000000002
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.35977379772222223,
+      "ci95": [
+       0.26144051999999995,
+       0.5550970265
+      ],
+      "norm_mae": 0.41314632558399444,
+      "no_change_mae": 0.6710413779944443,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.8876192856666666
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 1.7841136266666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.07222222222222222,
+      "ci95": [
+       0.0,
+       0.11666666666666667
+      ],
+      "norm_mae": 0.18021807040827523,
+      "no_change_mae": 0.26407407222222223,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.22666679999999997
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.6
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.06734490079833332,
+      "ci95": [
+       0.06035327124666664,
+       0.07118239810999998
+      ],
+      "norm_mae": 0.23687451732567055,
+      "no_change_mae": 0.2049783121966667,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.15135448
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.5413474793333335
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "deployed_abstention_rate": 0.03333333333333333,
+     "abstention_reasons": {
+      "the observed state is unlike the training data": 1
+     },
+     "forced_ood_rate": 0.03333333333333333,
+     "false_safe_forced": {
+      "changes": 22,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "possible": 11,
+       "low": 9,
+       "unknown": 1,
+       "likely": 1
+      },
+      "point_estimate_rule_false_safe": "2/13"
+     },
+     "false_safe_deployed": {
+      "changes": 22,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "possible": 11,
+       "low": 9,
+       "unknown": 1,
+       "likely": 1
+      },
+      "point_estimate_rule_false_safe": "2/13"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 10
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 15
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.3333333333333333,
+       "n": 3
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.5,
+       "n": 2
+      }
+     }
+    },
+    "batch_spin": {
+     "episodes": 24,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.005339333333333314,
+      "ci95": [
+       0.0006352708333333054,
+       0.010220354166666529
+      ],
+      "norm_mae": 0.010285111513913852,
+      "no_change_mae": 0.7295807361111111,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.10850729166666671
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.2252457916666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.006140572881944498,
+      "ci95": [
+       0.0007670477500000614,
+       0.010687181375000014
+      ],
+      "norm_mae": 0.007051528319232538,
+      "no_change_mae": 0.7401216824791668,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 1.0130113833333334
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.0416017083333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.1013888888888889,
+      "ci95": [
+       0.07083333333333333,
+       0.15
+      ],
+      "norm_mae": 0.2529984449962326,
+      "no_change_mae": 0.39444444444444443,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9166666666666666,
+        "mean_width": 0.27222237499999996
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.7083333333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.06288044693444443,
+      "ci95": [
+       0.04985294663124998,
+       0.08171699474770833
+      ],
+      "norm_mae": 0.22117154142704726,
+      "no_change_mae": 0.31998917094131946,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7916666666666666,
+        "mean_width": 0.16586744166666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.5705950541666667
+       }
+      },
+      "clamped_rate": 0.08333333333333333
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 24,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "likely": 3,
+       "low": 7,
+       "possible": 14
+      },
+      "point_estimate_rule_false_safe": "0/12"
+     },
+     "false_safe_deployed": {
+      "changes": 24,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "likely": 3,
+       "low": 7,
+       "possible": 14
+      },
+      "point_estimate_rule_false_safe": "0/12"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 10
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 8
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      }
+     }
+    },
+    "burst": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.22227809999999992,
+      "ci95": [
+       0.12164100000000001,
+       0.29654208333333326
+      ],
+      "norm_mae": 0.4281723771259025,
+      "no_change_mae": 0.17607718888888893,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6666666666666666,
+        "mean_width": 0.17339580000000004
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.2588424833333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.15025253225055557,
+      "ci95": [
+       0.08658798255166665,
+       0.27336105569999997
+      ],
+      "norm_mae": 0.17254253089586066,
+      "no_change_mae": 0.44326843568833335,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.3272522766666666
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.4036752399999999
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.1766666666666667,
+      "ci95": [
+       0.15999999999999998,
+       0.19666666666666666
+      ],
+      "norm_mae": 0.4408411260756272,
+      "no_change_mae": 0.3522222222222222,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.2955556
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.5666666666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.04982471963555555,
+      "ci95": [
+       0.019683402495499984,
+       0.07450688902116664
+      ],
+      "norm_mae": 0.1752501863489443,
+      "no_change_mae": 0.20839544563544443,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.13971815999999998
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.4825147
+       }
+      },
+      "clamped_rate": 0.4666666666666667
+     },
+     "deployed_abstention_rate": 0.03333333333333333,
+     "abstention_reasons": {
+      "the observed state is unlike the training data": 1
+     },
+     "forced_ood_rate": 0.03333333333333333,
+     "false_safe_forced": {
+      "changes": 24,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 10,
+       "possible": 14
+      },
+      "point_estimate_rule_false_safe": "2/20"
+     },
+     "false_safe_deployed": {
+      "changes": 24,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 10,
+       "possible": 14
+      },
+      "point_estimate_rule_false_safe": "2/20"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 0.9411764705882353,
+       "n": 17
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.8571428571428571,
+       "n": 7
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      }
+     }
+    },
+    "closed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.015562850000000008,
+      "ci95": [
+       0.010427716666666647,
+       0.025321166666666672
+      ],
+      "norm_mae": 0.029978583042386354,
+      "no_change_mae": 0.1839376333333333,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.12526860000000004
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1277616666666668
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.1721067064166667,
+      "ci95": [
+       0.08410145895,
+       0.2194242103
+      ],
+      "norm_mae": 0.1976387769609303,
+      "no_change_mae": 0.26231873113333337,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.4430953
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.1171276666666665
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.06444444444444444,
+      "ci95": [
+       0.006666666666666677,
+       0.10666666666666667
+      ],
+      "norm_mae": 0.1608099705181533,
+      "no_change_mae": 0.16999999999999998,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.19333339999999996
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.43333333333333335
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.01877920013422223,
+      "ci95": [
+       0.009088034203333345,
+       0.03302608128333333
+      ],
+      "norm_mae": 0.06605272136158745,
+      "no_change_mae": 0.09532902571333333,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.12752219333333334
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.46112406666666667
+       }
+      },
+      "clamped_rate": 0.06666666666666667
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 18,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "possible": 9,
+       "low": 9
+      },
+      "point_estimate_rule_false_safe": "0/13"
+     },
+     "false_safe_deployed": {
+      "changes": 18,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "possible": 9,
+       "low": 9
+      },
+      "point_estimate_rule_false_safe": "0/13"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.8571428571428571,
+       "n": 7
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 18
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      }
+     }
+    },
+    "hash": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.011562694444444448,
+      "ci95": [
+       0.011188616666666656,
+       0.011891150000000001
+      ],
+      "norm_mae": 0.022273118072622757,
+      "no_change_mae": 0.07738559,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.13348895333333335
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1204571566666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.014066117944444446,
+      "ci95": [
+       0.0,
+       0.0418346605
+      ],
+      "norm_mae": 0.016152829863572245,
+      "no_change_mae": 0.00026101094444444447,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.01564094666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.354148
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.018888888888888893,
+      "ci95": [
+       0.0,
+       0.053333333333333344
+      ],
+      "norm_mae": 0.047133956876010456,
+      "no_change_mae": 0.016666666666666666,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.1
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.16666666666666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.019500529188888893,
+      "ci95": [
+       0.00035232945,
+       0.032811778900000005
+      ],
+      "norm_mae": 0.06858987665666773,
+      "no_change_mae": 0.047346359544444445,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.11643580333333334
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.4202055666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 20,
+      "assessed_low": 16,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 16,
+       "possible": 4
+      },
+      "point_estimate_rule_false_safe": "0/20"
+     },
+     "false_safe_deployed": {
+      "changes": 20,
+      "assessed_low": 16,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 16,
+       "possible": 4
+      },
+      "point_estimate_rule_false_safe": "0/20"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 30
+      }
+     }
+    },
+    "hashbig": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.03987043888888888,
+      "ci95": [
+       0.0033345000000000622,
+       0.10163318333333331
+      ],
+      "norm_mae": 0.07680208079927166,
+      "no_change_mae": 0.5628347333333334,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.10026073333333337
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1443701
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.058621470072222216,
+      "ci95": [
+       0.0014496759166666854,
+       0.1582350009666667
+      ],
+      "norm_mae": 0.067317979002379,
+      "no_change_mae": 0.6053756717222222,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 1.2121522233333333
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.32294211
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.03555555555555556,
+      "ci95": [
+       0.009999999999999998,
+       0.07666666666666667
+      ],
+      "norm_mae": 0.08872274235484322,
+      "no_change_mae": 0.14333333333333328,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.2711113
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.7666666666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.0451902206888889,
+      "ci95": [
+       0.02107995181500002,
+       0.07289162834500001
+      ],
+      "norm_mae": 0.15894910507888085,
+      "no_change_mae": 0.20312807117688889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.16424918069533329
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.5523753033333334
+       }
+      },
+      "clamped_rate": 0.2
+     },
+     "deployed_abstention_rate": 0.06666666666666667,
+     "abstention_reasons": {
+      "the observed state is unlike the training data": 2
+     },
+     "forced_ood_rate": 0.06666666666666667,
+     "false_safe_forced": {
+      "changes": 19,
+      "assessed_low": 4,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 4,
+       "possible": 10,
+       "likely": 4,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "0/6"
+     },
+     "false_safe_deployed": {
+      "changes": 19,
+      "assessed_low": 4,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 4,
+       "possible": 10,
+       "likely": 4,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "0/6"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 8
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 16
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      }
+     }
+    },
+    "mixed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.014569470555555545,
+      "ci95": [
+       0.005551134999999989,
+       0.02872015999999998
+      ],
+      "norm_mae": 0.02806504483004877,
+      "no_change_mae": 0.049021843333333336,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.11466576333333331
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.027036294333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.07208992111111111,
+      "ci95": [
+       0.01602538333333333,
+       0.1464646
+      ],
+      "norm_mae": 0.08278447793380238,
+      "no_change_mae": 0.07930143333333334,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.13993838333333336
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.4636193333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.03333333333333333,
+      "ci95": [
+       0.0,
+       0.1
+      ],
+      "norm_mae": 0.0831775709576655,
+      "no_change_mae": 0.1,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.0977778
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.2
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.006913690755555555,
+      "ci95": [
+       0.0034566929000000033,
+       0.010484753399999994
+      ],
+      "norm_mae": 0.024317760383451372,
+      "no_change_mae": 0.03155931134444445,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.11381549666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.4314301633333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 22,
+      "assessed_low": 19,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 19,
+       "possible": 3
+      },
+      "point_estimate_rule_false_safe": "1/20"
+     },
+     "false_safe_deployed": {
+      "changes": 22,
+      "assessed_low": 19,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 19,
+       "possible": 3
+      },
+      "point_estimate_rule_false_safe": "1/20"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 26
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      }
+     }
+    },
+    "short": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.02204479444444447,
+      "ci95": [
+       0.007317083333333358,
+       0.04587451666666673
+      ],
+      "norm_mae": 0.04246469643446512,
+      "no_change_mae": 0.1793007833333333,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.11597680000000003
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.2209690833333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.3647154643888888,
+      "ci95": [
+       0.12759217466666664,
+       0.6160447435
+      ],
+      "norm_mae": 0.41882108966776055,
+      "no_change_mae": 0.4648021410277777,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.6627481266666667
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.4641725
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.04111111111111111,
+      "ci95": [
+       0.0,
+       0.10333333333333333
+      ],
+      "norm_mae": 0.10258567084778746,
+      "no_change_mae": 0.29037037222222223,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.22888899999999998
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.5666666666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.11447205068833331,
+      "ci95": [
+       0.07613365306166665,
+       0.16364025168666668
+      ],
+      "norm_mae": 0.40263644956990885,
+      "no_change_mae": 0.22266367452555558,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6666666666666666,
+        "mean_width": 0.15382823666666667
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.5461882299999999
+       }
+      },
+      "clamped_rate": 0.06666666666666667
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 22,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 10,
+       "likely": 1,
+       "possible": 11
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "false_safe_deployed": {
+      "changes": 22,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 10,
+       "likely": 1,
+       "possible": 11
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 15
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.8333333333333334,
+       "n": 6
+      }
+     }
+    },
+    "variable": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.12618914444444443,
+      "ci95": [
+       0.016972366666666662,
+       0.2498506833333333
+      ],
+      "norm_mae": 0.24307705502369178,
+      "no_change_mae": 0.33882997777777774,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7333333333333333,
+        "mean_width": 0.14457193333333337
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.2205077666666668
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.3029961920666667,
+      "ci95": [
+       0.034923922533333346,
+       0.576961595
+      ],
+      "norm_mae": 0.34794574871996986,
+      "no_change_mae": 0.8054024331222223,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.6323142533333334
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.6950323333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.12666666666666668,
+      "ci95": [
+       0.026666666666666665,
+       0.28
+      ],
+      "norm_mae": 0.31607476963912895,
+      "no_change_mae": 0.4055555555555555,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.30000009999999994
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.6666666666666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.07422289177199999,
+      "ci95": [
+       0.06140068075333334,
+       0.09454911600166667
+      ],
+      "norm_mae": 0.2610667096482396,
+      "no_change_mae": 0.2450366188716667,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.14851804533333332
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.5119023999999999
+       }
+      },
+      "clamped_rate": 0.16666666666666666
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 25,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "possible": 15,
+       "low": 9,
+       "likely": 1
+      },
+      "point_estimate_rule_false_safe": "0/13"
+     },
+     "false_safe_deployed": {
+      "changes": 25,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "possible": 15,
+       "low": 9,
+       "likely": 1
+      },
+      "point_estimate_rule_false_safe": "0/13"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 6
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 14
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.8333333333333334,
+       "n": 6
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      }
+     }
+    },
+    "wide": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.12794207222222218,
+      "ci95": [
+       0.019216233333333332,
+       0.25437498333333336
+      ],
+      "norm_mae": 0.24645370460608937,
+      "no_change_mae": 0.27133544999999987,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.14020296666666673
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.2870069333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.4610496955555556,
+      "ci95": [
+       0.08856616666666667,
+       0.9893090033333335
+      ],
+      "norm_mae": 0.5294465267797672,
+      "no_change_mae": 0.9015147579166668,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.6989168433333334
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 1.7724887
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.08888888888888889,
+      "ci95": [
+       0.0,
+       0.16666666666666666
+      ],
+      "norm_mae": 0.221806855887108,
+      "no_change_mae": 0.3144444444444444,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.2800001
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.6333333333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.1508938331611111,
+      "ci95": [
+       0.06152785333333332,
+       0.27078197114999997
+      ],
+      "norm_mae": 0.5307440277400043,
+      "no_change_mae": 0.25167336417222225,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6,
+        "mean_width": 0.16608299333333337
+       },
+       "0.95": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.567556027
+       }
+      },
+      "clamped_rate": 0.2
+     },
+     "deployed_abstention_rate": 0.06666666666666667,
+     "abstention_reasons": {
+      "the observed state is unlike the training data": 2
+     },
+     "forced_ood_rate": 0.06666666666666667,
+     "false_safe_forced": {
+      "changes": 20,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 7,
+       "possible": 10,
+       "likely": 2,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "1/12"
+     },
+     "false_safe_deployed": {
+      "changes": 20,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 7,
+       "possible": 10,
+       "likely": 2,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "1/12"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.8571428571428571,
+       "n": 7
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 7
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 11
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.6,
+       "n": 5
+      }
+     }
+    }
+   }
+  }
+ }
+}
