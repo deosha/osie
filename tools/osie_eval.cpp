@@ -6,6 +6,7 @@
 //             [--intents PRED.txt] [--errors OUT.tsv] [--json]
 //   osie_eval --dump-features "text" --buckets N --ngram 2 4
 //   osie_eval --dump-probs --model M --data FILE.tsv     (golden parity with Python)
+//   osie_eval --frames FILE.txt [--parser ...]           (one utterance per line -> one frame JSON per line)
 //
 // TSV columns: id, group, text, intent, target_kind, target_value, concept, action
 // A frame is end-to-end correct when intent, target kind, target value (names
@@ -89,7 +90,7 @@ double pct(std::size_t a, std::size_t b) { return b == 0 ? 0.0 : 100.0 * static_
 int main(int argc, char** argv) {
     std::string data, parser = "rules", model_path, intents_path, errors_path;
     bool as_json = false, dump_probs = false;
-    std::string dump_text;
+    std::string dump_text, frames_path;
     std::uint32_t buckets = 16384;
     int nmin = 2, nmax = 4;
     bool knowledge = false;
@@ -109,6 +110,7 @@ int main(int argc, char** argv) {
         else if (a == "--ngram") { nmin = std::stoi(next()); nmax = std::stoi(next()); }
         else if (a == "--knowledge") knowledge = true;
         else if (a == "--threshold") threshold = std::stof(next());
+        else if (a == "--frames") frames_path = next();
     }
 
     if (!dump_text.empty()) {
@@ -128,6 +130,29 @@ int main(int argc, char** argv) {
             return 1;
         }
         model = std::make_shared<inference::IntentModel>(std::move(m).value());
+    }
+    if (!frames_path.empty()) {
+        // Frames for an external scorer (ml/datasets/v02/evaluate.py), built by
+        // the same deterministic path the engine uses.
+        std::unique_ptr<intent::IIntentParser> fp;
+        if (parser == "neural" && model) fp = std::make_unique<inference::NeuralParser>(model);
+        else if (parser == "hybrid" && model) fp = std::make_unique<inference::HybridParser>(model, threshold);
+        else fp = std::make_unique<intent::RuleParser>();
+        ObservationSet all;
+        for (unsigned k = 0; k < static_cast<unsigned>(ObservationKind::count_); ++k) all.add(static_cast<ObservationKind>(k));
+        const auto registry = CapabilityRegistry::builtin();
+        std::ifstream in(frames_path);
+        for (std::string line; std::getline(in, line);) {
+            const auto t0 = std::chrono::steady_clock::now();
+            const auto toks = intent::tokenize(line);
+            auto f = intent::build_frame(fp->parse(toks), toks, Platform::linux_os, all, registry);
+            f.validation_errors = intent::validate(f);
+            const double us = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count();
+            auto js = intent::to_json(f);
+            js.pop_back();  // append the latency to the object
+            std::printf("%s,\"latency_us\":%.3f}\n", js.c_str(), us);
+        }
+        return 0;
     }
     auto rows = load(data);
     if (rows.empty()) {
