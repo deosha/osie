@@ -48,6 +48,10 @@ struct CgroupView {
     /// nr_throttled / nr_periods since the cgroup was created (cumulative, not
     /// a rate: one sample only, so recent throttling may be under-represented).
     std::optional<double> lifetime_throttled_ratio;
+    /// Rates over a second read `window_s` later (cgroup questions only):
+    /// share of periods throttled, CPUs used and CPUs' worth of throttled time.
+    std::optional<double> window_s, window_throttled_ratio, window_usage_cpus, window_throttled_cpus;
+    std::string window_note;  // e.g. "quota changed during sampling", "counters reset"
 };
 
 struct Unavailable {
@@ -99,7 +103,15 @@ struct SampleRequest {
     std::vector<ObservationKind> kinds;
     Millis interval{500};
     std::size_t cgroup_top_n{5};  // Linux: inspect cgroups of the N busiest processes
+    /// Linux: read each inspected cgroup twice, `interval` apart, for
+    /// throttling rates instead of lifetime ratios.
+    bool cgroup_window{false};
 };
+
+/// Rates between two cpu.stat reads of the same cgroup. Pure, for tests.
+/// Leaves the window fields empty (with a note) when counters went
+/// backwards, the period count did not advance, or the quota changed.
+void derive_cgroup_window(CgroupView& v, const CgroupInfo& later, double seconds);
 
 class StateSampler {
 public:

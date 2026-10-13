@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "osie/state/state.hpp"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <cctype>
 #include <thread>
@@ -198,6 +200,38 @@ std::uint32_t SystemState::logical_cpus() const {
     return 0;
 }
 
+void derive_cgroup_window(CgroupView& v, const CgroupInfo& b, double seconds) {
+    const auto& a = v.info;
+    v.window_s.reset();
+    v.window_throttled_ratio.reset();
+    v.window_usage_cpus.reset();
+    v.window_throttled_cpus.reset();
+    if (!(seconds > 0)) {
+        v.window_note = "zero-length window";
+        return;
+    }
+    if (a.cpu_quota_us != b.cpu_quota_us || a.cpu_period_us != b.cpu_period_us) {
+        v.window_note = "CPU quota changed during sampling; rates not computed";
+        return;
+    }
+    auto back = [](std::optional<std::uint64_t> x, std::optional<std::uint64_t> y) { return x && y && *y < *x; };
+    if (back(a.usage_usec, b.usage_usec) || back(a.nr_periods, b.nr_periods) || back(a.throttled_usec, b.throttled_usec) ||
+        back(a.nr_throttled, b.nr_throttled)) {
+        v.window_note = "cgroup counters went backwards (cgroup recreated?); rates not computed";
+        return;
+    }
+    v.window_s = seconds;
+    if (a.usage_usec && b.usage_usec)
+        v.window_usage_cpus = static_cast<double>(*b.usage_usec - *a.usage_usec) / 1e6 / seconds;
+    if (a.throttled_usec && b.throttled_usec)
+        v.window_throttled_cpus = static_cast<double>(*b.throttled_usec - *a.throttled_usec) / 1e6 / seconds;
+    if (a.nr_periods && b.nr_periods && a.nr_throttled && b.nr_throttled) {
+        const auto dp = *b.nr_periods - *a.nr_periods;
+        if (dp > 0) v.window_throttled_ratio = static_cast<double>(*b.nr_throttled - *a.nr_throttled) / static_cast<double>(dp);
+        else if (b.cpu_quota_us) v.window_note = "no CPU periods elapsed (cgroup idle)";
+    }
+}
+
 // ---- sampler ------------------------------------------------------------
 
 SystemState StateSampler::sample(const SampleRequest& req, const CancellationToken& cancel) {
@@ -252,6 +286,17 @@ SystemState StateSampler::sample(const SampleRequest& req, const CancellationTok
         }
     };
 
+    // OSIE's own cgroup (on a container host: the container) is read at the
+    // start of the window too, so its throttling is a current rate, not a
+    // lifetime average. Other cgroups are only known after the window.
+    std::optional<Observation<CgroupInfo>> own_cg0;
+    std::string own_cg_path;
+    if (need_delta && wants(req, K::cgroup)) {
+        if (auto path = broker_.cgroup_of(::getpid())) {
+            own_cg_path = *path;
+            if (auto r = broker_.cgroup(own_cg_path)) own_cg0 = std::move(r).value();
+        }
+    }
     if (need_delta) {
         take(c0, m0, p0, n0, false);
         // Sleep in slices so cancellation stays responsive.
@@ -316,6 +361,7 @@ SystemState StateSampler::sample(const SampleRequest& req, const CancellationTok
     if (n1) st.net = std::move(n1);
 
     // Linux: cgroup view of the busiest processes (throttling evidence).
+    std::vector<SteadyTime> cgroup_read_at;
     if (wants(req, K::cgroup) && st.processes) {
         std::vector<std::string> seen;
         for (const auto* pv : st.top_by_cpu(req.cgroup_top_n)) {
@@ -331,13 +377,38 @@ SystemState StateSampler::sample(const SampleRequest& req, const CancellationTok
             if (std::find(seen.begin(), seen.end(), path) != seen.end()) continue;
             seen.push_back(path);
             if (auto r = broker_.cgroup(path)) {
-                CgroupView cv{r->value, std::nullopt};
+                CgroupView cv;
+                if (own_cg0 && path == own_cg_path && !req.cgroup_window) {
+                    cv.info = own_cg0->value;
+                    derive_cgroup_window(cv, r->value,
+                                         std::max(1e-3, std::chrono::duration<double>(r->prov.mono - own_cg0->prov.mono).count()));
+                }
+                cv.info = r->value;
+                cgroup_read_at.push_back(r->prov.mono);
                 if (cv.info.nr_periods && cv.info.nr_throttled && *cv.info.nr_periods > 0) {
                     cv.lifetime_throttled_ratio =
                         static_cast<double>(*cv.info.nr_throttled) / static_cast<double>(*cv.info.nr_periods);
                 }
                 st.cgroups.push_back(std::move(cv));
             }
+        }
+    }
+
+    if (req.cgroup_window && !st.cgroups.empty() && !cancel.cancelled()) {
+        const auto t0 = std::chrono::steady_clock::now();
+        const auto deadline = t0 + req.interval;
+        while (std::chrono::steady_clock::now() < deadline && !cancel.cancelled())
+            std::this_thread::sleep_for(std::min<Millis>(Millis{20}, req.interval));
+        for (std::size_t i = 0; i < st.cgroups.size(); ++i) {
+            auto& cv = st.cgroups[i];
+            auto r = broker_.cgroup(cv.info.path);
+            if (!r) {
+                cv.window_note = "cgroup disappeared during sampling";
+                continue;
+            }
+            const double s = std::chrono::duration<double>(r->prov.mono - cgroup_read_at[i]).count();
+            derive_cgroup_window(cv, r->value, std::max(s, 1e-3));
+            cv.info = r->value;  // report the later (current) configuration
         }
     }
 

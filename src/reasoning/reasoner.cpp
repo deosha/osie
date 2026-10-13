@@ -326,19 +326,42 @@ Diagnosis Reasoner::cpu(const SystemState& s) const {
         for (const auto& cg : s.cgroups) {
             if (!cg.info.cpu_quota_us) continue;
             const std::string id = "cgroup_throttled:" + cg.info.path;
-            add_ev(d, id,
-                   "cgroup " + cg.info.path + " cpu.max " + std::to_string(*cg.info.cpu_quota_us) + "/" +
-                       std::to_string(cg.info.cpu_period_us.value_or(100000)) + " us, throttled in " +
-                       fmt::pct(100.0 * cg.lifetime_throttled_ratio.value_or(0.0)) + " of periods (lifetime)",
-                   "cgroupfs:cpu.stat", cg.lifetime_throttled_ratio);
-            if (cg.lifetime_throttled_ratio && *cg.lifetime_throttled_ratio >= t_.throttled_ratio_high) {
+            const double quota_cpus = static_cast<double>(*cg.info.cpu_quota_us) /
+                                      static_cast<double>(std::max<std::uint64_t>(1, cg.info.cpu_period_us.value_or(100000)));
+            // Prefer the rate measured over the sampling window; the lifetime
+            // ratio averages over the cgroup's whole life and can hide (or
+            // invent) current throttling.
+            const bool windowed = cg.window_throttled_ratio.has_value();
+            const auto ratio = windowed ? cg.window_throttled_ratio : cg.lifetime_throttled_ratio;
+            std::string text = "cgroup " + cg.info.path + " quota " + fmt::num(quota_cpus, 2) + " CPUs (cpu.max " +
+                               std::to_string(*cg.info.cpu_quota_us) + "/" +
+                               std::to_string(cg.info.cpu_period_us.value_or(100000)) + " us), throttled in " +
+                               fmt::pct(100.0 * ratio.value_or(0.0)) + " of periods " +
+                               (windowed ? "over the last " + fmt::num(*cg.window_s, 1) + " s" : std::string("(lifetime average)"));
+            if (windowed && cg.window_usage_cpus) text += ", using " + fmt::num(*cg.window_usage_cpus, 2) + " CPUs";
+            if (windowed && cg.window_throttled_cpus)
+                text += ", " + fmt::num(*cg.window_throttled_cpus, 2) + " CPU-seconds/s of throttled time";
+            if (!cg.window_note.empty()) text += " (" + cg.window_note + ")";
+            add_ev(d, id, text, "cgroupfs:cpu.stat", ratio, windowed ? Validity::derived : Validity::valid);
+            if (ratio && *ratio >= t_.throttled_ratio_high) {
                 Finding f = finding(FindingKind::causal_explanation, "cgroup_cpu_throttling",
-                                    "cgroup " + cg.info.path + " hits its CPU quota: its tasks are throttled until the "
-                                    "next period even if other CPUs are idle.",
-                                    {id}, Certainty::moderate);
+                                    "cgroup " + cg.info.path + " hits its CPU quota" +
+                                        (windowed ? std::string(" right now") : std::string(" (lifetime average; current rate not measured)")) +
+                                        ": its tasks are throttled until the next period even if other CPUs are idle.",
+                                    {id}, windowed ? Certainty::high : Certainty::limited);
                 if (auto m = mechanism(ck::cpu_quota, ck::cpu_throttling)) f.mechanisms.push_back(*m);
                 if (auto m = mechanism(ck::cpu_throttling, ck::scheduling_latency)) f.mechanisms.push_back(*m);
                 d.findings.push_back(std::move(f));
+            }
+            // A cgroup at its quota is CPU-bound even when the host is idle:
+            // utilisation of all logical CPUs is the wrong denominator for it.
+            if (windowed && cg.window_usage_cpus && *cg.window_usage_cpus >= 0.9 * quota_cpus && ratio &&
+                *ratio >= t_.throttled_ratio_high && busy < t_.cpu_busy_high_pct) {
+                d.conclusion = "cpu_quota_bound";
+                d.headline = "CPU is limited by a cgroup quota: " + cg.info.path + " used " +
+                             fmt::num(*cg.window_usage_cpus, 2) + " of its " + fmt::num(quota_cpus, 2) +
+                             "-CPU quota and was throttled in " + fmt::pct(100.0 * *ratio) +
+                             " of periods, while the machine as a whole is " + fmt::pct(busy) + " busy.";
             }
         }
     }

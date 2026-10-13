@@ -18,7 +18,7 @@ const WordSet kDisk = {"disk", "disks", "storage", "drive", "ssd", "volume", "vo
 const WordSet kNet = {"network", "networking", "wifi", "wi-fi", "ethernet", "interface", "interfaces", "bandwidth", "internet", "packets", "traffic", "en0", "eth0"};
 const WordSet kThermal = {"thermal", "temperature", "overheating", "overheat", "overheated", "fan", "fans", "heat", "warm", "toasty"};
 const WordSet kWhy = {"why", "explain", "cause", "causing", "caused", "reason", "diagnose", "diagnosis", "troubleshoot", "investigate", "wrong", "problem", "issue"};
-const WordSet kSlow = {"slow", "slowly", "sluggish", "laggy", "lag", "lagging", "unresponsive", "freezing", "freezes", "frozen", "beachball", "beachballing", "hanging", "hangs", "stutter", "stuttering", "crawling", "performance", "slowdown", "choppy"};
+const WordSet kSlow = {"slow", "slowly", "slowing", "slower", "slows", "bottleneck", "bottlenecks", "bottlenecked", "sluggish", "laggy", "lag", "lagging", "unresponsive", "freezing", "freezes", "frozen", "beachball", "beachballing", "hanging", "hangs", "stutter", "stuttering", "crawling", "performance", "slowdown", "choppy"};
 const WordSet kUsage = {"using", "uses", "use", "consuming", "consumes", "consume", "hogging", "hogs", "hog", "eating", "eats", "taking", "takes", "burning", "draining", "chewing", "occupying"};
 const WordSet kTop = {"top", "most", "biggest", "highest", "heaviest", "largest", "hungriest", "greediest", "worst"};
 const WordSet kK8s = {"kubernetes", "k8s", "pod", "pods", "kubectl", "deployment", "deployments", "replicas", "replicaset", "daemonset", "statefulset", "kubelet", "helm", "hpa"};
@@ -31,6 +31,14 @@ const WordSet kAction = {"kill", "terminate", "quit", "pkill", "killall", "renic
                          "set", "change", "increase", "decrease", "raise", "lower", "pin", "disable", "enable", "purge",
                          "flush", "clear", "optimize", "optimise", "tune", "fix", "prioritize", "deprioritize", "stop",
                          "close", "free", "limit", "boost", "speed", "apply", "modify", "adjust", "shut", "end", "force-quit"};
+const WordSet kProcNouns = {"processes", "programs", "apps", "applications", "tasks", "procs"};
+const WordSet kListCue = {"running", "list", "show", "display", "all", "open", "alive", "count", "number", "every",
+                          "enumerate"};
+const WordSet kCapacityCue = {"allowed", "available", "usable", "entitled", "effective", "actually", "capacity",
+                              "can", "able"};
+const WordSet kCgroupCue = {"which", "show", "list", "any", "limits", "constrained", "hitting", "what", "apply",
+                            "applies", "all"};
+const WordSet kHealth = {"healthy", "health", "unhealthy", "bottleneck", "bottlenecks", "bottlenecked"};
 const WordSet kHostWords = {"mac", "macbook", "imac", "computer", "machine", "system", "laptop", "server", "box", "host", "pc", "device", "os", "workstation", "desktop"};
 
 // Words that are never part of a process name in slot extraction.
@@ -56,9 +64,11 @@ const WordSet kStop = {
     "every", "each", "anything", "something", "everything", "thing", "things", "stuff", "background",
     "leak", "leaking", "footprint", "rss", "big", "large", "small", "growing", "grow", "grows", "increasing",
     "number", "count", "list", "top", "biggest", "highest", "heaviest", "largest", "set", "change", "make",
-    "priority", "affinity", "limit", "quota", "stop", "close", "free", "end", "shut", "down", "via", "per"};
+    "priority", "affinity", "limit", "quota", "stop", "close", "free", "end", "shut", "down", "via", "per",
+    "container", "containers", "cgroup", "cgroups", "vm", "box", "everything", "anything", "nothing", "being"};
 
 const WordSet kPrepBefore = {"about", "of", "for", "on", "by", "kill", "terminate", "quit", "restart", "renice",
+                              "end", "pkill", "killall", "reload", "if", "limit", "killed", "terminated",
                               "inspect", "check", "investigate", "examine", "analyze", "analyse", "pid", "is", "does",
                               "did", "are", "was", "named", "called", "relaunch", "close", "stop", "pin", "prioritize",
                               "deprioritize", "spawned", "started", "launched", "owns"};
@@ -68,7 +78,10 @@ const WordSet kNameTerminators = {"using", "use", "uses", "consuming", "consume"
                                   "application", "daemon", "service", "s", "in", "on", "right", "now", "currently",
                                   "taking", "spawning", "burning", "draining", "chewing", "with", "from", "and", "or",
                                   "to", "is", "are", "was", "for", "slow", "stuck", "hung", "frozen", "suddenly",
-                                  "such", "this", "that", "up", "consumption", "usage", "memory", "cpu", "ram"};
+                                  "such", "this", "that", "up", "consumption", "usage", "memory", "cpu", "ram",
+                                  "gets", "get", "got", "another", "would", "will", "being", "throttled", "limited",
+                                  "be", "more", "than", "running", "memory", "processes", "killed", "terminated",
+                                  "restarted", "stopped", "crashed", "died", "started", "spawned", "get", "got"};
 
 bool any_of(const std::vector<Token>& t, const WordSet& s) {
     return std::any_of(t.begin(), t.end(), [&](const Token& x) { return s.count(x.lower) > 0; });
@@ -132,7 +145,8 @@ std::vector<Span> RuleParser::extract_spans(const std::vector<Token>& toks) {
         const std::string_view next = i + 1 < n ? std::string_view(toks[i + 1].lower) : std::string_view{};
         const std::string_view next2 = i + 2 < n ? std::string_view(toks[i + 2].lower) : std::string_view{};
         if ((w == "that" || w == "this" || w == "the") &&
-            (next == "one" || next == "process" || next == "app" || next == "application" || next == "program")) {
+            (next == "one" || next == "process" || next == "app" || next == "application" || next == "program") &&
+            next2 != "list" && next2 != "tree" && next2 != "table" && next2 != "count") {
             mark(SpanType::ref, i, i + 2);
         } else if (w == "the" && parse_ordinal(next) && (next2 == "one" || next2 == "process" || next2 == "app")) {
             mark(SpanType::ref, i, i + 3);
@@ -170,9 +184,19 @@ std::vector<Span> RuleParser::extract_spans(const std::vector<Token>& toks) {
                                            "eat", "hogging", "hog", "running", "so", "still", "doing", "spawning",
                                            "burning", "draining", "chewing", "slow", "stuck", "hung", "frozen", "always",
                                            "constantly", "keep", "keeps", "need", "needs", "have", "has", "at", "process",
-                                           "app", "s", "such", "suddenly", "spiking", "maxing", "pegged", "hitting"};
+                                           "app", "s", "such", "suddenly", "spiking", "maxing", "pegged", "hitting",
+                                           "being", "throttled", "limited", "running", "restarted", "killed",
+                                           "stopped", "growing", "get", "got", "spawn", "spawned", "start",
+                                           "started"};
     for (std::size_t i = 0; i < n; ++i) {
         if (used[i] || !kPrepBefore.count(toks[i].lower) || i + 1 >= n) continue;
+        // "X of NAME" names a process only when X is something a process has
+        // ("the parent of nginx", "memory of chrome"), not "the capital of peru".
+        static const WordSet kOfHeads = {"usage", "memory", "cpu", "parent", "parents", "children", "child", "owner",
+                                         "details", "detail", "status", "info", "information", "pid", "threads",
+                                         "cgroup", "limits", "limit", "priority", "consumption", "footprint", "rss",
+                                         "state", "path", "ram", "load", "quota", "instances", "copies", "all"};
+        if (toks[i].lower == "of" && (i == 0 || !kOfHeads.count(toks[i - 1].lower))) continue;
         if (kCopula.count(toks[i].lower)) {
             // After a copula a name must be followed by a verb-like cue ("why is chrome using ...");
             // "when two applications are open" must not yield a process called "open".
@@ -194,7 +218,7 @@ std::vector<Span> RuleParser::extract_spans(const std::vector<Token>& toks) {
         for (std::size_t i = 0; i + 1 < n && !have_proc; ++i) {
             const auto& nx = toks[i + 1].lower;
             const bool cue = nx == "process" || nx == "app" || nx == "daemon" || nx == "application" || nx == "s" ||
-                             kUsage.count(nx) > 0;
+                             nx == "doing" || kUsage.count(nx) > 0;
             if (cue && is_name_token(toks[i]) && !used[i]) {
                 std::size_t b = i;
                 while (b > 0 && i - b < 3 && is_name_token(toks[b - 1]) && !used[b - 1]) --b;
@@ -218,10 +242,13 @@ ParseOutput RuleParser::parse(const std::vector<Token>& t) const {
     const bool proc_target = std::any_of(o.spans.begin(), o.spans.end(), [](const Span& s) {
         return s.type == SpanType::proc || s.type == SpanType::pid || s.type == SpanType::ref;
     });
+    const bool named_target = std::any_of(o.spans.begin(), o.spans.end(), [](const Span& s) {
+        return s.type == SpanType::proc || s.type == SpanType::pid;
+    });
     const bool cpu = any_of(t, kCpu) || has(t, "hot");
     const bool mem = any_of(t, kMem);
     const bool why = any_of(t, kWhy) || has_seq(t, {"what", "is", "causing"}) || has_seq(t, {"how", "come"});
-    const bool slow = any_of(t, kSlow);
+    const bool slow = any_of(t, kSlow) && !has_seq(t, {"performance", "cores"}) && !has_seq(t, {"performance", "core"});
     const bool usage = any_of(t, kUsage);
     const bool top = any_of(t, kTop);
     const bool question = has(t, "what") || has(t, "which") || has(t, "who") || has(t, "show") || has(t, "list");
@@ -233,6 +260,7 @@ ParseOutput RuleParser::parse(const std::vector<Token>& t) const {
     };
 
     static const WordSet kGreeting = {"hi", "hello", "hey", "thanks", "thank"};
+    if (t.size() == 1 && (first == "cores" || first == "cpus" || first == "topology")) return set(Intent::cpu_topology, 0.6F);
     if (has(t, "help") || has_seq(t, {"what", "can", "you", "do"}) || has(t, "commands") ||
         (t.size() <= 2 && kGreeting.count(first))) {
         return set(Intent::help, 0.9F);
@@ -256,9 +284,43 @@ ParseOutput RuleParser::parse(const std::vector<Token>& t) const {
         }
         if ((lead || requested) && !(first == "free" && !has(t, "up")) && !why) return set(Intent::action_request, 0.85F);
     }
+    // Effective CPU capacity: "how many cpus can this container use?",
+    // "what's my effective cpu limit?" (constraints, not hardware).
+    if ((cpu || has(t, "cpus")) && !why &&
+        ((has_seq(t, {"how", "many"}) || has_seq(t, {"how", "much"}) || has(t, "effective") || has(t, "capacity")) &&
+         any_of(t, kCapacityCue)) && !(has(t, "do") && has(t, "have") && !has(t, "effective") && !has(t, "capacity")))
+        return set(Intent::cpu_capacity, 0.8F);
+    if ((cpu || has(t, "cpus")) && has(t, "available") && (has(t, "me") || has(t, "us")))
+        return set(Intent::cpu_capacity, 0.6F);
+    // Cgroup overview: "which cgroup is constrained?", "show cgroup limits".
+    if (!proc_target && !why && (any_of(t, kContainer) || (has(t, "limits") && !mem)) && any_of(t, kCgroupCue) &&
+        !(any_of(t, kThrottle) && has(t, "my")))
+        return set(Intent::cgroup_status, 0.8F);
+    if (!named_target && any_of(t, kThrottle) && (has(t, "anything") || has(t, "any")) && !why)
+        return set(Intent::cgroup_status, 0.6F);
     if (any_of(t, kContainer) && (any_of(t, kThrottle) || slow || cpu || why)) return set(Intent::container_throttle, 0.85F);
+    if (proc_target && any_of(t, kThrottle) && !mem) return set(Intent::container_throttle, 0.8F);
     if (any_of(t, kThrottle) && (has(t, "my") || has(t, "being")) && !cpu) return set(Intent::container_throttle, 0.6F);
 
+    // Process enumeration: "what processes are running?", "show all processes",
+    // "what's currently running?", "how many processes do I have", "ps".
+    {
+        const bool noun = any_of(t, kProcNouns) || has(t, "process");
+        const bool metric = cpu || mem || top || usage || slow || any_of(t, kDisk) || any_of(t, kNet);
+        const bool list_cue = any_of(t, kListCue) || has_seq(t, {"how", "many"});
+        const bool bare_running = (has(t, "running") || has(t, "alive")) &&
+                                  (has(t, "what") || has(t, "anything") || has(t, "whats")) && !proc_target;
+        if ((t.size() == 1 && first == "ps") ||
+            (!metric && !why && !any_of(t, kTree) && !proc_target && ((noun && list_cue) || bare_running)))
+            return set(Intent::list_processes, 0.8F);
+    }
+    // Overall health / bottleneck questions are answered by the all-resource diagnosis.
+    if (!proc_target && (any_of(t, kHealth) ||
+                         ((has(t, "ok") || has(t, "okay") || has(t, "fine")) &&
+                          (any_of(t, kHostWords) || has(t, "everything"))) ||
+                         (has(t, "pressure") && !mem && !cpu && !any_of(t, kDisk)) ||
+                         (has(t, "how") && has(t, "doing") && any_of(t, kHostWords))))
+        return set(Intent::diagnose_slow, 0.75F);
     const bool explain_q = has_seq(t, {"how", "does"}) || has_seq(t, {"how", "do"}) || has_seq(t, {"what", "is"}) ||
                            has_seq(t, {"what", "are"}) || has_seq(t, {"what", "does"}) || first == "explain" ||
                            has_seq(t, {"what", "s"}) || has(t, "mean") || has(t, "meaning") || has_seq(t, {"tell", "me", "about"}) ||
@@ -285,8 +347,13 @@ ParseOutput RuleParser::parse(const std::vector<Token>& t) const {
         const bool info_cue = pid_target || (any_of(t, kInfoCue) && !has(t, "write") && !has(t, "poem") && !has(t, "joke"));
         if (!(question && top) && info_cue && (pid_target || has(t, "tell") || has(t, "show") || question ||
                                                has(t, "info") || has(t, "details") || has(t, "describe") ||
-                                               has(t, "inspect") || has(t, "check") || has(t, "examine") || has(t, "status")))
+                                               has(t, "inspect") || has(t, "check") || has(t, "examine") || has(t, "status") ||
+                                               has(t, "running") || has(t, "alive") || first == "is" || first == "are"))
             return set(Intent::process_info, 0.6F);
+    }
+    if (!proc_target && !why && (has(t, "hogs") || has(t, "hog") || has(t, "hoggers")) && t.size() <= 4) {
+        if (mem && !cpu) return set(Intent::top_memory, 0.7F);
+        if (cpu && !mem) return set(Intent::top_cpu, 0.7F);
     }
     if ((question || top) && (usage || top) && !why) {
         if (mem && !cpu) return set(Intent::top_memory, 0.85F);

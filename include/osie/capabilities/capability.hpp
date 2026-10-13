@@ -157,6 +157,8 @@ public:
     Result<Observation<std::vector<PressureStall>>> pressure();
     Result<Observation<CgroupInfo>> cgroup(const std::string& path);
     Result<std::string> cgroup_of(Pid pid);
+    /// Effective CPU capacity of `pid` (0 = OSIE itself) with each constraint.
+    Result<Observation<CpuCapacity>> cpu_capacity(Pid pid);
 
     [[nodiscard]] Platform platform() const noexcept { return os_.platform(); }
     [[nodiscard]] ObservationSet supported() const { return os_.supported(); }

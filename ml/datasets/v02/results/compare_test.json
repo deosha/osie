@@ -1,0 +1,430 @@
+{
+ "dev": {
+  "char25_C1|classifier": {
+   "e2e_frame_acc": 0.7241379310344828,
+   "intent_macro_f1": 0.6906966490299823,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.333
+  },
+  "char25_C1|rules_then_clf:0.5": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "char25_C1|clf_then_rules:0.6": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "char25_C1|clf_then_rules:0.8": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "char25_C1|clf_then_rules:0.9": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "char25_C10|classifier": {
+   "e2e_frame_acc": 0.7931034482758621,
+   "intent_macro_f1": 0.758548604627036,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.333
+  },
+  "char25_C10|rules_then_clf:0.5": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "char25_C10|clf_then_rules:0.6": {
+   "e2e_frame_acc": 0.896551724137931,
+   "intent_macro_f1": 0.9349067112225007,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "char25_C10|clf_then_rules:0.8": {
+   "e2e_frame_acc": 0.9482758620689655,
+   "intent_macro_f1": 0.955026455026455,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "char25_C10|clf_then_rules:0.9": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C1|classifier": {
+   "e2e_frame_acc": 0.7931034482758621,
+   "intent_macro_f1": 0.8449294532627866,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C1|rules_then_clf:0.5": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C1|clf_then_rules:0.6": {
+   "e2e_frame_acc": 0.9482758620689655,
+   "intent_macro_f1": 0.955026455026455,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C1|clf_then_rules:0.8": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C1|clf_then_rules:0.9": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C10|classifier": {
+   "e2e_frame_acc": 0.8103448275862069,
+   "intent_macro_f1": 0.865299823633157,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C10|rules_then_clf:0.5": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C10|clf_then_rules:0.6": {
+   "e2e_frame_acc": 0.8793103448275862,
+   "intent_macro_f1": 0.9183723196881092,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C10|clf_then_rules:0.8": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "word12_char24_C10|clf_then_rules:0.9": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  },
+  "rules": {
+   "e2e_frame_acc": 0.9655172413793104,
+   "intent_macro_f1": 0.9703703703703703,
+   "false_safe_routing": 0.0,
+   "worst_family_e2e": 0.5
+  }
+ },
+ "selected_on_dev": {
+  "classifier_only": "word12_char24_C10|classifier",
+  "combination": "char25_C1|rules_then_clf:0.5"
+ },
+ "test": {
+  "rules": {
+   "n": 138,
+   "families": 37,
+   "intent_acc": 0.9202898550724637,
+   "intent_macro_f1": 0.9265815599948727,
+   "entity_precision": 0.8695652173913043,
+   "entity_recall": 0.9523809523809523,
+   "e2e_frame_acc": 0.8913043478260869,
+   "e2e_ci95_by_family": [
+    0.8421052631578947,
+    0.9375
+   ],
+   "unsupported_precision": 0.6666666666666666,
+   "unsupported_recall": 0.8,
+   "directives": 27,
+   "false_safe_routing": 0.0,
+   "action_type_acc_on_directives": 1.0,
+   "over_refusal_on_explain_past_hypothetical": 0.0,
+   "temporal_acc": 0.9782608695652174,
+   "latency_us_p50": 6.375,
+   "latency_us_p99": 19.667,
+   "e2e_by_domain": {
+    "any": 0.8818897637795275,
+    "linux": 1.0
+   },
+   "e2e_by_family": {
+    "amb.missing_target": 1.0,
+    "cap.effective": 1.0,
+    "cg.constrained": 1.0,
+    "cg.throttle_proc": 1.0,
+    "concept.explain": 0.75,
+    "cpu.diagnose": 1.0,
+    "cpu.process": 0.75,
+    "cpu.top_apps": 0.8,
+    "cpu.typo": 1.0,
+    "disk_net": 1.0,
+    "hw.sysinfo": 0.667,
+    "hw.topology": 1.0,
+    "info.pid": 1.0,
+    "k8s": 1.0,
+    "lp.count": 1.0,
+    "lp.filter_name": 0.667,
+    "lp.typo": 0.667,
+    "lp.what_running": 1.0,
+    "mem.pressure": 1.0,
+    "mem.process": 0.667,
+    "mem.top": 1.0,
+    "safe.authorize": 1.0,
+    "safe.categories": 0.9,
+    "safe.direct_kill": 1.0,
+    "safe.explain_action": 0.75,
+    "safe.hypothetical": 1.0,
+    "safe.indirect_request": 1.0,
+    "safe.injection": 0.75,
+    "safe.past": 0.667,
+    "safe.quoted": 0.0,
+    "slow.health": 1.0,
+    "slow.server": 1.0,
+    "temp.onset_recovery": 1.0,
+    "temp.trend_host": 0.667,
+    "temp.trend_proc": 1.0,
+    "tree.parent": 1.0,
+    "unsup.offtopic": 0.8
+   },
+   "worst_family_e2e": 0.0,
+   "per_label_f1": {
+    "action_request": 1.0,
+    "cgroup_status": 1.0,
+    "container_throttle": 0.857,
+    "cpu_capacity": 1.0,
+    "cpu_topology": 0.857,
+    "diagnose_cpu": 0.923,
+    "diagnose_memory": 1.0,
+    "diagnose_slow": 0.947,
+    "disk_usage": 1.0,
+    "explain_concept": 0.824,
+    "kubernetes": 1.0,
+    "list_processes": 0.96,
+    "memory_status": 1.0,
+    "network_status": 1.0,
+    "process_cpu": 0.833,
+    "process_info": 0.727,
+    "process_memory": 0.909,
+    "process_tree": 1.0,
+    "system_info": 0.667,
+    "thermal_status": 1.0,
+    "top_cpu": 0.933,
+    "top_memory": 1.0,
+    "unsupported": 0.8,
+    "what_if": 1.0
+   }
+  },
+  "word12_char24_C10|classifier": {
+   "n": 138,
+   "families": 37,
+   "intent_acc": 0.8840579710144928,
+   "intent_macro_f1": 0.8669730933847067,
+   "entity_precision": 0.9512195121951219,
+   "entity_recall": 0.9285714285714286,
+   "e2e_frame_acc": 0.8623188405797102,
+   "e2e_ci95_by_family": [
+    0.8015267175572519,
+    0.9191176470588235
+   ],
+   "unsupported_precision": 1.0,
+   "unsupported_recall": 0.8,
+   "directives": 27,
+   "false_safe_routing": 0.0,
+   "action_type_acc_on_directives": 1.0,
+   "over_refusal_on_explain_past_hypothetical": 0.0,
+   "temporal_acc": 0.9855072463768116,
+   "latency_us_p50": 6.583,
+   "latency_us_p99": 18.792,
+   "e2e_by_domain": {
+    "any": 0.8582677165354331,
+    "linux": 0.9090909090909091
+   },
+   "e2e_by_family": {
+    "amb.missing_target": 1.0,
+    "cap.effective": 1.0,
+    "cg.constrained": 1.0,
+    "cg.throttle_proc": 1.0,
+    "concept.explain": 1.0,
+    "cpu.diagnose": 1.0,
+    "cpu.process": 0.75,
+    "cpu.top_apps": 0.8,
+    "cpu.typo": 1.0,
+    "disk_net": 1.0,
+    "hw.sysinfo": 0.667,
+    "hw.topology": 1.0,
+    "info.pid": 1.0,
+    "k8s": 0.5,
+    "lp.count": 0.75,
+    "lp.filter_name": 0.667,
+    "lp.typo": 1.0,
+    "lp.what_running": 1.0,
+    "mem.pressure": 1.0,
+    "mem.process": 1.0,
+    "mem.top": 0.75,
+    "safe.authorize": 1.0,
+    "safe.categories": 0.9,
+    "safe.direct_kill": 1.0,
+    "safe.explain_action": 1.0,
+    "safe.hypothetical": 1.0,
+    "safe.indirect_request": 1.0,
+    "safe.injection": 0.75,
+    "safe.past": 0.667,
+    "safe.quoted": 1.0,
+    "slow.health": 0.333,
+    "slow.server": 0.6,
+    "temp.onset_recovery": 0.333,
+    "temp.trend_host": 0.333,
+    "temp.trend_proc": 1.0,
+    "tree.parent": 1.0,
+    "unsup.offtopic": 0.8
+   },
+   "worst_family_e2e": 0.333,
+   "per_label_f1": {
+    "action_request": 1.0,
+    "cgroup_status": 1.0,
+    "container_throttle": 1.0,
+    "cpu_capacity": 1.0,
+    "cpu_topology": 0.857,
+    "diagnose_cpu": 0.769,
+    "diagnose_memory": 0.857,
+    "diagnose_slow": 0.571,
+    "disk_usage": 1.0,
+    "explain_concept": 0.87,
+    "kubernetes": 0.667,
+    "list_processes": 0.96,
+    "memory_status": 1.0,
+    "network_status": 1.0,
+    "process_cpu": 0.769,
+    "process_info": 0.842,
+    "process_memory": 0.857,
+    "process_tree": 1.0,
+    "system_info": 0.667,
+    "thermal_status": 0.5,
+    "top_cpu": 0.875,
+    "top_memory": 0.857,
+    "unsupported": 0.889,
+    "what_if": 1.0
+   }
+  },
+  "char25_C1|rules_then_clf:0.5": {
+   "n": 138,
+   "families": 37,
+   "intent_acc": 0.9202898550724637,
+   "intent_macro_f1": 0.9265815599948727,
+   "entity_precision": 0.8695652173913043,
+   "entity_recall": 0.9523809523809523,
+   "e2e_frame_acc": 0.8913043478260869,
+   "e2e_ci95_by_family": [
+    0.8421052631578947,
+    0.9375
+   ],
+   "unsupported_precision": 0.6666666666666666,
+   "unsupported_recall": 0.8,
+   "directives": 27,
+   "false_safe_routing": 0.0,
+   "action_type_acc_on_directives": 1.0,
+   "over_refusal_on_explain_past_hypothetical": 0.0,
+   "temporal_acc": 0.9782608695652174,
+   "latency_us_p50": 6.417,
+   "latency_us_p99": 18.5,
+   "e2e_by_domain": {
+    "any": 0.8818897637795275,
+    "linux": 1.0
+   },
+   "e2e_by_family": {
+    "amb.missing_target": 1.0,
+    "cap.effective": 1.0,
+    "cg.constrained": 1.0,
+    "cg.throttle_proc": 1.0,
+    "concept.explain": 0.75,
+    "cpu.diagnose": 1.0,
+    "cpu.process": 0.75,
+    "cpu.top_apps": 0.8,
+    "cpu.typo": 1.0,
+    "disk_net": 1.0,
+    "hw.sysinfo": 0.667,
+    "hw.topology": 1.0,
+    "info.pid": 1.0,
+    "k8s": 1.0,
+    "lp.count": 1.0,
+    "lp.filter_name": 0.667,
+    "lp.typo": 0.667,
+    "lp.what_running": 1.0,
+    "mem.pressure": 1.0,
+    "mem.process": 0.667,
+    "mem.top": 1.0,
+    "safe.authorize": 1.0,
+    "safe.categories": 0.9,
+    "safe.direct_kill": 1.0,
+    "safe.explain_action": 0.75,
+    "safe.hypothetical": 1.0,
+    "safe.indirect_request": 1.0,
+    "safe.injection": 0.75,
+    "safe.past": 0.667,
+    "safe.quoted": 0.0,
+    "slow.health": 1.0,
+    "slow.server": 1.0,
+    "temp.onset_recovery": 1.0,
+    "temp.trend_host": 0.667,
+    "temp.trend_proc": 1.0,
+    "tree.parent": 1.0,
+    "unsup.offtopic": 0.8
+   },
+   "worst_family_e2e": 0.0,
+   "per_label_f1": {
+    "action_request": 1.0,
+    "cgroup_status": 1.0,
+    "container_throttle": 0.857,
+    "cpu_capacity": 1.0,
+    "cpu_topology": 0.857,
+    "diagnose_cpu": 0.923,
+    "diagnose_memory": 1.0,
+    "diagnose_slow": 0.947,
+    "disk_usage": 1.0,
+    "explain_concept": 0.824,
+    "kubernetes": 1.0,
+    "list_processes": 0.96,
+    "memory_status": 1.0,
+    "network_status": 1.0,
+    "process_cpu": 0.833,
+    "process_info": 0.727,
+    "process_memory": 0.909,
+    "process_tree": 1.0,
+    "system_info": 0.667,
+    "thermal_status": 1.0,
+    "top_cpu": 0.933,
+    "top_memory": 1.0,
+    "unsupported": 0.8,
+    "what_if": 1.0
+   }
+  }
+ },
+ "models": {
+  "char25_C1": {
+   "params": 159500,
+   "train_s": 0.6793830394744873
+  },
+  "char25_C10": {
+   "params": 159500,
+   "train_s": 0.7798662185668945
+  },
+  "word12_char24_C1": {
+   "params": 258750,
+   "train_s": 0.6746907234191895
+  },
+  "word12_char24_C10": {
+   "params": 258750,
+   "train_s": 0.6616921424865723
+  }
+ }
+}

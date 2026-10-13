@@ -72,4 +72,38 @@ std::vector<ObservationKind> ObservationSet::list() const {
     return out;
 }
 
+std::string_view to_string(LimitStatus s) noexcept {
+    switch (s) {
+        case LimitStatus::known: return "known";
+        case LimitStatus::unlimited: return "unlimited";
+        case LimitStatus::unknown: return "unknown";
+        case LimitStatus::not_applicable: return "not_applicable";
+    }
+    return "?";
+}
+
+CpuCapacity finalize_capacity(CpuCapacity c) {
+    c.effective_cpus.reset();
+    c.binding.clear();
+    c.unknown_limits.clear();
+    const std::pair<const char*, const CpuLimit*> limits[] = {{"host logical CPUs", &c.host_logical},
+                                                              {"online CPUs", &c.online},
+                                                              {"CPU affinity", &c.affinity},
+                                                              {"cgroup cpuset", &c.cpuset},
+                                                              {"cgroup CPU quota", &c.quota}};
+    for (const auto& [name, l] : limits) {
+        if (l->status == LimitStatus::unknown) {
+            c.unknown_limits.emplace_back(name);
+            continue;
+        }
+        if (l->status != LimitStatus::known || !l->cpus || !(*l->cpus > 0)) continue;
+        // Ties keep the earlier (more fundamental) limit as the binding one.
+        if (!c.effective_cpus || *l->cpus < *c.effective_cpus - 1e-9) {
+            c.effective_cpus = *l->cpus;
+            c.binding = name;
+        }
+    }
+    return c;
+}
+
 }  // namespace osie

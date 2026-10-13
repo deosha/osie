@@ -115,7 +115,9 @@ TEST(Engine, ActionsAreRefusedAndAudited) {
 TEST(Engine, UnsupportedAndKubernetes) {
     Engine e(busy_mac(), std::make_unique<intent::RuleParser>(), fast());
     EXPECT_NE(e.ask("write me a poem").text.find("outside"), std::string::npos);
-    EXPECT_NE(e.ask("scale my kubernetes deployment").text.find("not implemented"), std::string::npos);
+    // An instruction is refused as an action; a question is "not implemented".
+    EXPECT_NE(e.ask("scale my kubernetes deployment").text.find("won't"), std::string::npos);
+    EXPECT_NE(e.ask("why is my kubernetes pod pending?").text.find("not implemented"), std::string::npos);
     auto c = e.ask("why is this container being throttled?");
     EXPECT_NE(c.text.find("Linux VM"), std::string::npos) << "macOS must not pretend to see container cgroups";
 }

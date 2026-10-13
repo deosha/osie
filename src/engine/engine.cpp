@@ -6,6 +6,7 @@
 #include <cctype>
 #include <cmath>
 #include <ctime>
+#include <map>
 #include <set>
 #include <thread>
 
@@ -26,28 +27,34 @@ bool has_tok(const std::vector<intent::Token>& t, std::string_view w) {
     return std::any_of(t.begin(), t.end(), [&](const intent::Token& x) { return x.lower == w; });
 }
 
+/// Short confirmations or insistence after a refusal ("yes, do it", "go
+/// ahead", "I authorize it", "just do it already", "confirm").
+bool insists_on_action(const std::vector<intent::Token>& t) {
+    static const std::set<std::string_view> kStrong = {"do", "go", "yes", "yeah", "yep", "proceed", "confirm",
+                                                       "confirmed", "approve", "approved", "authorize", "authorise",
+                                                       "authorized", "authorised", "sure", "ok", "okay", "execute",
+                                                       "permission", "allowed", "continue", "y"};
+    static const std::set<std::string_view> kWeak = {"it", "ahead", "just", "now", "i", "you", "have", "my", "that",
+                                                     "then", "the", "to", "can", "please", "already", "said", "told",
+                                                     "am", "admin", "root", "as", "really", "mean", "seriously",
+                                                     "anyway", "still", "want", "again", "this", "one", "is", "are",
+                                                     "fine", "with", "me", "give", "for", "so", "and", "action",
+                                                     "request", "of", "course", "please", "right", "away"};
+    if (t.empty() || t.size() > 10) return false;
+    bool strong = false;
+    for (const auto& x : t) {
+        if (kStrong.count(x.lower)) strong = true;
+        else if (!kWeak.count(x.lower)) return false;
+    }
+    return strong;
+}
+
 bool is_process_intent(Intent i) {
     return i == Intent::process_cpu || i == Intent::process_memory || i == Intent::process_info ||
            i == Intent::process_tree;
 }
 
 ProcessRef ref_of(const ProcessView& p) { return ProcessRef{p.info.pid, p.info.start_time_us, p.info.name}; }
-
-/// Parser output is untrusted (it may come from a model file): an intent the
-/// enum does not define becomes `unsupported`, and a non-finite or
-/// out-of-range confidence is clamped. Spans are bounds-checked by build_frame.
-intent::ParseOutput sanitize(intent::ParseOutput p) {
-    if (static_cast<std::size_t>(p.intent) >= intent::kIntentCount) {
-        p.intent = Intent::unsupported;
-        p.spans.clear();
-        p.parser += "+sanitized";
-    }
-    if (!(p.confidence >= 0.0F && p.confidence <= 1.0F)) {
-        p.confidence = 0.0F;
-        p.parser += "+sanitized";
-    }
-    return p;
-}
 
 std::string lower_ascii(std::string_view s) {
     std::string o(s);
@@ -197,6 +204,13 @@ void SessionContext::remember(const std::string& utterance, const intent::Intent
                               const std::optional<ProcessRef>& subject, const std::vector<ProcessRef>& list,
                               std::size_t limit, SteadyTime now) {
     last_intent = f.intent;
+    if (f.intent == intent::Intent::action_request) {
+        last_refused_action = f.action;
+        last_refused_target = f.target;
+        if (subject) last_refused_target = intent::Target{TargetKind::pid, std::to_string(subject->pid), std::nullopt};
+    } else {
+        last_refused_action.reset();
+    }
     if (subject || !list.empty()) updated_at = now;
     if (subject) last_process = subject;
     if (!list.empty()) {
@@ -224,24 +238,26 @@ Engine::Engine(std::unique_ptr<IOperatingSystem> os, std::unique_ptr<intent::IIn
 Engine::~Engine() = default;
 
 intent::IntentFrame Engine::interpret(std::string_view utterance) const {
-    const auto toks = intent::tokenize(utterance);
-    auto out = sanitize(parser_->parse(toks));
-    auto f = intent::build_frame(out, toks, os_->platform(), os_->supported(), reg_);
-    f.validation_errors = intent::validate(f);
-    return f;
+    return intent::understand(utterance, *parser_, os_->platform(), os_->supported(), reg_);
 }
 
 std::shared_ptr<const SystemState> Engine::state_for(const std::vector<ObservationKind>& kinds,
-                                                     const CancellationToken& c, bool& reused) {
+                                                     const CancellationToken& c, bool& reused, bool cgroup_focus) {
     reused = false;
     if (kinds.empty()) return nullptr;
-    if (auto s = cache_.fresh(kinds, cfg_.freshness_budget)) {
+    // Cgroup questions need throttling *rates* over many cgroups, which an
+    // ordinary cached sample does not have.
+    if (auto s = cgroup_focus ? nullptr : cache_.fresh(kinds, cfg_.freshness_budget)) {
         reused = true;
         return s;
     }
     SampleRequest req;
     req.kinds = kinds;
     req.interval = cfg_.sample_interval;
+    if (cgroup_focus) {
+        req.cgroup_top_n = cfg_.cgroup_scan_n;
+        req.cgroup_window = true;
+    }
     // Always include system info + topology: cheap and needed for context.
     for (auto k : {ObservationKind::system_info, ObservationKind::cpu_topology})
         if (std::find(req.kinds.begin(), req.kinds.end(), k) == req.kinds.end()) req.kinds.push_back(k);
@@ -294,10 +310,29 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
     std::lock_guard lk(mu_);
     const auto t0 = std::chrono::steady_clock::now();
     Answer a;
-    const auto toks = intent::tokenize(utterance);
-    auto out = sanitize(parser_->parse(toks));
-    a.frame = intent::build_frame(out, toks, os_->platform(), os_->supported(), reg_);
+    std::vector<intent::Token> toks;
+    a.frame = intent::understand(utterance, *parser_, os_->platform(), os_->supported(), reg_, &toks);
     a.parse_ms = ms_since(t0);
+
+    // "yes, do it", "go ahead", "I authorize it" right after a refusal insist
+    // on the refused action: it is refused again, with the same capability.
+    if (a.frame.intent != Intent::action_request && session_.last_refused_action && insists_on_action(toks)) {
+        auto& f = a.frame;
+        f.intent = Intent::action_request;
+        f.action = *session_.last_refused_action;
+        f.target = session_.last_refused_target;
+        f.safety = intent::SafetyMode::directive;
+        f.temporal.reset();
+        f.ambiguous = false;
+        f.clarification.clear();
+        f.observations.clear();
+        f.unavailable_observations.clear();
+        f.capabilities.clear();
+        f.entities.clear();
+        f.concept_key.clear();
+        f.parser += "+insistence";
+        if (const auto cap = intent::action_capability(f.action); !cap.empty()) f.capabilities.emplace_back(cap);
+    }
 
     // A temporal follow-up that names no metric ("has its usage increased?")
     // continues the metric of the previous turn.
@@ -316,7 +351,11 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
 
     // Context: short follow-ups and references.
     if (!a.frame.temporal && session_.apply_followup(a.frame, toks)) {
-        a.frame = intent::build_frame(intent::ParseOutput{a.frame.intent, a.frame.confidence, {}, a.frame.parser + "+context"},
+        intent::ParseOutput ctx;
+        ctx.intent = a.frame.intent;
+        ctx.confidence = a.frame.confidence;
+        ctx.parser = a.frame.parser + "+context";
+        a.frame = intent::build_frame(ctx,
                                       toks, os_->platform(), os_->supported(), reg_);
         if (is_process_intent(a.frame.intent)) {
             a.frame.target = intent::Target{TargetKind::reference, "previous process", std::nullopt};
@@ -341,7 +380,9 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
     bool reused = false;
     std::shared_ptr<const SystemState> st;
     if (!a.frame.ambiguous || is_process_intent(a.frame.intent)) {
-        st = state_for(a.frame.observations, cancel, reused);
+        const bool cgroup_focus = os_->platform() == Platform::linux_os &&
+                                  (a.frame.intent == Intent::cgroup_status || a.frame.intent == Intent::container_throttle);
+        st = state_for(a.frame.observations, cancel, reused, cgroup_focus);
     }
     const auto now = std::chrono::steady_clock::now();
     Resolution res;
@@ -429,8 +470,29 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
     // Action requests are refused (and audited) before anything else, so an
     // ambiguous or unresolvable target can never turn a refusal into a
     // "which process?" question that implies the action would then run.
+    const std::string past_note =
+        f.safety == intent::SafetyMode::past_event
+            ? "OSIE keeps no record of past signals, kills or restarts, so it cannot say why or when that happened; "
+              "it can only report current state.\n"
+            : std::string();
+    const std::string override_note =
+        f.override_attempt && f.intent != Intent::action_request
+            ? "Note: OSIE's read-only policy is fixed in its code; instructions or permission given in a conversation "
+              "do not change it.\n"
+            : std::string();
     if (f.ambiguous && !subject && f.intent != Intent::action_request) {
-        return f.clarification.empty() ? "Could you rephrase that?\n" : f.clarification + "\n";
+        return override_note + past_note + (f.clarification.empty() ? "Could you rephrase that?\n" : f.clarification + "\n");
+    }
+    if (!override_note.empty() || !past_note.empty()) {
+        // Answer the read-only part of the question after the note.
+        intent::IntentFrame plain = f;
+        plain.override_attempt = false;
+        plain.safety = intent::SafetyMode::none;
+        Answer inner = a;
+        inner.frame = plain;
+        auto body = render(inner, s, res);
+        a.diagnosis = inner.diagnosis;
+        return override_note + past_note + body;
     }
 
     switch (f.intent) {
@@ -460,7 +522,25 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
                                    std::chrono::system_clock::now()};
             }
             audit_.record(d);
-            o = "I won't do that: " + d.reason + ".\n";
+            static const std::map<intent::ActionType, std::string_view> kWhat = {
+                {intent::ActionType::terminate, "terminate a process"},
+                {intent::ActionType::set_priority, "change a process's priority"},
+                {intent::ActionType::set_affinity, "change CPU affinity"},
+                {intent::ActionType::kernel_parameter, "change a kernel parameter"},
+                {intent::ActionType::cgroup_limit, "change a resource limit"},
+                {intent::ActionType::restart_service, "restart, stop or start a service or the machine"},
+                {intent::ActionType::network_config, "change network configuration"},
+                {intent::ActionType::kubernetes_patch, "change Kubernetes resources"},
+                {intent::ActionType::generic_change, "change the system"},
+                {intent::ActionType::file_delete, "delete files"},
+                {intent::ActionType::firewall_config, "change firewall rules"},
+                {intent::ActionType::container_control, "stop, kill or restart a container"}};
+            const auto what = kWhat.count(f.action) ? kWhat.at(f.action) : std::string_view("change the system");
+            o = "I won't do that. This is a request to " + std::string(what) +
+                ", and OSIE is read-only: it has no code that could carry this out (" + d.reason + ").\n";
+            if (f.override_attempt || f.parser.find("+insistence") != std::string::npos)
+                o += "Permission or instructions given in a conversation do not change this; the read-only policy is "
+                     "fixed in OSIE's code.\n";
             if (cap != nullptr) {
                 o += "  capability: " + cap->id + " (risk " + std::string(to_string(cap->risk)) + ", " +
                      (cap->reversible ? "reversible" : "irreversible") + "; requires " +
@@ -471,6 +551,7 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
                 std::string who = subject ? subject->name : f.target.value;
                 if (!subject && f.target.kind == TargetKind::reference && session_.last_process)
                     who = session_.last_process->name;
+                if (!subject && f.target.kind == TargetKind::pid) who = "pid " + f.target.value;
                 o += "I can explain what the process is doing instead - ask 'why is " + who + " using so much CPU?'\n";
             }
             return o;
@@ -487,9 +568,18 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
         case Intent::what_if: {
             const std::string key = f.concept_key.empty() ? std::string(arch::concept_key::cpu_quota) : f.concept_key;
             a.diagnosis = reasoner_.explain_concept(key);
-            o = "OSIE V1 cannot predict the numeric effect of that change: it has no validated predictive model for "
-                "it, and predictions are never presented as observations.\nWhat the OS architecture model says about '" +
-                a.diagnosis->headline + "':\n";
+            o = "I can't give a numeric prediction here. OSIE answers what-if questions from its architecture model, "
+                "and never presents a prediction as an observation.\n";
+            if (f.change && f.change->resource == intent::HypotheticalChange::Resource::cpu_quota &&
+                os_->platform() == Platform::linux_os) {
+                const std::string who = f.target.kind == TargetKind::process_name ? "--name " + f.target.value
+                                        : f.target.kind == TargetKind::pid      ? "--pid " + f.target.value
+                                                                                : "--cgroup <path>";
+                o += "An experimental CPU-quota predictor exists for Linux cgroup v2. It is validated only in the "
+                     "environments listed in docs/WORLD_MODEL_RESULTS.md and must be enabled explicitly:\n"
+                     "  osie predict --experimental --cpu-quota <cores> " + who + "\n";
+            }
+            o += "What the OS architecture model says about '" + a.diagnosis->headline + "':\n";
             for (const auto& fi : a.diagnosis->findings) o += "  - " + fi.text + "\n";
             if (os_->platform() == Platform::linux_os && s != nullptr) {
                 for (const auto& cg : s->cgroups) {
@@ -569,7 +659,11 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
             const auto& pi = p->info;
             o = pi.name + " (pid " + std::to_string(pi.pid) + ")\n";
             if (!pi.path.empty()) o += "  executable: " + pi.path + "\n";
-            o += "  state: " + std::string(to_string(pi.state)) + ", uid " + std::to_string(pi.uid) + "\n";
+            o += "  state: " +
+                 (os_->platform() == Platform::macos && pi.state == ProcessRunState::running
+                      ? std::string("active (macOS reports process-level state only)")
+                      : std::string(to_string(pi.state))) +
+                 ", uid " + std::to_string(pi.uid) + "\n";
             if (p->cpu_pct) o += "  CPU: " + fmt::pct(*p->cpu_pct) + " of one core\n";
             if (auto m = pi.memory_bytes()) o += "  memory: " + fmt::bytes(*m) + "\n";
             if (pi.threads) o += "  threads: " + std::to_string(*pi.threads) + "\n";
@@ -593,7 +687,8 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
                 o += kids.size() > 5 ? ", ...)\n" : ")\n";
             }
             if (os_->platform() == Platform::macos) {
-                o += pi.ppid == 1 ? "  managed by: launchd (direct child). macOS exposes no public API mapping a PID to its "
+                o += pi.pid == 1  ? "  this is launchd, the init process that manages all other services.\n"
+                     : pi.ppid == 1 ? "  managed by: launchd (direct child). macOS exposes no public API mapping a PID to its "
                                     "launchd job label, so the exact service is not reported.\n"
                                   : "  managed by: not a direct launchd child; owned by its parent process above.\n";
             } else if (pi.cgroup) {
@@ -691,6 +786,97 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
             }
             return "Thermal state is not available on this platform.\n" + unavailable_note();
         }
+        case Intent::list_processes: {
+            if (!s->processes) return "The process list is unavailable.\n" + unavailable_note();
+            const auto& ps = s->processes->value;
+            std::vector<const ProcessView*> v;
+            v.reserve(ps.size());
+            for (const auto& p : ps) v.push_back(&p);
+            std::stable_sort(v.begin(), v.end(), [](const ProcessView* x, const ProcessView* y) {
+                return x->cpu_pct.value_or(-1) > y->cpu_pct.value_or(-1);
+            });
+            std::map<std::string, std::size_t> states;
+            for (const auto* p : v) states[std::string(to_string(p->info.state))]++;
+            o = std::to_string(ps.size()) + " processes exist";
+            if (os_->platform() == Platform::linux_os) {
+                // Linux reports a per-task scheduler state; XNU's process-level
+                // status is SRUN for almost every live process, so it is not shown.
+                o += " (";
+                bool first = true;
+                for (const auto& [st, c] : states) {
+                    o += (first ? "" : ", ") + std::to_string(c) + " " + st;
+                    first = false;
+                }
+                o += ")";
+            }
+            o += ".\n";
+            const std::size_t show = f.top_n ? n : std::min<std::size_t>(15, v.size());
+            o += "Listed by CPU over the last " + fmt::num(std::chrono::duration<double>(s->interval).count(), 1) +
+                 " s (100% = one core):\n";
+            for (std::size_t i = 0; i < show && i < v.size(); ++i) {
+                const auto& p = *v[i];
+                o += "  " + std::to_string(p.info.pid) + "  " + p.info.name;
+                if (p.cpu_pct) o += "  " + fmt::pct(*p.cpu_pct);
+                if (auto m = p.info.memory_bytes()) o += "  " + fmt::bytes(*m);
+                o += "\n";
+            }
+            if (v.size() > show) o += "  ... and " + std::to_string(v.size() - show) + " more (use --json for all).\n";
+            a.diagnosis = reason::Diagnosis{};
+            a.diagnosis->topic = "processes";
+            for (std::size_t i = 0; i < show && i < v.size(); ++i) a.diagnosis->ranked_pids.push_back(v[i]->info.pid);
+            if (s->processes_partial > 0)
+                o += "Note: CPU and memory of " + std::to_string(s->processes_partial) +
+                     " processes owned by other users are not readable without privileges.\n";
+            if (s->processes_vanished > 0)
+                o += "Note: " + std::to_string(s->processes_vanished) + " processes exited while the list was being read.\n";
+            return o + unavailable_note();
+        }
+        case Intent::cpu_capacity: return render_capacity(f, subject) + unavailable_note();
+        case Intent::cgroup_status: {
+            if (os_->platform() != Platform::linux_os)
+                return "cgroups are a Linux mechanism. On macOS, containers run inside a Linux VM whose cgroups are not "
+                       "visible to a macOS process; run OSIE inside that VM or container to inspect them.\n";
+            if (s->cgroups.empty()) return "No cgroup could be inspected.\n" + unavailable_note();
+            o = "cgroups of the " + std::to_string(cfg_.cgroup_scan_n) + " busiest processes (" +
+                std::to_string(s->cgroups.size()) + " distinct), rates over the last " +
+                fmt::num(std::chrono::duration<double>(cfg_.sample_interval).count(), 1) + " s:\n";
+            std::size_t constrained = 0;
+            for (const auto& cg : s->cgroups) {
+                const auto& ci = cg.info;
+                std::string line = "  " + ci.path + "\n     CPU quota ";
+                if (ci.cpu_quota_us)
+                    line += fmt::num(static_cast<double>(*ci.cpu_quota_us) /
+                                         static_cast<double>(std::max<std::uint64_t>(1, ci.cpu_period_us.value_or(100000))), 2) +
+                            " CPUs";
+                else line += ci.nr_periods ? "none (max)" : "unknown (cpu controller not enabled)";
+                if (ci.cpuset_cpus) line += "; cpuset " + std::to_string(*ci.cpuset_cpus) + " CPUs";
+                if (cg.window_usage_cpus) line += "; using " + fmt::num(*cg.window_usage_cpus, 2) + " CPUs";
+                bool hit = false;
+                if (cg.window_throttled_ratio) {
+                    line += "; throttled in " + fmt::pct(100.0 * *cg.window_throttled_ratio) + " of periods";
+                    hit = *cg.window_throttled_ratio >= 0.1;
+                } else if (cg.lifetime_throttled_ratio) {
+                    line += "; throttled in " + fmt::pct(100.0 * *cg.lifetime_throttled_ratio) + " of periods (lifetime)";
+                }
+                if (ci.memory_max) {
+                    line += "; memory " + fmt::bytes(ci.memory_current.value_or(0)) + " of " + fmt::bytes(*ci.memory_max);
+                    if (ci.memory_current && *ci.memory_current * 10 >= *ci.memory_max * 9) hit = true;
+                }
+                for (const auto& ps : ci.pressure)
+                    if (ps.resource == PsiResource::cpu) line += "; PSI cpu some " + fmt::pct(ps.some.avg10, 1);
+                if (!cg.window_note.empty()) line += " (" + cg.window_note + ")";
+                if (hit) {
+                    ++constrained;
+                    line += "\n     -> constrained";
+                }
+                o += line + "\n";
+            }
+            o += constrained == 0 ? "None of these cgroups is currently constrained by its CPU quota or memory limit.\n"
+                                  : std::to_string(constrained) + " cgroup(s) currently constrained (>=10% of periods "
+                                    "throttled, or memory within 10% of memory.max).\n";
+            o += "Only cgroups of the busiest processes are inspected; idle cgroups are not listed.\n";
+            return o + unavailable_note();
+        }
         case Intent::container_throttle: {
             if (os_->platform() != Platform::linux_os) {
                 return "Container CPU throttling is a Linux cgroup mechanism. On macOS, Docker/Podman containers run "
@@ -708,6 +894,49 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
         if (res.group.size() > 1 && subject && (f.intent == Intent::process_cpu || f.intent == Intent::process_memory))
             o = render_group(*s, res, f) + o;
     }
+    return o;
+}
+
+std::string Engine::render_capacity(const intent::IntentFrame& f, const std::optional<ProcessRef>& subject) {
+    const Pid pid = subject ? subject->pid : 0;
+    auto r = broker_.cpu_capacity(pid);
+    if (!r) return "CPU capacity could not be determined: " + r.error().describe() + "\n";
+    const auto& c = r->value;
+    std::string o = "CPU capacity for " + (subject ? subject->name + " (pid " + std::to_string(subject->pid) + ")" : c.scope) + ":\n";
+    auto line = [&](std::string_view name, const CpuLimit& l, std::string_view unit) {
+        std::string x = "  " + std::string(name) + ": ";
+        switch (l.status) {
+            case LimitStatus::known: x += fmt::num(*l.cpus, unit == "CPUs of time" ? 2 : 0) + " " + std::string(unit); break;
+            case LimitStatus::unlimited: x += "no limit"; break;
+            case LimitStatus::unknown: x += "unknown"; break;
+            case LimitStatus::not_applicable: x += "not applicable"; break;
+        }
+        if (!l.source.empty() && l.status != LimitStatus::not_applicable) x += "  [" + l.source + "]";
+        if (!l.note.empty()) x += "  (" + l.note + ")";
+        return x + "\n";
+    };
+    o += line("host logical CPUs", c.host_logical, "CPUs");
+    o += line("online CPUs", c.online, "CPUs");
+    o += line("CPU affinity (where it may run)", c.affinity, "CPUs");
+    o += line("cgroup cpuset", c.cpuset, "CPUs");
+    o += line("cgroup CPU quota (how much time)", c.quota, "CPUs of time");
+    for (const auto& q : c.quota_chain) o += "      cpu.max " + q + "\n";
+    if (c.effective_cpus) {
+        o += "Effective capacity: at most " + fmt::num(*c.effective_cpus, 2) + " CPUs, set by the " + c.binding + ".\n";
+        if (c.quota.status == LimitStatus::known && c.affinity.status == LimitStatus::known && c.quota.cpus &&
+            c.affinity.cpus && *c.quota.cpus < *c.affinity.cpus)
+            o += "The quota limits CPU *time*, not placement: threads can run on any of the " +
+                 fmt::num(*c.affinity.cpus, 0) + " allowed CPUs, but together get at most " + fmt::num(*c.quota.cpus, 2) +
+                 " CPUs' worth of time per period, after which they are throttled.\n";
+    } else {
+        o += "Effective capacity: unknown (no CPU count could be measured).\n";
+    }
+    if (!c.unknown_limits.empty()) {
+        o += "Could not be measured, so the true limit may be lower: ";
+        for (std::size_t i = 0; i < c.unknown_limits.size(); ++i) o += (i ? ", " : "") + c.unknown_limits[i];
+        o += ".\n";
+    }
+    (void)f;
     return o;
 }
 

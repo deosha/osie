@@ -1,6 +1,7 @@
 build*/
 ml/.venv/
 ml/datasets/out/
+ml/datasets/out_v02/
 ml/experiments/runs/
 ml/experiments/cpu_contention/data/
 __pycache__/

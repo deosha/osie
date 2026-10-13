@@ -57,6 +57,7 @@ public:
     Result<Observation<std::vector<PressureStall>>> pressure() override;
     Result<Observation<CgroupInfo>> cgroup(const std::string& path) override;
     Result<std::string> cgroup_of(Pid pid) override;
+    Result<Observation<CpuCapacity>> cpu_capacity(Pid pid) override;
 
 private:
     Result<ProcessInfo> read_process(Pid pid, bool include_path) const;

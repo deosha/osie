@@ -66,6 +66,7 @@ public:
     std::deque<CgroupInfo> cgroup_script;  // if set, cgroup() pops these in order (any path)
     std::vector<FilesystemInfo> fs;
     std::vector<NetInterface> nets;
+    std::optional<CpuCapacity> capacity;  // Linux cpu_capacity(); unset -> unsupported
     int fail_memory_with_eperm{0};
     mutable std::mutex mu;
     int process_calls{0};
@@ -159,6 +160,11 @@ public:
             for (const auto& p : proc_script.front().processes)
                 if (p.pid == pid && p.cgroup) return *p.cgroup;
         return make_error(Errc::not_found, "no cgroup");
+    }
+
+    Result<Observation<CpuCapacity>> cpu_capacity(Pid) override {
+        if (!capacity) return make_error(Errc::unsupported, "no capacity scripted");
+        return Observation<CpuCapacity>{finalize_capacity(*capacity), Provenance::now("mock.capacity")};
     }
 
 private:

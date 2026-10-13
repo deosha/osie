@@ -42,6 +42,8 @@ inline constexpr std::string_view disk_io = "disk_io";
 inline constexpr std::string_view io_latency = "io_latency";
 inline constexpr std::string_view psi_io = "psi_io";
 inline constexpr std::string_view responsiveness = "application_responsiveness";
+inline constexpr std::string_view signals = "process_signals";
+inline constexpr std::string_view priority = "process_priority";
 }  // namespace concept_key
 
 /// Loads concept nodes and documented relations. Idempotent.

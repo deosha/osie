@@ -2,6 +2,7 @@
 // Tokenizer, lexicons, deterministic frame construction and schema validation.
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <set>
 
 #include "osie/intent/intent.hpp"
@@ -70,6 +71,9 @@ std::string_view to_string(ActionType a) noexcept {
         case ActionType::network_config: return "network_config";
         case ActionType::kubernetes_patch: return "kubernetes_patch";
         case ActionType::generic_change: return "generic_change";
+        case ActionType::file_delete: return "file_delete";
+        case ActionType::firewall_config: return "firewall_config";
+        case ActionType::container_control: return "container_control";
     }
     return "?";
 }
@@ -84,6 +88,9 @@ std::string_view action_capability(ActionType a) noexcept {
         case ActionType::restart_service: return "act.service.restart";
         case ActionType::network_config: return "act.network.configure";
         case ActionType::kubernetes_patch: return "act.kubernetes.patch";
+        case ActionType::file_delete: return "act.file.delete";
+        case ActionType::firewall_config: return "act.network.firewall";
+        case ActionType::container_control: return "act.container.control";
         case ActionType::generic_change:
         case ActionType::none: break;
     }
@@ -162,6 +169,19 @@ std::optional<std::string> find_concept(const std::vector<Token>& toks) {
         {{"swap"}, "swapping"},
         {{"paging"}, "paging"},
         {{"latency"}, "scheduling_latency"},
+        {{"renice"}, "process_priority"},
+        {{"nice", "value"}, "process_priority"},
+        {{"niceness"}, "process_priority"},
+        {{"nice"}, "process_priority"},
+        {{"signal"}, "process_signals"},
+        {{"signals"}, "process_signals"},
+        {{"sigterm"}, "process_signals"},
+        {{"sigkill"}, "process_signals"},
+        {{"sighup"}, "process_signals"},
+        {{"kill", "9"}, "process_signals"},
+        {{"kill"}, "process_signals"},
+        {{"killed"}, "process_signals"},
+        {{"oom", "killer"}, "out_of_memory_kill"},
     };
     std::size_t best_len = 0;
     std::optional<std::string> best;
@@ -221,6 +241,9 @@ std::vector<ObservationKind> required_for(Intent i) {
         case Intent::network_status: return {K::network_interfaces};
         case Intent::thermal_status: return {K::thermal_state, K::cpu_times};
         case Intent::container_throttle: return {K::cgroup, K::pressure_stall, K::process_list, K::cpu_times};
+        case Intent::list_processes: return {K::process_list, K::cpu_times};
+        case Intent::cgroup_status: return {K::cgroup, K::pressure_stall, K::cpu_topology, K::process_list, K::cpu_times};
+        case Intent::cpu_capacity: return {K::cpu_topology, K::cgroup, K::system_info, K::process_list};
         case Intent::explain_concept:
         case Intent::what_if:
         case Intent::action_request:
@@ -243,6 +266,9 @@ std::vector<std::string> entities_for(Intent i, const std::vector<Token>& toks) 
         case Intent::thermal_status: e.insert("thermal"); break;
         case Intent::container_throttle: e.insert("cgroup"); e.insert("cpu"); break;
         case Intent::diagnose_slow: e.insert("cpu"); e.insert("memory"); e.insert("disk"); break;
+        case Intent::list_processes: e.insert("processes"); break;
+        case Intent::cgroup_status: e.insert("cgroup"); e.insert("cpu"); break;
+        case Intent::cpu_capacity: e.insert("cpu"); break;
         default: break;
     }
     if (i == Intent::top_cpu || i == Intent::top_memory || i == Intent::diagnose_cpu || i == Intent::diagnose_slow ||
@@ -310,6 +336,82 @@ std::vector<bool> time_phrase_mask(const std::vector<Token>& t) {
     return m;
 }
 
+/// "another CPU" (+1), "two more cores" (+2), "halve the quota" (x0.5),
+/// "limit postgres to 1 core" (=1), "only 2 cpus" in a cpuset question.
+std::optional<HypotheticalChange> parse_change(const std::vector<Token>& t) {
+    using C = HypotheticalChange;
+    const bool cpu_unit = has_any(t, {"cpu", "cpus", "core", "cores", "processor", "processors", "quota", "cpu.max"});
+    if (!cpu_unit) return std::nullopt;
+    C c;
+    if (has_any(t, {"cpuset", "cpusets", "affinity"}) || has_pair(t, "only", {"cpu", "cpus"})) c.resource = C::Resource::cpuset;
+    if (has_any(t, {"halve", "halved", "halving", "half", "halves"})) {
+        c.op = C::Op::multiply;
+        c.value = 0.5;
+        return c;
+    }
+    if (has_any(t, {"double", "doubled", "doubling", "twice"})) {
+        c.op = C::Op::multiply;
+        c.value = 2.0;
+        return c;
+    }
+    auto unit = [](std::string_view w) {
+        return w == "cpu" || w == "cpus" || w == "core" || w == "cores" || w == "processor" || w == "processors";
+    };
+    for (std::size_t i = 0; i < t.size(); ++i) {
+        const auto& w = t[i].lower;
+        const std::string_view n1 = i + 1 < t.size() ? std::string_view(t[i + 1].lower) : std::string_view{};
+        const std::string_view n2 = i + 2 < t.size() ? std::string_view(t[i + 2].lower) : std::string_view{};
+        // "another cpu", "an extra core", "one more core", "2 more cpus", "add 2 cores"
+        if ((w == "another" || w == "extra") && (unit(n1) || unit(n2))) {
+            c.op = C::Op::add;
+            c.value = 1;
+            return c;
+        }
+        double v = 0;
+        bool num = false;
+        if (auto wn = word_number(w)) {
+            v = *wn;
+            num = true;
+        } else if (!w.empty() && std::isdigit(static_cast<unsigned char>(w[0]))) {
+            char* end = nullptr;
+            v = std::strtod(w.c_str(), &end);
+            num = end != nullptr && *end == '\0';
+        }
+        if (!num || !(v > 0) || v > 4096) continue;
+        if ((n1 == "more" || n1 == "extra" || n1 == "additional") && unit(n2)) {
+            c.op = C::Op::add;
+            c.value = v;
+            return c;
+        }
+        if ((n1 == "fewer" || n1 == "less") && unit(n2)) {
+            c.op = C::Op::add;
+            c.value = -v;
+            return c;
+        }
+        if (unit(n1)) {
+            const bool to = i > 0 && (t[i - 1].lower == "to" || t[i - 1].lower == "only" || t[i - 1].lower == "at");
+            const bool add = i > 0 && (t[i - 1].lower == "add" || t[i - 1].lower == "gets" || t[i - 1].lower == "get" ||
+                                       t[i - 1].lower == "give");
+            if (add) {
+                c.op = C::Op::add;
+                c.value = v;
+                return c;
+            }
+            if (to || i == 0 || has_any(t, {"limit", "limited", "cap", "capped", "set", "quota"})) {
+                c.op = C::Op::set;
+                c.value = v;
+                return c;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+bool is_signal_word(const std::vector<Token>& t) {
+    return has_any(t, {"kill", "killed", "sigterm", "sigkill", "sighup", "signal", "signals", "terminate", "terminated",
+                       "pkill", "killall"});
+}
+
 }  // namespace
 
 std::string_view to_string(TemporalKind k) noexcept {
@@ -336,13 +438,15 @@ std::optional<TemporalQuery> detect_temporal(const std::vector<Token>& t) {
     const bool when = has(t, "when") && has_any(t, {"become", "became", "start", "started", "begin", "began", "get", "got"});
     const bool since_when = has_pair(t, "since", {"when"}) || has_pair(t, "how", {"long"});
     const bool recovery = has_any(t, {"recovering", "recovered", "recover", "improving", "settling", "settled"}) ||
-                          has_pair(t, "calming", {"down"}) || has_pair(t, "getting", {"better"}) ||
+                          has_pair(t, "calming", {"down"}) || has_pair(t, "calmed", {"down"}) ||
+                          has_pair(t, "getting", {"better"}) ||
                           has_pair(t, "back", {"to"});
     const bool trend =
         has_any(t, {"increased", "increasing", "grown", "growing", "grew", "rising", "rose", "risen", "trend",
                     "trending", "dropped", "dropping", "decreased", "decreasing", "declining", "climbing", "creeping",
-                    "lately", "recently"}) ||
-        has_pair(t, "going", {"up", "down"}) || has_pair(t, "gone", {"up", "down"}) ||
+                    "lately", "recently", "happened", "changed", "calmed"}) ||
+        has_pair(t, "than", {"before", "earlier", "usual"}) ||
+        has_pair(t, "going", {"up", "down"}) || has_pair(t, "go", {"up", "down"}) || has_pair(t, "gone", {"up", "down"}) ||
         has_pair(t, "went", {"up", "down"}) || has_pair(t, "over", {"time"}) ||
         has_pair(t, "getting", {"worse", "higher", "lower"});
     if (when || since_when) q.kind = TemporalKind::onset;
@@ -378,6 +482,39 @@ IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Pl
     f.confidence = p.confidence;
     f.parser = p.parser;
     f.target.kind = TargetKind::host;
+    f.safety = p.safety.mode;
+    f.override_attempt = p.safety.override_attempt;
+
+    // Safety routing. A directive is always an action request, whatever the
+    // parser said; an action word inside a question, an if-clause, a report
+    // of a past event or quotes is never refused as if it were an instruction.
+    switch (p.safety.mode) {
+        case SafetyMode::directive:
+            f.intent = Intent::action_request;
+            f.confidence = std::max(f.confidence, 0.9F);
+            break;
+        case SafetyMode::explanation:
+        case SafetyMode::quoted_mention:
+            if (f.intent == Intent::action_request) f.intent = Intent::explain_concept;
+            break;
+        case SafetyMode::hypothetical:
+            // "if I limit postgres to 1 core, will it be throttled?" asks for
+            // a consequence, not for the current state.
+            if (f.intent != Intent::explain_concept && f.intent != Intent::kubernetes && f.intent != Intent::help &&
+                f.intent != Intent::unsupported)
+                f.intent = Intent::what_if;
+            break;
+        case SafetyMode::past_event:
+            if (f.intent == Intent::action_request || f.intent == Intent::process_cpu ||
+                f.intent == Intent::process_memory) {
+                const bool target = std::any_of(p.spans.begin(), p.spans.end(), [](const Span& s) {
+                    return s.type == SpanType::pid || s.type == SpanType::proc;
+                });
+                f.intent = target ? Intent::process_info : Intent::explain_concept;
+            }
+            break;
+        case SafetyMode::none: break;
+    }
 
     // Temporal questions: map to an intent whose observations cover the
     // metric. Actions, concepts and structural questions are never temporal.
@@ -466,8 +603,11 @@ IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Pl
     }
     // Host-level intents always target the host; stray names/references in
     // e.g. "why is it so slow" must not turn them into process questions.
+    if (f.intent == Intent::action_request && f.target.kind == TargetKind::host && !p.safety.pid.empty())
+        f.target = Target{TargetKind::pid, p.safety.pid, std::nullopt};
     const bool targets_process = is_process_intent(f.intent) || f.intent == Intent::action_request ||
-                                 f.intent == Intent::container_throttle;
+                                 f.intent == Intent::container_throttle || f.intent == Intent::what_if ||
+                                 f.intent == Intent::cpu_capacity;
     if (!targets_process) f.target = Target{TargetKind::host, {}, std::nullopt};
     if (is_process_intent(f.intent) && f.target.kind == TargetKind::host) {
         f.target.kind = TargetKind::none;
@@ -482,12 +622,32 @@ IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Pl
     f.entities = entities_for(f.intent, toks);
     if (f.intent == Intent::explain_concept || f.intent == Intent::what_if) {
         if (auto c = find_concept(toks)) f.concept_key = *c;
+        if (f.concept_key.empty() && f.intent == Intent::explain_concept &&
+            (p.safety.mode == SafetyMode::explanation || p.safety.mode == SafetyMode::quoted_mention ||
+             p.safety.mode == SafetyMode::past_event) && is_signal_word(toks))
+            f.concept_key = "process_signals";
         if (f.intent == Intent::explain_concept && f.concept_key.empty()) {
             f.ambiguous = true;
             f.clarification = "Which OS concept should I explain (e.g. scheduler, memory compression, run queue)?";
         }
     }
-    if (f.intent == Intent::action_request) f.action = find_action(toks);
+    if (f.intent == Intent::what_if) f.change = parse_change(toks);
+    if (f.intent == Intent::action_request) {
+        f.action = p.safety.mode == SafetyMode::directive && p.safety.action != ActionType::none ? p.safety.action
+                                                                                                  : find_action(toks);
+        // Actions on files, firewalls, kernels, networks, containers and
+        // clusters have no process target, even if a word looked like a name.
+        switch (f.action) {
+            case ActionType::terminate:
+            case ActionType::set_priority:
+            case ActionType::set_affinity:
+            case ActionType::restart_service:
+            case ActionType::cgroup_limit:
+                break;
+            default:
+                f.target = Target{TargetKind::host, {}, std::nullopt};
+        }
+    }
     if (f.intent == Intent::kubernetes) {
         f.unsupported_reason = "Kubernetes analysis is specified in docs/KUBERNETES.md but not implemented in V1";
     }
@@ -587,6 +747,15 @@ std::string to_json(const IntentFrame& f) {
     w.key("capabilities").begin_array();
     for (const auto& c : f.capabilities) w.value(c);
     w.end_array();
+    if (f.safety != SafetyMode::none) w.kv("safety", to_string(f.safety));
+    if (f.override_attempt) w.kv("override_attempt", true);
+    if (f.change) {
+        w.key("change").begin_object()
+            .kv("resource", f.change->resource == HypotheticalChange::Resource::cpuset ? "cpuset" : "cpu_quota")
+            .kv("op", f.change->op == HypotheticalChange::Op::set ? "set" : f.change->op == HypotheticalChange::Op::add ? "add" : "multiply")
+            .kv("value", f.change->value)
+            .end_object();
+    }
     w.kv("ambiguous", f.ambiguous);
     if (!f.clarification.empty()) w.kv("clarification", f.clarification);
     if (!f.unsupported_reason.empty()) w.kv("unsupported_reason", f.unsupported_reason);

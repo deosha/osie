@@ -52,6 +52,8 @@ set(OSIE_CORE_SOURCES
   src/reasoning/reasoner.cpp
   src/intent/frame.cpp
   src/intent/rule_parser.cpp
+  src/intent/safety.cpp
+  src/intent/understand.cpp
   src/inference/neural_parser.cpp
   src/inference/model_locator.cpp
   src/prediction/features.cpp

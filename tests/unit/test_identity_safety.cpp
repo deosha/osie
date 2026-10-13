@@ -196,11 +196,11 @@ TEST(Safety, MultiTurnReferencesCannotUnlockActions) {
     expect_no_action_allowed(e);
     std::size_t refusals = 0;
     for (const auto& d : e.audit().recent(10'000)) refusals += d.capability.rfind("act.", 0) == 0;
-    // "kill it", "terminate the second one", "kill the first one", "kill helper"
-    // are recognised and refused. "ok, kill that one" and "I authorize you to
-    // kill it" currently parse as unsupported: safe, but a known rule-coverage
-    // gap (docs/NEXT_ITERATION_AUDIT.md).
-    EXPECT_EQ(refusals, 4U) << "every recognised action request is audited";
+    // Every turn is an action request: the imperatives directly, "yes, do it"
+    // and "confirm" as insistence on the refused action, and "I authorize you
+    // to kill it" as a directive with an authorisation claim. Each is audited
+    // as a denied act.* decision.
+    EXPECT_EQ(refusals, 8U) << "every action request, including insistence, is refused and audited";
 }
 
 TEST(Safety, MalformedParserOutputIsSanitizedOrRefused) {

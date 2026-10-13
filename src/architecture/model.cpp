@@ -47,9 +47,10 @@ constexpr std::string_view kDocActMon = "Apple: Activity Monitor User Guide, 'Vi
 constexpr std::string_view kDocThermal = "Apple: NSProcessInfo.thermalState / NSProcessInfoThermalState documentation";
 constexpr std::string_view kDocQos = "Apple: Energy Efficiency Guide for Mac Apps, 'Prioritize Work with Quality of Service Classes'";
 constexpr std::string_view kDocAs = "Apple: 'Tuning your code's performance for Apple silicon' (P- and E-cores)";
+constexpr std::string_view kDocSignal = "POSIX: signal(7), kill(2); Linux: mm/oom_kill.c";
 constexpr std::string_view kDocQueueing = "Queueing theory / USE method (B. Gregg): utilisation vs saturation";
 
-constexpr std::array<ConceptDef, 31> kConcepts{{
+constexpr std::array<ConceptDef, 33> kConcepts{{
     {ck::cpu, "CPU subsystem", kAll, kDocQueueing},
     {ck::scheduler, "CPU scheduler", kAll, kDocSchedLinux},
     {ck::run_queue, "Run queue (runnable threads waiting for a CPU)", kAll, kDocSchedLinux},
@@ -74,6 +75,8 @@ constexpr std::array<ConceptDef, 31> kConcepts{{
     {ck::swapping, "Swapping to disk", kAll, kDocMm},
     {ck::major_faults, "Major page faults (faults needing I/O)", kAll, kDocMm},
     {ck::oom, "Out-of-memory termination (Linux OOM killer / macOS jetsam)", kAll, kDocCgroup},
+    {ck::priority, "Process priority (nice value): a scheduling weight; lower nice gets a larger CPU share under contention", kAll, kDocSchedLinux},
+    {ck::signals, "Process signals (SIGTERM asks a process to exit and lets it clean up; SIGKILL, as in kill -9, ends it immediately and cannot be caught)", kAll, kDocSignal},
     {ck::vm_pressure_level, "Kernel VM pressure level", kMac, kDocActMon},
     {ck::psi_memory, "PSI memory", kLinux, kDocPsi},
     {ck::memory_limit, "cgroup memory limit (memory.high/max)", kLinux, kDocCgroup},
@@ -128,6 +131,8 @@ const std::vector<RelationDef>& relations() {
         {ck::paging, E::affects, ck::disk_io, N::hypothesized, 0.7F, kAll, kDocMm, "page-outs to swap and page-ins generate storage I/O"},
         {ck::page_cache, E::affects, ck::disk_io, N::hypothesized, 0.6F, kAll, kDocMm, "a smaller page cache turns cache hits into disk reads"},
         {ck::major_faults, E::affects, ck::responsiveness, N::hypothesized, 0.7F, kAll, kDocMm, "a thread blocked on a major fault cannot make progress"},
+        {ck::priority, E::part_of, ck::scheduler, N::invariant, 1.0F, kAll, kDocSchedLinux, "the scheduler weights runnable threads by priority; nice only matters when CPUs are contended"},
+        {ck::oom, E::uses, ck::signals, N::invariant, 1.0F, kLinux, kDocSignal, "the Linux OOM killer ends the selected process with SIGKILL"},
         {ck::memory_pressure, E::affects, ck::oom, N::hypothesized, 0.4F, kAll, kDocCgroup, "sustained critical pressure can end in OOM-kill / jetsam termination"},
         {ck::disk_io, E::affects, ck::io_latency, N::hypothesized, 0.7F, kAll, kDocPsi, "queueing at the device raises per-request latency"},
         {ck::io_latency, E::affects, ck::responsiveness, N::hypothesized, 0.6F, kAll, kDocPsi, "threads blocked on I/O stall the work that depends on them"},

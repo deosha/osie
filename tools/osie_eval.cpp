@@ -134,8 +134,29 @@ int main(int argc, char** argv) {
     if (!frames_path.empty()) {
         // Frames for an external scorer (ml/datasets/v02/evaluate.py), built by
         // the same deterministic path the engine uses.
+        // --parser override --intents FILE: an external classifier's intent per
+        // line, with rule slots and the same safety routing.
+        struct Override final : intent::IIntentParser {
+            std::vector<std::string> labels;
+            mutable std::size_t i{0};
+            intent::RuleParser rules;
+            intent::ParseOutput parse(const std::vector<intent::Token>& t) const override {
+                auto o = rules.parse(t);
+                if (i < labels.size())
+                    if (auto in = intent::intent_from_string(labels[i])) o.intent = *in;
+                ++i;
+                o.parser = "override+rule_slots";
+                return o;
+            }
+            [[nodiscard]] std::string_view name() const noexcept override { return "override"; }
+        };
         std::unique_ptr<intent::IIntentParser> fp;
-        if (parser == "neural" && model) fp = std::make_unique<inference::NeuralParser>(model);
+        if (parser == "override") {
+            auto ov = std::make_unique<Override>();
+            std::ifstream lin(intents_path);
+            for (std::string l; std::getline(lin, l);) ov->labels.push_back(l);
+            fp = std::move(ov);
+        } else if (parser == "neural" && model) fp = std::make_unique<inference::NeuralParser>(model);
         else if (parser == "hybrid" && model) fp = std::make_unique<inference::HybridParser>(model, threshold);
         else fp = std::make_unique<intent::RuleParser>();
         ObservationSet all;
@@ -144,9 +165,7 @@ int main(int argc, char** argv) {
         std::ifstream in(frames_path);
         for (std::string line; std::getline(in, line);) {
             const auto t0 = std::chrono::steady_clock::now();
-            const auto toks = intent::tokenize(line);
-            auto f = intent::build_frame(fp->parse(toks), toks, Platform::linux_os, all, registry);
-            f.validation_errors = intent::validate(f);
+            auto f = intent::understand(line, *fp, Platform::linux_os, all, registry);
             const double us = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count();
             auto js = intent::to_json(f);
             js.pop_back();  // append the latency to the object
@@ -208,14 +227,19 @@ int main(int argc, char** argv) {
     for (std::size_t i = 0; i < rows.size(); ++i) {
         const auto& r = rows[i];
         const auto t0 = std::chrono::steady_clock::now();
-        auto toks = intent::tokenize(r.text);
-        auto out = p->parse(toks);
+        intent::IntentFrame f;
         if (parser == "override") {
+            auto toks = intent::tokenize(r.text);
+            intent::normalize(toks);
+            auto out = p->parse(toks);
             if (auto in = intent::intent_from_string(overrides[i])) out.intent = *in;
             out.parser = "override+rule_slots";
+            out.safety = intent::assess_safety(r.text, toks);
+            f = intent::build_frame(out, toks, Platform::linux_os, sup, reg);
+            f.validation_errors = intent::validate(f);
+        } else {
+            f = intent::understand(r.text, *p, Platform::linux_os, sup, reg);
         }
-        auto f = intent::build_frame(out, toks, Platform::linux_os, sup, reg);
-        f.validation_errors = intent::validate(f);
         lat_us.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count());
 
         ++n;

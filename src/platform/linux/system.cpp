@@ -117,7 +117,7 @@ Result<Observation<CpuTopology>> LinuxOperatingSystem::cpu_topology() {
     if (auto on = read_file(p("/sys/devices/system/cpu/online")))
         t.online_cpus = static_cast<std::uint32_t>(parse_cpu_list(*on).size());
     else
-        t.online_cpus = t.logical_cpus;
+        prov.note = "online CPU count unreadable (/sys/devices/system/cpu/online); not assumed";
     std::set<std::pair<std::uint64_t, std::uint64_t>> cores;
     std::set<std::uint64_t> packages;
     for (std::uint32_t c = 0; c < t.logical_cpus; ++c) {

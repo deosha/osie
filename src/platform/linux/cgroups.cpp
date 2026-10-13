@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Linux: cgroup v2 controllers and Pressure Stall Information.
+#include <cerrno>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
+
+#include <sched.h>
+#include <unistd.h>
 
 #include "linux_os.hpp"
 #include "osie/platform/cpu_list.hpp"
@@ -81,6 +87,96 @@ Result<Observation<CgroupInfo>> LinuxOperatingSystem::cgroup(const std::string& 
     ci.systemd_unit = arch::systemd_unit_from_cgroup(path);
     if (!ci.nr_periods) prov.note = "cpu controller not enabled for this cgroup (no bandwidth statistics)";
     return Observation<CgroupInfo>{std::move(ci), std::move(prov)};
+}
+
+Result<Observation<CpuCapacity>> LinuxOperatingSystem::cpu_capacity(Pid pid) {
+    if (pid < 0) return make_error(Errc::invalid_argument, "pid must be non-negative");
+    auto prov = Provenance::now("sysfs+sched_getaffinity+cgroupfs:cpuset.cpus.effective,cpu.max");
+    CpuCapacity c;
+    c.scope = pid == 0 ? "this process" : "pid " + std::to_string(pid);
+
+    const long conf = ::sysconf(_SC_NPROCESSORS_CONF);
+    if (conf > 0) c.host_logical = CpuLimit{LimitStatus::known, static_cast<double>(conf), "sysconf(_SC_NPROCESSORS_CONF)", ""};
+    else c.host_logical = CpuLimit{LimitStatus::unknown, std::nullopt, "sysconf(_SC_NPROCESSORS_CONF)", "sysconf failed"};
+    if (auto on = read_file(p("/sys/devices/system/cpu/online"), 4096)) {
+        const auto n = parse_cpu_list(*on).size();
+        c.online = n > 0 ? CpuLimit{LimitStatus::known, static_cast<double>(n), "/sys/devices/system/cpu/online", ""}
+                         : CpuLimit{LimitStatus::unknown, std::nullopt, "/sys/devices/system/cpu/online", "unparseable"};
+    } else {
+        c.online = CpuLimit{LimitStatus::unknown, std::nullopt, "/sys/devices/system/cpu/online", on.error().describe()};
+    }
+
+    // Affinity: a dynamically sized mask, so hosts with more than
+    // CPU_SETSIZE CPUs are counted correctly.
+    {
+        const int ncpu = conf > 0 ? static_cast<int>(std::max<long>(conf, 1024)) : 1024;
+        cpu_set_t* set = CPU_ALLOC(static_cast<std::size_t>(ncpu));
+        const std::size_t sz = CPU_ALLOC_SIZE(static_cast<std::size_t>(ncpu));
+        if (set != nullptr) {
+            CPU_ZERO_S(sz, set);
+            if (::sched_getaffinity(pid, sz, set) == 0) {
+                c.affinity = CpuLimit{LimitStatus::known, static_cast<double>(CPU_COUNT_S(sz, set)), "sched_getaffinity(2)", ""};
+            } else {
+                const int err = errno;
+                c.affinity = CpuLimit{LimitStatus::unknown, std::nullopt, "sched_getaffinity(2)",
+                                      err == ESRCH ? "process exited" : err == EPERM ? "permission denied" : std::strerror(err)};
+            }
+            CPU_FREE(set);
+        }
+    }
+
+    // cgroup v2: cpuset of the leaf, quota as the minimum over the leaf and
+    // every visible ancestor (bandwidth limits are hierarchical).
+    if (!supported_.contains(ObservationKind::cgroup)) {
+        c.cpuset = CpuLimit{LimitStatus::unknown, std::nullopt, "cgroupfs", "no cgroup v2 hierarchy (cgroup v1 is not supported)"};
+        c.quota = c.cpuset;
+    } else if (auto cg = cgroup_of(pid == 0 ? ::getpid() : pid); !cg) {
+        c.cpuset = CpuLimit{LimitStatus::unknown, std::nullopt, "/proc/<pid>/cgroup", cg.error().describe()};
+        c.quota = c.cpuset;
+    } else {
+        const std::string leaf = *cg;
+        const std::string base = root_ + cgroup_mount_;
+        if (auto cs = read_file(base + (leaf == "/" ? "" : leaf) + "/cpuset.cpus.effective", 4096)) {
+            const auto n = parse_cpu_list(*cs).size();
+            c.cpuset = n > 0 ? CpuLimit{LimitStatus::known, static_cast<double>(n), "cpuset.cpus.effective of " + leaf, ""}
+                             : CpuLimit{LimitStatus::unknown, std::nullopt, "cpuset.cpus.effective of " + leaf, "empty"};
+        } else {
+            // Without the cpuset controller the cgroup imposes no cpuset;
+            // the affinity mask still reflects any inherited restriction.
+            c.cpuset = CpuLimit{LimitStatus::unlimited, std::nullopt, "cpuset.cpus.effective of " + leaf,
+                                "cpuset controller not enabled for this cgroup"};
+        }
+        std::optional<double> min_quota;
+        bool any_read = false;
+        std::string path = leaf;
+        for (int depth = 0; depth < 64; ++depth) {
+            const std::string dir = base + (path == "/" ? "" : path);
+            if (auto mx = read_file(dir + "/cpu.max", 128)) {
+                any_read = true;
+                char q[32] = {};
+                unsigned long long period = 0;
+                if (std::sscanf(mx->c_str(), "%31s %llu", q, &period) == 2 && period > 0) {
+                    if (std::string(q) == "max") {
+                        c.quota_chain.push_back(path + ": max");
+                    } else {
+                        const double cores = static_cast<double>(std::strtoll(q, nullptr, 10)) / static_cast<double>(period);
+                        c.quota_chain.push_back(path + ": " + std::to_string(cores).substr(0, 5) + " CPUs");
+                        if (cores > 0 && (!min_quota || cores < *min_quota)) min_quota = cores;
+                    }
+                }
+            }
+            if (path == "/" || path.empty()) break;
+            const auto slash = path.rfind('/');
+            path = slash == 0 ? "/" : path.substr(0, slash);
+        }
+        if (min_quota) c.quota = CpuLimit{LimitStatus::known, *min_quota, "cpu.max of " + leaf + " and ancestors", ""};
+        else if (any_read) c.quota = CpuLimit{LimitStatus::unlimited, std::nullopt, "cpu.max of " + leaf + " and ancestors", ""};
+        else c.quota = CpuLimit{LimitStatus::unknown, std::nullopt, "cpu.max", "cpu controller not enabled or not visible"};
+        // Inside a cgroup namespace the ancestors above the namespace root are
+        // not visible, so a tighter limit there cannot be ruled out.
+        if (leaf == "/") c.quota.note = "cgroup namespace root: limits above it are not visible from here";
+    }
+    return Observation<CpuCapacity>{finalize_capacity(std::move(c)), std::move(prov)};
 }
 
 }  // namespace osie::linux_os

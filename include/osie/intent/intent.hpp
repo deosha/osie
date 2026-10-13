@@ -19,11 +19,13 @@
 
 namespace osie::intent {
 
+class IIntentParser;
+
 #define OSIE_INTENTS(X)                                                                                    \
     X(top_cpu) X(top_memory) X(diagnose_cpu) X(diagnose_memory) X(diagnose_slow) X(process_cpu)            \
     X(process_memory) X(process_info) X(process_tree) X(system_info) X(cpu_topology) X(memory_status)      \
     X(disk_usage) X(network_status) X(thermal_status) X(explain_concept) X(what_if) X(container_throttle)  \
-    X(action_request) X(kubernetes) X(help) X(unsupported)
+    X(action_request) X(kubernetes) X(help) X(unsupported) X(list_processes) X(cgroup_status) X(cpu_capacity)
 
 enum class Intent : std::uint8_t {
 #define OSIE_X(n) n,
@@ -53,11 +55,49 @@ struct Span {
     std::size_t begin{0}, end{0};  // token indices [begin, end)
 };
 
+enum class ActionType : std::uint8_t { none, terminate, set_priority, set_affinity, kernel_parameter, cgroup_limit,
+                                       restart_service, network_config, kubernetes_patch, generic_change,
+                                       file_delete, firewall_config, container_control };
+std::string_view to_string(ActionType a) noexcept;
+/// Capability id an action request maps to ("act.process.terminate", ...).
+std::string_view action_capability(ActionType a) noexcept;
+
+/// How an utterance relates to a state-changing action. Assessed
+/// deterministically, before and independently of any parser, so a learned
+/// model can neither turn an instruction into a question nor the reverse.
+enum class SafetyMode : std::uint8_t {
+    none,              // no action is mentioned
+    directive,         // the user asks OSIE to perform an action -> refused
+    explanation,       // "how does kill -9 work?"
+    past_event,        // "why was process 123 killed?"
+    hypothetical,      // "what if I halve the quota?", "predict ..."
+    quoted_mention,    // the action appears only inside quotes
+};
+std::string_view to_string(SafetyMode m) noexcept;
+
+struct SafetyAssessment {
+    SafetyMode mode{SafetyMode::none};
+    ActionType action{ActionType::none};  // set for directives
+    bool override_attempt{false};         // "ignore your rules", "admin mode", "I authorize you" ...
+    std::string cue;                      // words that decided the mode (shown in refusals and audits)
+    std::string pid;                      // bare PID operand of a directive ("kill -9 4242")
+};
+
+/// Safety-intent detection over clauses. `text` is the raw utterance (quote
+/// marks and punctuation are not tokens); `toks` its normalised tokens.
+SafetyAssessment assess_safety(std::string_view text, const std::vector<Token>& toks);
+
+/// Deterministic normalisation of `Token::lower` (abbreviations, common
+/// misspellings of OSIE vocabulary). `text` and offsets are unchanged, so
+/// names are always reported as the user wrote them.
+void normalize(std::vector<Token>& toks);
+
 struct ParseOutput {
     Intent intent{Intent::unsupported};
     float confidence{0.0F};
     std::vector<Span> spans;
     std::string parser;  // "rules", "neural", "hybrid:<which>"
+    SafetyAssessment safety;  // set by understand(), never by a parser
 };
 
 enum class TargetKind : std::uint8_t { host, process_name, pid, reference, none };
@@ -69,11 +109,6 @@ struct Target {
     std::optional<int> ordinal;     // "the second one" -> 2 (1-based)
 };
 
-enum class ActionType : std::uint8_t { none, terminate, set_priority, set_affinity, kernel_parameter, cgroup_limit,
-                                       restart_service, network_config, kubernetes_patch, generic_change };
-std::string_view to_string(ActionType a) noexcept;
-/// Capability id an action request maps to ("act.process.terminate", ...).
-std::string_view action_capability(ActionType a) noexcept;
 
 /// A question about change over time ("has CPU usage increased?", "when did
 /// memory pressure become elevated?", "is the system recovering?"). Detected
@@ -94,6 +129,16 @@ struct TemporalQuery {
 /// Temporal cues in `toks`, or nullopt. Exposed for tests.
 std::optional<TemporalQuery> detect_temporal(const std::vector<Token>& toks);
 
+/// A hypothetical change named in a what-if question ("if nginx gets another
+/// CPU", "halve the quota", "limit postgres to 1 core").
+struct HypotheticalChange {
+    enum class Op : std::uint8_t { set, add, multiply };
+    enum class Resource : std::uint8_t { cpu_quota, cpuset };
+    Resource resource{Resource::cpu_quota};
+    Op op{Op::set};
+    double value{0};
+};
+
 struct IntentFrame {
     Intent intent{Intent::unsupported};
     float confidence{0.0F};
@@ -112,6 +157,9 @@ struct IntentFrame {
     std::vector<std::string> capabilities;                // capability ids to be invoked
     std::vector<std::string> validation_errors;           // empty = schema-valid
     std::optional<TemporalQuery> temporal;
+    SafetyMode safety{SafetyMode::none};
+    bool override_attempt{false};
+    std::optional<HypotheticalChange> change;  // what_if only
 };
 
 /// Concept lexicon: maps phrases ("run queue", "memory compression", ...) to ontology keys.
@@ -122,6 +170,13 @@ std::optional<int> parse_ordinal(std::string_view word);
 /// Deterministic: ParseOutput + tokens -> IntentFrame (entities, target, observations).
 IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Platform platform,
                         const ObservationSet& supported, const CapabilityRegistry& reg);
+
+/// The staged pipeline used by the engine and the evaluators:
+/// normalise -> safety assessment -> parser -> frame -> safety routing.
+/// `toks_out` receives the normalised tokens.
+IntentFrame understand(std::string_view text, const IIntentParser& parser, Platform platform,
+                       const ObservationSet& supported, const CapabilityRegistry& reg,
+                       std::vector<Token>* toks_out = nullptr);
 
 /// Schema validation; returns violations.
 std::vector<std::string> validate(const IntentFrame& f);

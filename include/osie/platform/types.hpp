@@ -256,4 +256,40 @@ struct CgroupInfo {
     std::optional<std::string> systemd_unit;  // derived from path: "*.service" / "*.scope"
 };
 
+/// One constraint on how many CPUs a process may use. The quantities are
+/// different mechanisms and are never interchangeable: a cpuset limits *which*
+/// CPUs, a quota limits *how much CPU time per period*.
+enum class LimitStatus : std::uint8_t {
+    known,           // measured; `cpus` is set
+    unlimited,       // measured, and imposes no limit (cpu.max "max")
+    unknown,         // could not be measured (permission, missing file, namespace)
+    not_applicable,  // the mechanism does not exist here (e.g. cpusets on macOS)
+};
+std::string_view to_string(LimitStatus s) noexcept;
+
+struct CpuLimit {
+    LimitStatus status{LimitStatus::unknown};
+    std::optional<double> cpus;  // CPUs (or CPU-equivalents of time) this limit allows
+    std::string source;          // interface it was read from
+    std::string note;            // why unknown, or what the value means
+};
+
+struct CpuCapacity {
+    std::string scope;  // "pid 123" / "this process"
+    CpuLimit host_logical;  // CPUs the kernel knows about
+    CpuLimit online;        // CPUs currently online
+    CpuLimit affinity;      // CPUs the scheduler may place this process on
+    CpuLimit cpuset;        // cgroup cpuset.cpus.effective
+    CpuLimit quota;         // min over the cgroup's and its ancestors' cpu.max
+    std::vector<std::string> quota_chain;  // "/a/b: 2.00 CPUs", "/a: max", ...
+    /// min over the known limits; nullopt when no CPU count could be measured.
+    std::optional<double> effective_cpus;
+    std::string binding;  // name of the limit that sets effective_cpus
+    std::vector<std::string> unknown_limits;  // limits that might bind but could not be read
+};
+
+/// Computes `effective_cpus`, `binding` and `unknown_limits` from the five
+/// limits. Pure; never substitutes a default for an unknown limit.
+CpuCapacity finalize_capacity(CpuCapacity c);
+
 }  // namespace osie

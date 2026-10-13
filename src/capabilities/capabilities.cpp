@@ -198,6 +198,15 @@ CapabilityRegistry CapabilityRegistry::builtin() {
     must(act("act.kubernetes.patch", "modify Kubernetes resources", RiskLevel::critical, lin,
              {Permission::kubernetes_rbac}, true, "workload rescheduling / restarts", "RBAC allows patch",
              "resource version updated", "re-apply previous manifest"));
+    must(act("act.file.delete", "delete or truncate files", RiskLevel::critical, all, {Permission::root}, false,
+             "data loss", "path exists and is owned by the caller", "path no longer exists",
+             "infeasible without a backup"));
+    must(act("act.network.firewall", "change firewall rules", RiskLevel::critical, all, {Permission::root}, true,
+             "connections may be blocked or exposed", "rule set parsed and validated", "rule active",
+             "restore the previous rule set"));
+    must(act("act.container.control", "stop, kill, restart or remove a container", RiskLevel::high, lin,
+             {Permission::root}, false, "container processes stop; in-flight work is lost", "container exists",
+             "container in the requested state", "infeasible: in-flight work is lost"));
     return r;
 }
 
@@ -348,6 +357,33 @@ Result<std::string> ObservationBroker::cgroup_of(Pid pid) {
     auto* lx = os_.linux_ext();
     if (lx == nullptr) return make_error(Errc::unsupported, "cgroup v2 is Linux-only");
     return lx->cgroup_of(pid);
+}
+
+Result<Observation<CpuCapacity>> ObservationBroker::cpu_capacity(Pid pid) {
+    OSIE_BROKER_GUARD(ObservationKind::cpu_topology)
+    if (auto* lx = os_.linux_ext()) return lx->cpu_capacity(pid);
+    // macOS: no cpusets, no CPU quotas and no hard affinity for user processes.
+    auto topo = os_.cpu_topology();
+    if (!topo) return topo.error();
+    CpuCapacity c;
+    c.scope = pid > 0 ? "pid " + std::to_string(pid) : "this process";
+    const auto& t = topo->value;
+    auto known = [&](std::uint32_t n, std::string src) {
+        CpuLimit l;
+        if (n > 0) {
+            l.status = LimitStatus::known;
+            l.cpus = n;
+        }
+        l.source = std::move(src);
+        return l;
+    };
+    c.host_logical = known(t.logical_cpus, "sysctl hw.logicalcpu");
+    c.online = known(t.online_cpus, "sysctl hw.activecpu");
+    c.affinity = CpuLimit{LimitStatus::not_applicable, std::nullopt, "",
+                          "macOS has no hard CPU affinity for user processes (affinity tags are hints)"};
+    c.cpuset = CpuLimit{LimitStatus::not_applicable, std::nullopt, "", "cpusets are a Linux cgroup mechanism"};
+    c.quota = CpuLimit{LimitStatus::not_applicable, std::nullopt, "", "CPU quotas are a Linux cgroup mechanism"};
+    return Observation<CpuCapacity>{finalize_capacity(std::move(c)), topo->prov};
 }
 
 #undef OSIE_BROKER_GUARD

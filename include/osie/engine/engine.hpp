@@ -47,6 +47,8 @@ struct EngineConfig {
     /// an old answer is not silently reused as the subject of a new question.
     Millis context_ttl{10 * 60 * 1000};
     HistoryConfig history{};
+    /// Cgroups inspected for cgroup_status questions (of the N busiest processes).
+    std::size_t cgroup_scan_n{40};
 };
 
 struct Answer {
@@ -69,6 +71,10 @@ public:
     std::optional<intent::Intent> last_intent;
     std::deque<std::pair<std::string, intent::Intent>> history;
     SteadyTime updated_at{};  // when last_process / last_list were set
+    /// The last refused action. A following "yes, do it" or "I authorize it"
+    /// is recognised as insisting on it and is refused again (never executed).
+    std::optional<intent::ActionType> last_refused_action;
+    intent::Target last_refused_target;
 
     /// Rewrites short elliptical follow-ups ("why?", "what about memory?")
     /// using the previous turn. Returns true if the frame was changed.
@@ -137,7 +143,8 @@ public:
 
 private:
     std::shared_ptr<const SystemState> state_for(const std::vector<ObservationKind>& kinds, const CancellationToken& c,
-                                                 bool& reused);
+                                                 bool& reused, bool cgroup_focus = false);
+    std::string render_capacity(const intent::IntentFrame& f, const std::optional<ProcessRef>& subject);
     std::string render(Answer& a, const SystemState* s, const Resolution& r);
     std::string render_group(const SystemState& s, const Resolution& r, const intent::IntentFrame& f) const;
     std::string render_temporal(Answer& a, const Resolution& r);

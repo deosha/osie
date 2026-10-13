@@ -20,12 +20,16 @@ def load(split):
         return list(csv.DictReader(f, delimiter="\t"))
 
 
-def frames(rows, parser, model, binary):
+def frames(rows, parser, model, binary, intents=None):
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as tf:
         for r in rows:
             tf.write(r["text"].replace("\n", " ") + "\n")
         path = tf.name
     cmd = [binary, "--frames", path, "--parser", parser] + (["--model", model] if model else [])
+    if intents is not None:
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as tf2:
+            tf2.write("\n".join(intents) + "\n")
+        cmd += ["--intents", tf2.name]
     out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout.splitlines()
     os.unlink(path)
     assert len(out) == len(rows), (len(out), len(rows))

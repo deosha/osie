@@ -68,6 +68,10 @@ public:
     virtual Result<Observation<CgroupInfo>> cgroup(const std::string& path) = 0;
     /// cgroup of the given process (reads /proc/<pid>/cgroup).
     virtual Result<std::string> cgroup_of(Pid pid) = 0;
+    /// Every constraint on the CPUs `pid` may use (0 = the calling process).
+    virtual Result<Observation<CpuCapacity>> cpu_capacity(Pid /*pid*/) {
+        return make_error(Errc::unsupported, "CPU capacity is not implemented by this adapter");
+    }
 };
 
 class IOperatingSystem {
