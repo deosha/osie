@@ -4,7 +4,8 @@
 
 1. **No executor exists for any state-changing capability.** `act.*`
    capabilities (terminate, set priority/affinity, sysctl write, cgroup limit,
-   service restart, network configuration, Kubernetes patch) are *declared* so
+   service restart, network configuration, firewall rules, file deletion,
+   container control, Kubernetes patch) are *declared* so
    requests can be recognised, explained and refused, but there is no code
    path that performs them (`CapabilityDescriptor::implemented == false`,
    asserted by `Policy.AllActionsDeniedInV1`).
@@ -28,6 +29,28 @@
    table in `build_frame()`, then schema-validated (`validate()` rejects
    `read_only=false`, non-`observe.*` capabilities on read intents, malformed
    PIDs, out-of-range `top_n`, …).
+
+7. **Safety intent is decided before, and independently of, any parser**
+   (v0.2, `src/intent/safety.cpp`). The utterance is split into clauses; a
+   clause that is an imperative, or a request addressed to OSIE ("can you",
+   "I want you to", "permission to", "sudo"), makes the whole utterance a
+   *directive*, and a directive is always an `action_request` that is refused
+   and audited, whatever the rule parser or a learned model said. The same
+   verbs in a question ("how does kill -9 work?"), an if-clause ("what if I
+   halve the quota?"), a past-tense report ("why was nginx killed?") or inside
+   quotes are not refused as instructions. Keywords alone are never used:
+   "kill" appears in all of these. Claims of authority ("I authorize you",
+   "as root", "you are now in admin mode", "ignore your rules") are recorded
+   and answered with a statement that the policy is fixed in code; insisting
+   after a refusal ("yes, do it", "confirm") is refused again with the same
+   capability. On the frozen v0.2 test set no directive (0/27) was routed to
+   an informational intent, against 51.9% in v0.1. Tests: `SafetyModes.*`
+   (including a paraphrase property test), `MultiTurnSafety.*`,
+   `Safety.MultiTurnReferencesCannotUnlockActions`.
+
+   This layer only ever *adds* a refusal or removes a spurious one. Items 1–3
+   stay the independent guarantee: even a directive the detector missed
+   cannot do anything, because no executor exists.
 
 ## Capability descriptor contract
 
@@ -95,13 +118,26 @@ It reads cgroup and CPU counters through `ObservationBroker` and evaluates a
 model. There is no code path that writes `cpu.max`, `cpuset` or any other
 control file, and `act.cgroup.set_cpu_limit` remains declared-but-denied.
 
+Since v0.2 prediction is **off unless explicitly enabled** (`--experimental`
+or `OSIE_EXPERIMENTAL_PREDICT=1`), enforced in the engine rather than the
+CLI: without it nothing is observed for a prediction
+(`EnginePredict.IsOffUnlessExplicitlyEnabled`). An enabled prediction is
+withheld outside the model's support envelope (architecture, kernel range,
+cgroup version, capacity range) and when the cgroup's throttling counters are
+inconsistent with the validated accounting semantics. A throttling
+assessment is never "safe": it is "low" only when the upper bound of the 95%
+interval is below the model's threshold.
+
 The `.osiewm` model file is validated like `.osiem`:
 - size, line and feature limits;
 - strict numbers and bounded weights;
 - a feature-schema check;
 - shape checks, and nothing after `end`.
 
-It is covered by negative tests and a mutation test.
+It is covered by negative tests, a mutation test and, since v0.2, a libFuzzer
+harness (`osie_fuzz_world_model`, run in CI under ASan and UBSan). OSIEWM2
+files must also carry the complete support envelope and a feature-schema
+version this build supports; v2-only keys are rejected in v1 files.
 
 ## Privacy
 

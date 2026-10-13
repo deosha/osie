@@ -494,8 +494,14 @@ IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Pl
             f.confidence = std::max(f.confidence, 0.9F);
             break;
         case SafetyMode::explanation:
-        case SafetyMode::quoted_mention:
             if (f.intent == Intent::action_request) f.intent = Intent::explain_concept;
+            break;
+        case SafetyMode::quoted_mention:
+            // "the log says 'process 123 killed', what does it mean": the
+            // quoted text is a mention, not a target.
+            if (f.intent == Intent::action_request || f.intent == Intent::process_info ||
+                f.intent == Intent::process_cpu || f.intent == Intent::process_memory || f.intent == Intent::process_tree)
+                f.intent = Intent::explain_concept;
             break;
         case SafetyMode::hypothetical:
             // "if I limit postgres to 1 core, will it be throttled?" asks for
@@ -505,12 +511,16 @@ IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Pl
                 f.intent = Intent::what_if;
             break;
         case SafetyMode::past_event:
-            if (f.intent == Intent::action_request || f.intent == Intent::process_cpu ||
-                f.intent == Intent::process_memory) {
+            {
                 const bool target = std::any_of(p.spans.begin(), p.spans.end(), [](const Span& s) {
                     return s.type == SpanType::pid || s.type == SpanType::proc;
                 });
-                f.intent = target ? Intent::process_info : Intent::explain_concept;
+                if (f.intent == Intent::action_request || f.intent == Intent::process_cpu ||
+                    f.intent == Intent::process_memory)
+                    f.intent = target ? Intent::process_info : Intent::explain_concept;
+                else if (target && (f.intent == Intent::unsupported || f.intent == Intent::diagnose_slow ||
+                                    f.intent == Intent::diagnose_cpu || f.intent == Intent::diagnose_memory))
+                    f.intent = Intent::process_info;
             }
             break;
         case SafetyMode::none: break;
@@ -525,7 +535,9 @@ IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Pl
             if (in_time_phrase[i]) return false;
         return true;
     };
-    if (auto tq = detect_temporal(toks)) {
+    // A question about a past event ("was postgres restarted recently?") is
+    // not a question about resource trends.
+    if (auto tq = p.safety.mode == SafetyMode::past_event ? std::nullopt : detect_temporal(toks)) {
         const bool has_target_span = std::any_of(p.spans.begin(), p.spans.end(), [&](const Span& s) {
             return s.type != SpanType::num && span_ok(s);
         });

@@ -194,3 +194,103 @@ python3 deployed_eval.py --data data/v1 --cf data/cf1 --batch data/batch1 --resu
 
 The datasets used for the published results are committed compressed under
 `ml/world_model/data/` (`*.jsonl.gz`).
+
+---
+
+## v0.2 protocol
+
+The v0.1 protocol above used the same validation runs for model selection,
+conformal calibration and the OOD threshold, so its coverage numbers are
+optimistic (audit item W1). v0.2 separates them and adds data that did not
+exist when the model was chosen.
+
+### Partitions
+
+| Partition | Content | Used for |
+|---|---|---|
+| `fit` | ~70% of the development runs (v1 + cf1 + batch1), stratified by workload class, seed 20261013: 43 runs | fitting and **all** selection, by leave-one-family-out (LOFO) and grouped-run cross-validation |
+| `calib` | the other ~30%: 21 runs | conformal half-widths and the OOD score threshold of the frozen model, nothing else |
+| confirmatory | new runs collected **after** the model was frozen and committed (`9002fe6`, sha256 in `ml/world_model/results/v02/freeze.json`) | the reported results, evaluated once with the pre-registered script `v02_confirm.py` |
+
+The confirmatory data are of three kinds:
+- the five development families again, with new seeds (`held_in`);
+- four workload families that did not exist before freezing (`new`):
+  - `variable`: lognormal per-request work, σ = 1;
+  - `closed`: a closed loop with exponential think time;
+  - `wide`: 6–12 workers on 4 CPUs;
+  - `hashbig`: a 16 MiB working set per worker;
+- the closed-loop batch class (`batch`).
+
+They come from three environments:
+- the development VM (Docker Desktop, Linux 6.10, aarch64);
+- a GitHub-hosted x86-64 runner;
+- a GitHub-hosted arm64 runner.
+
+New episodes from the same generator are **not** counted as evidence of
+generalisation to other workloads. Results are reported separately by
+workload group and by environment.
+
+### Selection (development data only)
+
+`v02_dev.py` evaluated:
+- the zero-parameter mechanism with two demand estimators;
+- ridge regression and gradient-boosted trees, direct or as residuals on
+  either mechanism;
+- MLPs with 8, 16, 32 and 64 hidden units, by bounded random search: 10
+  configurations per size and form, drawn from learning rate {3e-4, 1e-3,
+  3e-3}, weight decay {0, 1e-4, 1e-3}, batch size {16, 32, 64} and loss
+  {MAE, Huber, quantile};
+- target-specific tiny models with MAE, Huber, quantile and asymmetric
+  (under-prediction × 3) losses;
+- gating policies A–F:
+
+  | Policy | Rule |
+  |---|---|
+  | A | mechanism only |
+  | B | learned model only |
+  | C | unconditional residual |
+  | D | rule gate: the residual only in-distribution and when it is small |
+  | E | logistic gate with L2 regularisation |
+  | F | abstain when the learned and mechanistic predictions disagree |
+
+The selection metric was the LOFO mean of the normalised MAE of usage and
+throttled time (the "core" error), with the worst held-out family reported
+next to it. MLP results are means over 2 seeds; the best configuration of
+each kind was re-run with 5 seeds. Ties went to fewer parameters.
+
+Selection was made per target. For CPU pressure the mechanism has no closed
+form, so the learned candidates were compared with no-change.
+
+### Calibration
+
+Episodes from one run are correlated, so split-conformal quantiles over
+episodes are too narrow. For each target and level, one episode was drawn per
+calibration run and the finite-sample quantile taken over runs. This was
+repeated 500 times and the median used. Because only 21 calibration runs
+exist, the 95% half-widths rest on the 21st order statistic: they are
+conservative and coarse.
+
+### Pre-registered confirmatory metrics (`v02_confirm.py`)
+
+Each metric is reported by environment × workload group:
+- MAE per target, with run-bootstrap 95% CIs, against the no-change baseline;
+- empirical coverage and mean width of the 80% and 95% intervals, overall
+  and by regime (pre-change saturated or not × throttled after or not);
+- the deployed abstention rate and its reasons;
+- the false-safe rate: quota or cpuset changes assessed `low` whose observed
+  throttled time exceeded 0.25 cores, next to the number assessed `low` and
+  the number withheld. The point-estimate rule (≤ 0.1 cores) is reported for
+  comparison;
+- the clamping rate.
+
+All predictions are made by the deployed C++ code (`osie_wm_lab
+predict-json`), twice:
+- with the environment check, which is what a user gets;
+- without it, to measure whether the model would have transferred where it
+  refuses.
+
+### Cost
+
+Development selection (`v02_dev.py`): 20 min of CPU on the M4 Pro. Data
+collection: about 92 s per 10-episode run per lane locally. The GitHub
+runners' time is recorded in the workflow run.

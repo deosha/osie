@@ -103,6 +103,11 @@ void normalize(std::vector<Token>& toks) {
         }
         if (t.lower.size() < 5 || !alpha(t.lower) || kKeep.count(t.lower)) continue;
         if (std::find(vocab.begin(), vocab.end(), t.lower) != vocab.end()) continue;
+        // An inflected cue word ("restarted", "throttles") is not a typo.
+        if (std::any_of(vocab.begin(), vocab.end(), [&](std::string_view w) {
+                return w.size() >= 4 && t.lower.size() > w.size() && t.lower.rfind(w, 0) == 0;
+            }))
+            continue;
         const std::size_t limit = t.lower.size() >= 8 ? 2 : 1;
         std::string_view best;
         std::size_t best_d = limit + 1;
@@ -115,7 +120,10 @@ void normalize(std::vector<Token>& toks) {
                 best = w;
                 tie = false;
             } else if (d == best_d && w != best) {
-                tie = true;
+                // Singular/plural of the same word ("process"/"processes") is
+                // not a real ambiguity: keep the longer form.
+                if (w.rfind(best, 0) == 0) best = w;
+                else if (best.rfind(w, 0) != 0) tie = true;
             }
         }
         // First letters must agree: a capitalised name such as "Pages" or

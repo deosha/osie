@@ -277,6 +277,27 @@ int print_version(const Options& o) {
         if (m) std::printf("model: %s, %zu parameters, %zu weight bytes\n", m->arch().c_str(), m->parameter_count(), m->weight_bytes());
         else std::printf("model: failed to load: %s\n", m.error().describe().c_str());
     }
+    const auto wl = inference::locate_model(inference::default_model_search(
+        o.world_model_path.empty() ? std::nullopt : std::optional<std::string>(o.world_model_path), "world_cpu.osiewm",
+        "OSIE_WORLD_MODEL"));
+    if (wl.source == inference::ModelSource::none) {
+        std::printf("CPU world model: none found (predictions unavailable)\n");
+    } else if (auto wm = predict::WorldModel::load(wl.path); !wm) {
+        std::printf("CPU world model: %s failed to load: %s\n", wl.path.c_str(), wm.error().describe().c_str());
+    } else {
+        const auto& s = (*wm)->support();
+        std::printf("CPU world model: %s [%s]\n  id %s, format OSIEWM%d, %zu parameters\n", wl.path.c_str(),
+                    std::string(inference::to_string(wl.source)).c_str(), (*wm)->id().c_str(), (*wm)->format_version(),
+                    (*wm)->parameter_count());
+        if ((*wm)->format_version() >= 2) {
+            std::string arch;
+            for (const auto& a : s.arch) arch += (arch.empty() ? "" : ",") + a;
+            std::printf("  validated: %s, Linux %d.%d-%d.%d, cgroup v%d, %s; data %s, calibration %s\n", arch.c_str(),
+                        s.kernel_min->first, s.kernel_min->second, s.kernel_max->first, s.kernel_max->second,
+                        s.cgroup_version, s.model_version.c_str(), s.data_version.c_str(), s.calibration_version.c_str());
+        }
+        std::printf("  predictions are experimental: off unless --experimental or OSIE_EXPERIMENTAL_PREDICT=1\n");
+    }
     return 0;
 }
 

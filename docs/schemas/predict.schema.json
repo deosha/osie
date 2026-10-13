@@ -1,0 +1,110 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "osie/predict.schema.json",
+ "title": "OSIE experimental prediction (osie predict --experimental --json)",
+ "type": "object",
+ "required": [
+  "answered",
+  "cgroup",
+  "text"
+ ],
+ "properties": {
+  "answered": {
+   "type": "boolean"
+  },
+  "cgroup": {
+   "type": "string"
+  },
+  "text": {
+   "type": "string"
+  },
+  "model": {
+   "type": "string"
+  },
+  "experimental": {
+   "const": true
+  },
+  "abstained": {
+   "type": "boolean"
+  },
+  "out_of_distribution": {
+   "type": "boolean"
+  },
+  "throttling_assessment": {
+   "enum": [
+    "low",
+    "possible",
+    "likely",
+    "unknown"
+   ]
+  },
+  "environment_issues": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "reasons": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "targets": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name",
+     "unit",
+     "status",
+     "current",
+     "clamped"
+    ],
+    "properties": {
+     "status": {
+      "enum": [
+       "validated",
+       "experimental"
+      ]
+     },
+     "expected": {
+      "type": "number",
+      "minimum": 0
+     },
+     "intervals": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "level",
+        "lo",
+        "hi"
+       ]
+      }
+     }
+    }
+   }
+  }
+ },
+ "if": {
+  "properties": {
+   "abstained": {
+    "const": true
+   }
+  }
+ },
+ "then": {
+  "properties": {
+   "targets": {
+    "items": {
+     "not": {
+      "required": [
+       "expected"
+      ]
+     }
+    }
+   }
+  }
+ }
+}

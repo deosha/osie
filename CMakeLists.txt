@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(osie VERSION 0.1.0 LANGUAGES C CXX)
+project(osie VERSION 0.2.0 LANGUAGES C CXX)
 
 if(APPLE)
   enable_language(OBJCXX)
@@ -197,6 +197,7 @@ include(GNUInstallDirs)
 install(TARGETS osie RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES models/intent.osiem DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models)
 install(FILES models/world_cpu.osiewm DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models OPTIONAL)
+install(FILES models/SHA256SUMS DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models OPTIONAL)
 install(FILES LICENSE README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
 
 # ------------------------------------------------------------------ cpack ---

@@ -65,7 +65,8 @@ const WordSet kStop = {
     "leak", "leaking", "footprint", "rss", "big", "large", "small", "growing", "grow", "grows", "increasing",
     "number", "count", "list", "top", "biggest", "highest", "heaviest", "largest", "set", "change", "make",
     "priority", "affinity", "limit", "quota", "stop", "close", "free", "end", "shut", "down", "via", "per",
-    "container", "containers", "cgroup", "cgroups", "vm", "box", "everything", "anything", "nothing", "being"};
+    "container", "containers", "cgroup", "cgroups", "vm", "box", "everything", "anything", "nothing", "being",
+    "killer", "oom", "kernel", "scheduler", "signal", "signals", "sigterm", "sigkill"};
 
 const WordSet kPrepBefore = {"about", "of", "for", "on", "by", "kill", "terminate", "quit", "restart", "renice",
                               "end", "pkill", "killall", "reload", "if", "limit", "killed", "terminated",
@@ -265,6 +266,9 @@ ParseOutput RuleParser::parse(const std::vector<Token>& t) const {
         (t.size() <= 2 && kGreeting.count(first))) {
         return set(Intent::help, 0.9F);
     }
+    static const WordSet kCreative = {"poem", "poems", "joke", "jokes", "haiku", "limerick", "lyrics", "recipe",
+                                      "essay", "story", "song", "novel", "sonnet"};
+    if (any_of(t, kCreative)) return set(Intent::unsupported, 0.8F);
     if (any_of(t, kK8s)) return set(Intent::kubernetes, 0.9F);
     if (has_seq(t, {"what", "if"}) || has_seq(t, {"what", "happens", "if"}) || has_seq(t, {"what", "would", "happen"}) ||
         has_seq(t, {"what", "will", "happen"}) || ((has(t, "if") && (has(t, "change") || has(t, "increase") || has(t, "decrease") ||
@@ -283,6 +287,16 @@ ParseOutput RuleParser::parse(const std::vector<Token>& t) const {
                 if (kAction.count(t[j].lower) && t[j].lower != "free") requested = true;
         }
         if ((lead || requested) && !(first == "free" && !has(t, "up")) && !why) return set(Intent::action_request, 0.85F);
+    }
+    // "how does cpu throttling work in cgroups?" asks about the mechanism,
+    // not about this machine's cgroups.
+    {
+        const bool how_works = (has_seq(t, {"how", "does"}) || has_seq(t, {"how", "do"})) &&
+                               (has(t, "work") || has(t, "works") || has(t, "affect") || has(t, "affects"));
+        const bool what_is = (has_seq(t, {"what", "is"}) || has_seq(t, {"what", "are"}) || first == "explain" ||
+                              has(t, "mean") || has(t, "means")) && t.size() <= 7;
+        if ((how_works || what_is) && !named_target && find_concept(t) && !usage && !has(t, "my") && !has(t, "this"))
+            return set(Intent::explain_concept, 0.8F);
     }
     // Effective CPU capacity: "how many cpus can this container use?",
     // "what's my effective cpu limit?" (constraints, not hardware).
@@ -337,6 +351,10 @@ ParseOutput RuleParser::parse(const std::vector<Token>& t) const {
         return set(Intent::process_tree, 0.8F);
     }
     if (proc_target) {
+        // "cpu usage of pid 4242", "memory of nginx"
+        if (named_target && (has(t, "usage") || has(t, "consumption") || first == "cpu" || first == "memory" || first == "ram") &&
+            (cpu != mem) && !any_of(t, kTree))
+            return set(mem ? Intent::process_memory : Intent::process_cpu, 0.8F);
         if ((why || usage || has_seq(t, {"how", "much"}) || slow) && mem) return set(Intent::process_memory, 0.85F);
         if ((why || usage || has_seq(t, {"how", "much"}) || slow) && cpu) return set(Intent::process_cpu, 0.85F);
         if (why && slow) return set(Intent::process_cpu, 0.5F);

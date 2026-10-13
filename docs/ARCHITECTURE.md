@@ -10,11 +10,16 @@ the first step.
 ```text
  utterance
     │  tokenize (shared C++/Python tokenizer)
+    │  normalize ── abbreviations, bounded typo correction towards cue words only
+    ▼
+ assess_safety ── clause-level: directive | explanation | past_event | hypothetical | quoted_mention
+    │             (decided before, and independently of, any parser)
     ▼
  IIntentParser ── RuleParser (0 params) │ NeuralParser (.osiem) │ HybridParser
     │  ParseOutput {intent, confidence, typed spans}
     ▼
- build_frame()  ── deterministic: target, entities, REQUIRED OBSERVATIONS,
+ build_frame()  ── safety routing (a directive is always an action_request);
+    │              deterministic: target, entities, REQUIRED OBSERVATIONS,
     │              capability ids, unavailable observations (never chosen by a model)
  SessionContext ── follow-ups ("what about memory?"), references ("it", "the second one")
     │              resolved against *current* state with (pid, start_time) identity
@@ -44,7 +49,7 @@ the first step.
 | state | `include/osie/state`, `src/state` | raw counters → rates (pure functions), `StateSampler`, `StateCache`, bounded `StateHistory` + trend statistics |
 | architecture | `include/osie/architecture`, `src/architecture` | typed knowledge graph, ontology, incremental instance updates |
 | reasoning | `include/osie/reasoning`, `src/reasoning` | CPU, memory, slowness, per-process and concept diagnoses |
-| intent | `include/osie/intent`, `src/intent` | tokenizer, `IntentFrame` schema, frame builder, validation, rule parser |
+| intent | `include/osie/intent`, `src/intent` | tokenizer, normaliser, clause-level safety assessment (`safety.cpp`), the staged pipeline `understand()`, `IntentFrame` schema, frame builder, validation, rule parser |
 | inference | `include/osie/inference`, `src/inference` | hardened `.osiem` loader ([MODEL_FORMAT.md](MODEL_FORMAT.md)), embedding-bag/BiGRU/CNN forward pass, hybrid parser, model locator |
 | prediction | `include/osie/prediction`, `src/prediction` | CPU world model: cgroup windows, the shared feature encoder, the mechanistic prior, the `.osiewm` loader, bounded and conformal predictions, abstention ([WORLD_MODEL.md](WORLD_MODEL.md)) |
 | engine | `include/osie/engine`, `src/engine` | orchestration, session context, rendering |
@@ -143,6 +148,33 @@ longer running"), never a silent answer about a different process.
   of assuming.
 - **Out-of-range ordinals.** An ordinal beyond the last list gets a question,
   not a default.
+
+## Effective CPU capacity (v0.2)
+
+"How many CPUs" has five different answers on Linux, and OSIE never
+substitutes one for another. `CpuCapacity` (`include/osie/platform/types.hpp`)
+holds each limit with its status (`known`, `unlimited`, `unknown`,
+`not_applicable`) and the interface it came from:
+
+| Limit | Meaning | Source |
+|---|---|---|
+| host logical CPUs | CPUs the kernel knows | `sysconf(_SC_NPROCESSORS_CONF)` |
+| online CPUs | CPUs currently online | `/sys/devices/system/cpu/online` |
+| affinity | *where* the process may run | `sched_getaffinity(2)` (dynamically sized mask) |
+| cgroup cpuset | CPUs granted to the cgroup | `cpuset.cpus.effective` |
+| cgroup quota | *how much CPU time* per period | minimum of `cpu.max` over the cgroup and every visible ancestor |
+
+`finalize_capacity()` takes the minimum over the known limits and names the
+binding one; an unknown limit is listed as "could not be measured, so the
+true limit may be lower", never defaulted. On macOS the cgroup and affinity
+limits are `not_applicable`. Inside a cgroup namespace the limits above the
+namespace root are invisible, and the answer says so.
+
+The CPU diagnosis uses this distinction: a cgroup using ≥ 90% of its quota
+and throttled in most periods is reported as quota-bound even when the host's
+CPUs are mostly idle. Throttling evidence is a rate over the sampling window
+(OSIE's own cgroup is read at both ends of the window; for cgroup questions
+every inspected cgroup is), and a lifetime ratio is labelled as one.
 
 ## Temporal state
 

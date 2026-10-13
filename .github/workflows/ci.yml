@@ -70,6 +70,24 @@ jobs:
           mkdir -p corpus_wm && cp tests/fuzz/seeds/*.osiewm corpus_wm/
           ./build-fuzz/osie_fuzz_world_model -max_total_time=180 -max_len=8192 -rss_limit_mb=2048 corpus_wm
 
+  packaging:
+    # Clean install, upgrade from the previous release, and uninstall of the
+    # x86-64 .deb/.rpm/.tar.gz (arm64 is covered by the same script locally).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release packages
+        run: mkdir -p pkg && packaging/build_linux_release.sh pkg
+      - name: Previous release packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p old && cd old
+          gh release download v0.1.0 -R "${{ github.repository }}" -p 'osie_0.1.0_amd64.deb' -p 'osie-0.1.0-1.x86_64.rpm' -p SHA256SUMS
+          sha256sum -c SHA256SUMS --ignore-missing
+      - name: Install, upgrade, uninstall
+        run: packaging/upgrade_test.sh pkg old
+
   python-parity:
     runs-on: ubuntu-24.04
     steps:

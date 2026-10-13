@@ -1,0 +1,105 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "osie/answer.schema.json",
+ "title": "OSIE answer (osie ask --json)",
+ "type": "object",
+ "required": [
+  "frame",
+  "diagnosis",
+  "text",
+  "latency_ms",
+  "parse_ms",
+  "observation_age_ms",
+  "reused_observations"
+ ],
+ "properties": {
+  "frame": {
+   "$ref": "frame.schema.json"
+  },
+  "diagnosis": {
+   "oneOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "required": [
+      "topic",
+      "diagnosis",
+      "headline",
+      "certainty",
+      "evidence",
+      "findings",
+      "missing_evidence"
+     ],
+     "properties": {
+      "evidence": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "required": [
+         "id",
+         "text",
+         "source",
+         "validity"
+        ]
+       }
+      },
+      "findings": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "required": [
+         "kind",
+         "code",
+         "text",
+         "certainty",
+         "evidence"
+        ],
+        "properties": {
+         "kind": {
+          "enum": [
+           "observation",
+           "hypothesis",
+           "correlation",
+           "causal_explanation",
+           "suggested_investigation",
+           "proposed_optimization"
+          ]
+         }
+        }
+       }
+      },
+      "missing_evidence": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "text": {
+   "type": "string"
+  },
+  "latency_ms": {
+   "type": "number",
+   "minimum": 0
+  },
+  "parse_ms": {
+   "type": "number",
+   "minimum": 0
+  },
+  "observation_age_ms": {
+   "type": "integer",
+   "minimum": 0
+  },
+  "reused_observations": {
+   "type": "boolean"
+  },
+  "trends": {
+   "type": "array"
+  }
+ }
+}

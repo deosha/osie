@@ -17,6 +17,16 @@ Releases: <https://github.com/deosha/osie/releases>. The Homebrew formula
 lives in the tap [`deosha/homebrew-osie`](https://github.com/deosha/homebrew-osie).
 It installs the same prebuilt, checksum-pinned archives.
 
+## Upgrading
+
+Installing a newer `.deb` or `.rpm` over an older one replaces the binary and
+the models (`sudo apt install ./osie_<new>.deb`, `sudo dnf upgrade ./osie-<new>.rpm`
+or `rpm -U`). `packaging/upgrade_test.sh` checks a clean install, an upgrade
+from the previous release and an uninstall that leaves no files, for the
+`.deb` (Ubuntu 22.04), the `.rpm` (Fedora 40) and the tarball. For v0.2.0 it
+passed locally on arm64; CI runs it on x86_64 (`packaging` job). Homebrew:
+`brew upgrade osie`.
+
 ## Platform support
 
 What was verified for v0.1.0:
@@ -122,6 +132,18 @@ The CPU world model used by `osie predict` (Linux) is looked up the same way:
 2. `$OSIE_WORLD_MODEL`
 3. the user data directory
 4. `<prefix>/share/osie/models/world_cpu.osiewm`
+
+Prediction is **experimental and off by default** (v0.2). Enable it per call
+with `osie predict --experimental ...` or for a session with
+`OSIE_EXPERIMENTAL_PREDICT=1`. `osie version` shows the installed world
+model, its format and the environments it was validated in; outside them
+OSIE withholds the prediction and says why.
+
+Installed model files can be checked against the shipped checksums:
+
+```bash
+cd "$(dirname "$(command -v osie)")/../share/osie/models" && sha256sum -c SHA256SUMS
+```
 
 The **current working directory is never searched**, so a stray model file
 cannot change how OSIE reads your questions. If you name a model in (1) or
