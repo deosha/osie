@@ -272,7 +272,8 @@ Result<std::shared_ptr<WorldModel>> WorldModel::load_from_memory(std::string_vie
             if (name == t.name) t.residual_gate = g;
         for (const auto& [name, r] : regimes) {
             if (name != t.name) continue;
-            if (std::none_of(t.conformal.begin(), t.conformal.end(), [&](const auto& c) { return c.first == r[0]; }))
+            const double level = r[0];  // structured bindings cannot be captured by older compilers
+            if (std::none_of(t.conformal.begin(), t.conformal.end(), [level](const auto& c) { return c.first == level; }))
                 return bad("conformal_regime level without a global conformal line for " + t.name);
             t.conformal_regime.push_back(r);
         }

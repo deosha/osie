@@ -98,7 +98,7 @@ jobs:
         run: python3 ml/evaluation/check_parity.py build/osie_eval
       - name: JSON outputs match docs/schemas (parse/ask on the v0.2 sets; predict on Linux)
         run: |
-          pip install jsonschema
+          python3 -m pip install jsonschema referencing
           ninja -C build osie
           python3 tests/check_json_schemas.py build/osie
       - name: Frozen v0.2 intent test set (rules must not regress below the reported result)
