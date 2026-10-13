@@ -103,4 +103,22 @@ See [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 ## CI
 
-CI_PLACEHOLDER
+CI run 38423626590 (commit after "Tests: no wall-clock bound under
+sanitizers"): **all jobs pass**.
+
+| Job | What it covers |
+|---|---|
+| `test (macos-arm64)` | unit tests, sanitizers, smoke test |
+| `test (linux-x86_64)` | unit tests, sanitizers, smoke test |
+| `test (linux-arm64)` | unit tests, sanitizers, smoke test |
+| `fuzz` | both loaders, ASan + UBSan |
+| `packaging` | install, upgrade from v0.1.0 and uninstall on x86-64 |
+| `python-parity` | parity, plus JSON schemas and the frozen intent test set: false-safe 0, e2e ≥ 0.89 |
+
+Defects that CI surfaced and that are fixed:
+- **The fuzzer found undefined behaviour in the new OSIEWM2 loader.** An
+  out-of-range `feature_schema` value was cast to `int`. It is now compared
+  without the cast, and there is a regression test.
+- **Older Apple clang rejected a captured structured binding.**
+- **Timing bounds were not meaningful under the arm64 TSan build.** The
+  bound is now skipped in sanitized builds and kept in normal builds.
