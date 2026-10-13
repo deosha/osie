@@ -22,6 +22,12 @@ using osie::test::proc;
 
 namespace {
 
+#if defined(OSIE_SANITIZED)
+constexpr bool kSanitized = true;  // 10-100x slower: wall-clock bounds are not meaningful
+#else
+constexpr bool kSanitized = false;
+#endif
+
 EngineConfig fast() {
     EngineConfig c;
     c.sample_interval = Millis{5};
@@ -157,7 +163,8 @@ TEST(FaultInjection, CorruptModelFilesFailCleanly) {
         ss << in.rdbuf();
         const std::string full = ss.str();
         std::size_t rejected = 0, n = 0;
-        for (std::size_t cut = 0; cut < full.size(); cut += std::max<std::size_t>(1, full.size() / 97)) {
+        const std::size_t cuts = kSanitized ? 13 : 97, flips = kSanitized ? 17 : 211;
+        for (std::size_t cut = 0; cut < full.size(); cut += std::max<std::size_t>(1, full.size() / cuts)) {
             const std::string_view part(full.data(), cut);
             ++n;
             if (std::string(name).find("osiewm") != std::string::npos) rejected += !predict::WorldModel::load_from_memory(part).ok();
@@ -165,7 +172,7 @@ TEST(FaultInjection, CorruptModelFilesFailCleanly) {
         }
         EXPECT_EQ(rejected, n) << name << ": every truncation must be rejected";
         // Bit flips anywhere: either rejected or loads; never crashes.
-        for (std::size_t i = 0; i < full.size(); i += std::max<std::size_t>(1, full.size() / 211)) {
+        for (std::size_t i = 0; i < full.size(); i += std::max<std::size_t>(1, full.size() / flips)) {
             std::string flipped = full;
             flipped[i] = static_cast<char>(flipped[i] ^ 0x5A);
             if (std::string(name).find("osiewm") != std::string::npos) (void)predict::WorldModel::load_from_memory(flipped);
@@ -182,7 +189,7 @@ TEST(FaultInjection, HugeAndHostileInputsAreBounded) {
     const auto f = e.interpret(big);
     const auto ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     EXPECT_TRUE(f.read_only);
-    EXPECT_LT(ms, 5000.0) << "1 MiB utterance must be processed in bounded time";
+    if (!kSanitized) EXPECT_LT(ms, 5000.0) << "1 MiB utterance must be processed in bounded time";
     for (const char* s : {"\xff\xfe\xfd", "kill \0 9", "\"\"\"''''", "?????", "pid 99999999999999999999",
                           "top 999999999999 processes", "kill -9 -1"}) {
         const auto g = e.interpret(s);

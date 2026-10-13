@@ -38,6 +38,7 @@ endif()
 if(OSIE_SANITIZE)
   add_compile_options(-fsanitize=${OSIE_SANITIZE} -fno-omit-frame-pointer -fno-sanitize-recover=all)
   add_link_options(-fsanitize=${OSIE_SANITIZE})
+  add_compile_definitions(OSIE_SANITIZED=1)  # tests relax wall-clock bounds
 endif()
 
 # ---------------------------------------------------------------- library ---
