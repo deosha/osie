@@ -1,0 +1,47 @@
+{
+ "arith/quota_raise": {
+  "episodes": 16,
+  "mean_usage_residual_cores": -0.356965968125,
+  "share_below_minus_0.1": 0.625
+ },
+ "arith/quota_lower": {
+  "episodes": 8,
+  "mean_usage_residual_cores": 0.0004313333333332975,
+  "share_below_minus_0.1": 0.0
+ },
+ "batch/quota_raise": {
+  "episodes": 14,
+  "mean_usage_residual_cores": -0.0037053623809523944,
+  "share_below_minus_0.1": 0.0
+ },
+ "batch/quota_lower": {
+  "episodes": 11,
+  "mean_usage_residual_cores": 0.004097166666666586,
+  "share_below_minus_0.1": 0.0
+ },
+ "burst/quota_raise": {
+  "episodes": 30,
+  "mean_usage_residual_cores": -0.6464990442,
+  "share_below_minus_0.1": 0.8666666666666667
+ },
+ "burst/quota_lower": {
+  "episodes": 15,
+  "mean_usage_residual_cores": 0.0031233666666666752,
+  "share_below_minus_0.1": 0.0
+ },
+ "mixed/quota_raise": {
+  "episodes": 7,
+  "mean_usage_residual_cores": -0.2879915579523809,
+  "share_below_minus_0.1": 0.5714285714285714
+ },
+ "short/quota_raise": {
+  "episodes": 20,
+  "mean_usage_residual_cores": -0.3801630130166666,
+  "share_below_minus_0.1": 0.6
+ },
+ "short/quota_lower": {
+  "episodes": 11,
+  "mean_usage_residual_cores": 0.003325499999999976,
+  "share_below_minus_0.1": 0.0
+ }
+}

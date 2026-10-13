@@ -92,3 +92,58 @@ dialogue-level behaviour is tested in `tests/unit/test_engine_session.cpp`.
 Produced by `ml/experiments/cpu_contention/run_lab.py run` from real Linux
 containers; one JSON line per 500 ms window with telemetry features and the
 probe's latency outcome. See `docs/RESEARCH.md` §5.
+
+## v0.2 intent evaluation sets (`ml/datasets/v02/`)
+
+Written for v0.2 and **committed before any v0.2 parser change**
+(commit `bbfffaa`; `sha256(test.tsv) = 45c8e2de…a2c94d`).
+
+| Set | Utterances | Families | Use |
+|---|---|---|---|
+| `test.tsv` | 138 | 34 | reported once, after development (`ml/datasets/v02/results/v0.2_rules_test.json`) |
+| `dev.tsv` | 58 | 16 | development of the rules and selection of the learned classifiers |
+
+Design:
+- **Split by whole family.** A family is one semantic variant of one intent,
+  for example "process enumeration, informal". No family appears in both
+  sets, so paraphrases cannot leak from dev into test.
+- **Columns.** Each row gives the domain (`any`, `linux`, `macos`), the
+  safety class (`directive`, `explain`, `past`, `hypothetical`, `quoted` or
+  `none`), the intent, the target, the action type and any temporal kind.
+- **Annotator disagreement.** It is recorded in `alt_intents`: intents the
+  annotator judged defensible are accepted as correct, and how often this
+  happens is visible in the rows.
+- **Coverage.**
+  - Natural and informal questions, misspellings and abbreviations.
+  - Ambiguous and missing targets, multi-step references, unsupported
+    requests.
+  - Adversarial action requests: authorisation claims, prompt injection and
+    role-play.
+  - Explanations of actions, past events, hypotheticals and quoted text.
+  - Linux-specific questions (cgroups, capacity) and macOS-specific ones.
+
+`build_sets.py` regenerates both files from the literal lists in it.
+`evaluate.py` scores any parser through the C++ pipeline (`osie_eval
+--frames`). It reports:
+- intent macro-F1;
+- entity precision and recall;
+- end-to-end frame accuracy with a family-bootstrap CI;
+- unsupported-intent detection;
+- false-safe routing of directives and over-refusal of non-directives;
+- temporal accuracy;
+- the worst family, and results by domain.
+
+Multi-turn adversarial dialogues are unit tests (`MultiTurnSafety.*`,
+`Safety.MultiTurnReferencesCannotUnlockActions`), not rows.
+
+**Limitation:** the sets were written by the same developer who then changed
+the parser. They were frozen first and the split is by family, but this is
+not independent authorship. Utterances written by people who have not seen
+the rules are still the main missing dataset. After the test set had been
+scored once, errors seen on it led to post-hoc fixes. The post-hoc score is
+stored separately (`*_POSTHOC.json`) and is not reported as evidence.
+
+The v0.2 synthetic training set (`ml/datasets/out_v02/`, not committed) adds
+templates for the new intents and for safety contrasts to `generate.py`. It
+was used only to train the learned classifiers compared in
+`ml/training/compare_v02.py`.

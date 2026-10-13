@@ -175,7 +175,7 @@ const WordSet kPastForms = {"killed", "terminated", "restarted", "rebooted", "st
 const WordSet kFillers = {"please", "ok", "okay", "now", "just", "so", "then", "quickly", "kindly", "osie", "hey",
                           "hi", "yo", "alright", "right", "sure", "yes", "yeah", "go", "ahead", "and", "also",
                           "immediately", "first", "finally", "simply", "asap", "pretty", "well", "um", "uh",
-                          "hmm", "oh", "actually", "maybe", "can", "could", "would", "will", "you"};
+                          "hmm", "oh", "actually", "maybe", "can", "could", "would", "will", "you", "force"};
 const WordSet kInterrogatives = {"how", "what", "why", "when", "where", "which", "who", "whom", "whose", "is", "are",
                                  "was", "were", "does", "do", "did", "has", "have", "had", "explain", "describe",
                                  "define", "should", "tell", "difference"};
@@ -270,7 +270,9 @@ bool verb_use(const std::vector<Token>& t, std::size_t i, std::size_t e, bool qu
     // "run"/"execute" are instructions only when they introduce a command ("run rm -rf /").
     if (w == "run" || w == "execute" || w == "exec")
         return kCommandWords.count(next) > 0 || kActionVerbs.count(next) > 0;
-    if (w == "free" && next != "up" && (question || next.empty())) return false;
+    // "free memory" / "free ram" is a terse status query; "free up memory"
+    // and "free some memory" are instructions.
+    if (w == "free" && next != "up" && next != "some" && next != "the" && next != "my" && next != "more") return false;
     if (w == "run" && (next == "queue" || next == "time")) return false;
     if (w == "open" && (next == "files" || next == "file" || next == "ports" || next == "connections")) return false;
     if (w == "start" && (next == "time" || next == "up")) return false;

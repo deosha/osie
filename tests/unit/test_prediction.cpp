@@ -605,3 +605,36 @@ TEST(WorldModelV2, PropertyBoundsAndDeterminism) {
     }
     EXPECT_GT(answered, 100);
 }
+
+TEST(WorldModelV2, RegimeConditionalIntervals) {
+    // Throttled time: global 95% half-width 0.3; 0 when clearly unconstrained
+    // (rho < 0.7) and 1.0 when bound (rho >= 1.3).
+    std::string t = tiny_model_v2("support_arch x86_64 aarch64\nsupport_kernel 6.1 6.12\n",
+                                  "conformal_regime throttled_cores 0.95 0 0.7 0\n"
+                                  "conformal_regime throttled_cores 0.95 1.3 inf 1.0\n");
+    auto m = WorldModel::load_from_memory(t);
+    ASSERT_TRUE(m.ok()) << m.error().message;
+    auto width95 = [&](double usage, double throttled, double q_before, double q_after) {
+        auto p = (*m)->predict({window(usage, throttled, q_before), window(usage, throttled, q_before)},
+                               Intervention{ActionKind::cpu_quota, q_before, q_after});
+        EXPECT_TRUE(p.ok());
+        const auto& iv = p->targets[1].intervals.back();
+        return std::make_pair(iv.hi - iv.lo, p->throttling_assessment);
+    };
+    // Demand 0.5 core, quota to 2: rho = 0.25 -> width 0 -> "low".
+    auto [w_un, a_un] = width95(0.5, 0.0, 1.0, 2.0);
+    EXPECT_NEAR(w_un, 0.0, 1e-12);
+    EXPECT_EQ(a_un, "low");
+    // Demand 3 cores, quota to 1: rho = 3 -> bound -> wide.
+    auto [w_b, a_b] = width95(2.0, 1.0, 3.0, 1.0);
+    EXPECT_GT(w_b, 1.0);
+    EXPECT_EQ(a_b, "likely");
+    // Borderline: falls back to the global half-width (0.3, clipped at 0 below).
+    auto [w_m, a_m] = width95(0.95, 0.0, 1.0, 1.0);
+    EXPECT_NEAR(w_m, 0.3, 1e-9);
+    (void)a_m;
+    // Malformed regime lines are rejected.
+    for (const char* bad : {"conformal_regime throttled_cores 0.95 0.7 0.7 0\n", "conformal_regime nosuch 0.95 0 1 0\n",
+                            "conformal_regime throttled_cores 0.5 0 1 0\n", "conformal_regime throttled_cores 0.95 0 1 -1\n"})
+        EXPECT_FALSE(WorldModel::load_from_memory(tiny_model_v2("support_arch x86_64\nsupport_kernel 6.1 6.12\n", bad)).ok()) << bad;
+}

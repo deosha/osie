@@ -102,7 +102,10 @@ INSTANTIATE_TEST_SUITE_P(
         SafetyCase{"how much ram is free", SafetyMode::none, ActionType::none},
         SafetyCase{"give me a list of processes", SafetyMode::none, ActionType::none},
         SafetyCase{"explain the run queue", SafetyMode::none, ActionType::none},
-        SafetyCase{"write me a poem about linux", SafetyMode::none, ActionType::none}));
+        SafetyCase{"write me a poem about linux", SafetyMode::none, ActionType::none},
+        SafetyCase{"free memory", SafetyMode::none, ActionType::none},
+        SafetyCase{"free ram?", SafetyMode::none, ActionType::none},
+        SafetyCase{"free up some memory", SafetyMode::directive, ActionType::generic_change}));
 
 TEST(SafetyModes, DirectivePidOperandIsNotTheSignalNumber) {
     EXPECT_EQ(assess("kill -9 4242").pid, "4242");

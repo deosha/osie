@@ -889,6 +889,7 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
         default: break;
     }
     if (a.diagnosis) {
+        reason::annotate_evidence(*a.diagnosis, *s);
         o = render_diagnosis(*a.diagnosis, false);
         if (!f.unavailable_observations.empty()) o += unavailable_note();
         if (res.group.size() > 1 && subject && (f.intent == Intent::process_cpu || f.intent == Intent::process_memory))

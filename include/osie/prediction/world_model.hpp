@@ -7,6 +7,7 @@
 // prediction through a read-only capability.
 #pragma once
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -129,6 +130,9 @@ public:
         std::optional<double> abstain_width;  // abstain if the primary (lowest-level) interval is wider
         std::string status{"validated"};
         std::optional<double> residual_gate;  // apply the residual only in-distribution and when |r| <= gate
+        /// Regime-conditional (Mondrian) half-widths: (level, rho_lo, rho_hi, half-width), where
+        /// rho = demand estimate / capacity after the change. Override `conformal` inside [lo, hi).
+        std::vector<std::array<double, 4>> conformal_regime;
     };
 
 private:

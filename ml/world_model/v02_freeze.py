@@ -37,20 +37,29 @@ def fmt(v):
     return " ".join(repr(float(x)) for x in np.asarray(v).ravel())
 
 
-def group_conformal(resid, run_ids, level, draws=500, seed=0):
-    """Finite-sample split-conformal quantile over runs, one episode per run."""
+def group_conformal(resid, run_ids, level, draws=500, seed=0, return_valid=False):
+    """Finite-sample split-conformal quantile over runs, one episode per run.
+
+    With n runs the quantile needs rank ceil((n + 1) * level) <= n. With fewer
+    runs no finite width has the guarantee; the largest residual of the
+    stratum is then used as a conservative fallback and flagged."""
     rng = np.random.RandomState(seed)
     by = {}
     for r, e in zip(run_ids, resid):
         by.setdefault(r, []).append(e)
     runs = list(by)
     n = len(runs)
-    k = min(n, math.ceil((n + 1) * level))  # rank of the order statistic
+    k = math.ceil((n + 1) * level)  # rank of the order statistic
+    valid = k <= n
+    if not valid:
+        q = float(np.max(resid))
+        return (q, n, False) if return_valid else (q, n)
     qs = []
     for _ in range(draws):
         s = np.sort([by[r][rng.randint(len(by[r]))] for r in runs])
-        qs.append(s[k - 1] if k <= n else np.inf)
-    return float(np.median(qs)), n
+        qs.append(s[k - 1])
+    q = float(np.median(qs))
+    return (q, n, True) if return_valid else (q, n)
 
 
 def tsv_lines(eps, idx):
@@ -77,6 +86,8 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--safe-throttle-max", type=float, default=0.25)
     ap.add_argument("--no-gate", action="store_true", help="apply the residual everywhere (no residual_gate line)")
+    ap.add_argument("--mondrian", action="store_true",
+                    help="regime-conditional half-widths for the mechanistic targets (rho edges 0.7, 1.3)")
     a = ap.parse_args()
 
     sel = json.load(open(a.selection))
@@ -185,6 +196,25 @@ def main():
         for lvl in LEVELS:
             L.append(f"conformal {t} {lvl} {conformal[t][lvl]:.6g}")
         L.append(f"abstain_width {t} {max(1e-3, 0.5 * float(np.ptp(Y[fit][:, T.index(t)]))):.6g}")
+    regime_rec = {}
+    if a.mondrian:
+        edges = [(0.0, 0.7), (0.7, 1.3), (1.3, math.inf)]
+        rho = X[cal][:, names.index("m_demand_after")] / np.maximum(X[cal][:, names.index("m_cap_after")], 1e-6)
+        cal_runs = np.array([runs[i] for i in cal])
+        for j, t in enumerate(T):
+            if t in res_t:
+                continue  # residual targets keep global widths
+            r = np.abs(Y[cal, j] - Pc[:, j])
+            for lvl in LEVELS:
+                for lo_, hi_ in edges:
+                    m = (rho >= lo_) & (rho < hi_)
+                    if m.sum() == 0:
+                        continue
+                    w, n_runs, ok = group_conformal(r[m], cal_runs[m], lvl, seed=17, return_valid=True)
+                    regime_rec[f"{t}/{lvl}/{lo_}-{hi_}"] = {"width": w, "runs": n_runs, "episodes": int(m.sum()),
+                                                            "finite_sample_valid": ok}
+                    hi_s = "inf" if math.isinf(hi_) else f"{hi_:g}"
+                    L.append(f"conformal_regime {t} {lvl} {lo_:g} {hi_s} {w:.6g}")
     for t in res_t:
         if t in gates:
             L.append(f"residual_gate {t} {gates[t]:.6g}")
@@ -228,6 +258,7 @@ def main():
         "safe_throttle_max": a.safe_throttle_max, "ood_score_threshold_calib_q99": ood_thr,
         "ood_flag_rate_calib": float(oc.mean()),
         "conformal_group_aware": conformal, "conformal_naive_episode_level": naive,
+        "conformal_regime": regime_rec,
         "calibration_runs": sorted({runs[i] for i in cal}), "fit_runs": sorted({runs[i] for i in fit}),
         "parity_max_abs_diff": parity, "selection_file": a.selection,
         "selection_summary": {k: sel["gating"]["policies"][k]["core"] for k in sel["gating"]["policies"]},

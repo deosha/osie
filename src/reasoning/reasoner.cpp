@@ -46,7 +46,13 @@ namespace {
 
 void add_ev(Diagnosis& d, std::string id, std::string text, std::string_view src, std::optional<double> v,
             Validity val = Validity::valid) {
-    d.evidence.push_back(Evidence{std::move(id), std::move(text), src, v, val});
+    Evidence e;
+    e.id = std::move(id);
+    e.text = std::move(text);
+    e.source = src;
+    e.value = v;
+    e.validity = val;
+    d.evidence.push_back(std::move(e));
 }
 
 Finding finding(FindingKind k, std::string code, std::string text, std::vector<std::string> ev, Certainty c) {
@@ -912,6 +918,33 @@ Diagnosis Reasoner::explain_concept(std::string_view key) const {
 
 // ---------------------------------------------------------------- JSON ---
 
+void annotate_evidence(Diagnosis& d, const SystemState& s) {
+    const double window = std::chrono::duration<double>(s.interval).count();
+    const double age = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s.taken_at).count();
+    auto ends = [](const std::string& x, std::string_view suf) {
+        return x.size() >= suf.size() && x.compare(x.size() - suf.size(), suf.size(), suf) == 0;
+    };
+    for (auto& e : d.evidence) {
+        const auto colon = e.id.find(':');
+        const std::string head = e.id.substr(0, colon);
+        const std::string tail = colon == std::string::npos ? std::string() : e.id.substr(colon + 1);
+        if (head.rfind("proc_", 0) == 0) e.scope = "process " + tail;
+        else if (head.rfind("cgroup", 0) == 0) e.scope = "cgroup " + tail;
+        else e.scope = "host";
+        if (ends(head, "_pct") || head.find("psi") != std::string::npos || head == "proc_cpu") e.unit = "%";
+        else if (ends(head, "_cores") || head == "cgroup_throttled") e.unit = head == "cgroup_throttled" ? "ratio" : "cores";
+        else if (head.find("bytes") != std::string::npos || head.rfind("mem", 0) == 0 || head == "proc_mem" ||
+                 head.find("swap") != std::string::npos || head.find("compress") != std::string::npos)
+            e.unit = "bytes";
+        else if (head.find("load") != std::string::npos) e.unit = "runnable tasks (exponentially averaged)";
+        else if (head.find("tasks") != std::string::npos || head.find("count") != std::string::npos) e.unit = "count";
+        if (e.validity == Validity::derived) e.interval_s = window;
+        e.age_ms = age;
+        e.permission_limited = e.validity == Validity::partial ||
+                               (head.rfind("proc_", 0) != 0 && head == "cpu_unattributed_cores" && s.processes_partial > 0);
+    }
+}
+
 std::string to_json(const Diagnosis& d) {
     json::Writer w;
     w.begin_object();
@@ -922,6 +955,11 @@ std::string to_json(const Diagnosis& d) {
     for (const auto& e : d.evidence) {
         w.begin_object().kv("id", e.id).kv("text", e.text).kv("source", e.source).kv("validity", to_string(e.validity));
         w.key("value").value(e.value);
+        if (!e.scope.empty()) w.kv("scope", e.scope);
+        if (!e.unit.empty()) w.kv("unit", e.unit);
+        if (e.interval_s) w.kv("interval_s", *e.interval_s);
+        if (e.age_ms) w.kv("age_ms", *e.age_ms);
+        if (e.permission_limited) w.kv("permission_limited", true);
         w.end_object();
     }
     w.end_array();

@@ -35,6 +35,13 @@ struct Evidence {
     std::string_view source;
     std::optional<double> value;
     Validity validity{Validity::valid};
+    // Observation-quality metadata (set by annotate_evidence). This is
+    // *measurement* quality; model uncertainty lives only in predictions.
+    std::string scope;              // "host", "process 123", "cgroup /a/b"
+    std::string unit;               // "%", "cores", "bytes", "ratio", "count", ...
+    std::optional<double> interval_s;  // rate measured over this window (derived values)
+    std::optional<double> age_ms;      // age of the observation when the answer was built
+    bool permission_limited{false};    // some inputs were not readable without privileges
 };
 
 struct Mechanism {
@@ -90,6 +97,10 @@ struct Thresholds {
     double major_faults_per_s_high = 100.0;
     double fs_full_share = 0.95;
 };
+
+/// Fills scope, unit, measurement interval, age and permission flags of
+/// every evidence item from the state it was derived from.
+void annotate_evidence(Diagnosis& d, const SystemState& s);
 
 class Reasoner {
 public:

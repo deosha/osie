@@ -73,6 +73,7 @@ Result<std::shared_ptr<WorldModel>> WorldModel::load_from_memory(std::string_vie
     std::set<std::string> seen;
     bool ended = false;
     std::vector<std::pair<std::string, std::pair<double, double>>> conformal;  // name, (level, width)
+    std::vector<std::pair<std::string, std::array<double, 4>>> regimes;        // name, (level, lo, hi, width)
     std::vector<std::pair<std::string, double>> abstain;
     auto numbers = [&](const std::vector<std::string>& w, std::vector<double>& out) -> bool {
         out.clear();
@@ -90,10 +91,11 @@ Result<std::shared_ptr<WorldModel>> WorldModel::load_from_memory(std::string_vie
         if (w.empty() || w[0][0] == '#') continue;
         const auto& k = w[0];
         const bool repeatable = k == "target" || k == "conformal" || k == "abstain_width" || k == "action" ||
-                                k == "meta" || k == "target_status" || k == "residual_gate";
+                                k == "meta" || k == "target_status" || k == "residual_gate" || k == "conformal_regime";
         const bool v2_only = k.rfind("support_", 0) == 0 || k == "feature_schema" || k == "model_version" ||
                              k == "data_version" || k == "calibration_version" || k == "target_status" ||
-                             k == "residual_gate" || k == "safe_throttle_max" || k == "workload_coverage";
+                             k == "residual_gate" || k == "safe_throttle_max" || k == "workload_coverage" ||
+                             k == "conformal_regime";
         if (v2_only && m->format_ < 2) return bad(k + " requires OSIEWM2");
         if (!repeatable && !seen.insert(k).second) return bad("duplicate key " + k);
         if (k == "end") {
@@ -166,6 +168,13 @@ Result<std::shared_ptr<WorldModel>> WorldModel::load_from_memory(std::string_vie
             auto lvl = parse_double(w[2]), hw = parse_double(w[3]);
             if (!lvl || *lvl <= 0 || *lvl >= 1 || !hw || *hw < 0) return bad("bad conformal line");
             conformal.push_back({w[1], {*lvl, *hw}});
+        } else if (k == "conformal_regime" && w.size() == 6) {
+            auto lvl = parse_double(w[2]), lo = parse_double(w[3]), hw = parse_double(w[5]);
+            std::optional<double> hi = w[4] == "inf" ? std::optional<double>(1e300) : parse_double(w[4]);
+            if (!lvl || *lvl <= 0 || *lvl >= 1 || !lo || !hi || *hi <= *lo || *lo < 0 || !hw || *hw < 0)
+                return bad("bad conformal_regime line");
+            if (regimes.size() >= 64) return bad("too many conformal_regime lines");
+            regimes.push_back({w[1], {*lvl, *lo, *hi, *hw}});
         } else if (k == "abstain_width" && w.size() == 3) {
             auto v = parse_double(w[2]);
             if (!v || *v <= 0) return bad("bad abstain_width");
@@ -261,7 +270,16 @@ Result<std::shared_ptr<WorldModel>> WorldModel::load_from_memory(std::string_vie
             if (name == t.name) t.status = st;
         for (const auto& [name, g] : gates)
             if (name == t.name) t.residual_gate = g;
+        for (const auto& [name, r] : regimes) {
+            if (name != t.name) continue;
+            if (std::none_of(t.conformal.begin(), t.conformal.end(), [&](const auto& c) { return c.first == r[0]; }))
+                return bad("conformal_regime level without a global conformal line for " + t.name);
+            t.conformal_regime.push_back(r);
+        }
     }
+    for (const auto& [name, r] : regimes)
+        if (std::none_of(m->targets_.begin(), m->targets_.end(), [&](const Target& t) { return t.name == name; }))
+            return bad("conformal_regime for unknown target " + name);
     for (const auto& [name, st] : statuses)
         if (std::none_of(m->targets_.begin(), m->targets_.end(), [&](const Target& t) { return t.name == name; }))
             return bad("target_status for unknown target " + name);
@@ -470,14 +488,24 @@ Result<WorldPrediction> WorldModel::predict(const std::vector<CgroupWindow>& his
         // alignment and accounting granularity: up to 2.2% in the development
         // data), so intervals for capacity-bounded targets allow 3% above it.
         const double iv_hi = tg.cap_bound ? cap * 1.03 : hi;
-        for (const auto& [level, hw] : tg.conformal) {
+        // Regime for Mondrian intervals: demand estimate / capacity after the change.
+        const auto& names = feature_names();
+        const auto fi = [&](std::string_view n) {
+            return enc->values[static_cast<std::size_t>(std::find(names.begin(), names.end(), n) - names.begin())];
+        };
+        const double rho = fi("m_demand_after") / std::max(1e-6, fi("m_cap_after"));
+        for (auto [level, hw] : tg.conformal) {
+            for (const auto& r : tg.conformal_regime)
+                if (r[0] == level && rho >= r[1] && rho < r[2]) hw = r[3];
             tp.intervals.push_back(Interval{level, std::clamp(tp.expected - hw, tg.lo, std::max(tg.lo, iv_hi)),
                                             std::clamp(tp.expected + hw, tg.lo, std::max(tg.lo, iv_hi))});
         }
         // The usefulness gate uses the primary (lowest-level) interval. Split-
         // conformal widths do not depend on the state, so this is a check on the
         // model as a whole; per-case abstention comes from the OOD checks above.
-        const double primary = tp.intervals.front().hi - tp.intervals.front().lo;
+        // The model-wide (not regime-conditional) primary width is used, so
+        // regime calibration cannot turn "throttling likely" into an abstention.
+        const double primary = 2.0 * tg.conformal.front().second;
         if (tg.abstain_width && primary > *tg.abstain_width) {
             p.abstained = true;
             p.reasons.push_back("the interval for " + tg.name + " is too wide to be useful");
