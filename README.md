@@ -78,18 +78,18 @@ brew install deosha/osie/osie
 **Debian/Ubuntu** (x86_64 shown; use `arm64` on ARM):
 
 ```bash
-curl -LO https://github.com/deosha/osie/releases/download/v0.1.0/osie_0.1.0_amd64.deb
-sudo apt install ./osie_0.1.0_amd64.deb
+curl -LO https://github.com/deosha/osie/releases/download/v0.2.0/osie_0.2.0_amd64.deb
+sudo apt install ./osie_0.2.0_amd64.deb
 ```
 
 **Fedora/RHEL family** (use `aarch64` on ARM):
 
 ```bash
-sudo dnf install https://github.com/deosha/osie/releases/download/v0.1.0/osie-0.1.0-1.x86_64.rpm
+sudo dnf install https://github.com/deosha/osie/releases/download/v0.2.0/osie-0.2.0-1.x86_64.rpm
 ```
 
 **Any other Linux with glibc ≥ 2.35:** download
-`osie-0.1.0-linux-<arch>.tar.gz` from the
+`osie-0.2.0-linux-<arch>.tar.gz` from the
 [release page](https://github.com/deosha/osie/releases/latest), then unpack
 it into `~/.local`.
 

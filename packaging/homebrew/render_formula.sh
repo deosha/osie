@@ -44,12 +44,13 @@ class Osie < Formula
   def install
     # Same layout as the archive: the binary finds its model at ../share/osie/models.
     bin.install "bin/osie"
-    (pkgshare/"models").install "share/osie/models/intent.osiem"
+    (pkgshare/"models").install Dir["share/osie/models/*"]
     doc.install Dir["share/doc/osie/*"]
   end
 
   test do
     assert_match "installed with the binary", shell_output("#{bin}/osie version")
+    assert_match(/CPU world model: .*world_cpu.osiewm/, shell_output("#{bin}/osie version"))
     assert_match "diagnose_slow", shell_output("#{bin}/osie parse 'why is my computer slow'")
     assert_match "won't", shell_output("#{bin}/osie ask 'kill pid 1'")
   end

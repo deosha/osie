@@ -29,6 +29,15 @@ passed locally on arm64; CI runs it on x86_64 (`packaging` job). Homebrew:
 
 ## Platform support
 
+What was verified for v0.2.0:
+- the release workflow built and attested all four platforms;
+- `brew upgrade` from 0.1.0 on macOS 15 (M4 Pro), followed by `brew test`,
+  `brew audit --strict --online` and the model checksums;
+- the published `.deb` (arm64), checksum-verified and smoke-tested in a clean
+  Ubuntu 22.04 container;
+- clean install, upgrade from v0.1.0 and uninstall: `packaging/upgrade_test.sh`
+  (arm64 locally, x86-64 in CI).
+
 What was verified for v0.1.0:
 
 | Platform | Package | Verified |
