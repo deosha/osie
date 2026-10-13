@@ -197,7 +197,8 @@ Result<std::shared_ptr<WorldModel>> WorldModel::load_from_memory(std::string_vie
         } else if (k == "feature_schema" && w.size() == 2) {
             auto v = parse_double(w[1]);
             if (!v || std::floor(*v) != *v) return bad("bad feature_schema");
-            if (static_cast<int>(*v) != kFeatureSchemaVersion)
+            // Compare as double: casting an out-of-range value to int is undefined (found by fuzzing).
+            if (*v != static_cast<double>(kFeatureSchemaVersion))
                 return bad("feature schema " + w[1] + " is not supported (this build: " +
                            std::to_string(kFeatureSchemaVersion) + ")");
             m->support_.feature_schema = static_cast<int>(*v);

@@ -465,6 +465,10 @@ TEST(WorldModelV2, LoaderRequiresTheSupportEnvelope) {
     std::string t = tiny_model_v2();
     t.replace(t.find("feature_schema 1"), 16, "feature_schema 9");
     EXPECT_FALSE(WorldModel::load_from_memory(t).ok());
+    // Regression (fuzzer finding): a schema number outside int range must be rejected, not cast.
+    std::string huge = tiny_model_v2();
+    huge.replace(huge.find("feature_schema 1"), 16, "feature_schema 1777777777777777");
+    EXPECT_FALSE(WorldModel::load_from_memory(huge).ok());
     // Duplicates of non-repeatable keys are rejected.
     EXPECT_FALSE(WorldModel::load_from_memory(tiny_model_v2("support_arch x86_64\nsupport_arch aarch64\nsupport_kernel 6.1 6.12\n")).ok());
     EXPECT_FALSE(WorldModel::load_from_memory(tiny_model_v2("support_arch x86_64\nsupport_kernel 6.12 6.1\n")).ok())
