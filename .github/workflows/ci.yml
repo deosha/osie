@@ -96,6 +96,19 @@ jobs:
       - run: cmake -S . -B build -G Ninja -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF && ninja -C build osie_eval
       - name: C++/Python tokenizer and feature-hash parity
         run: python3 ml/evaluation/check_parity.py build/osie_eval
+      - name: JSON outputs match docs/schemas (parse/ask on the v0.2 sets; predict on Linux)
+        run: |
+          pip install jsonschema
+          ninja -C build osie
+          python3 tests/check_json_schemas.py build/osie
+      - name: Frozen v0.2 intent test set (rules must not regress below the reported result)
+        run: |
+          python3 ml/datasets/v02/evaluate.py --split test --binary build/osie_eval | tee eval.txt
+          python3 - <<'PY'
+          vals = dict(l.split(None, 1) for l in open("eval.txt") if l.strip() and not l.startswith("e2e_by"))
+          assert float(vals["false_safe_routing"]) == 0.0, "a directive was routed to an informational intent"
+          assert float(vals["e2e_frame_acc"]) >= 0.89, vals["e2e_frame_acc"]
+          PY
 
   dependency-review:
     if: github.event_name == 'pull_request'

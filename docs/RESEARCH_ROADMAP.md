@@ -21,10 +21,19 @@ answer, rather than larger language models.
 
 ## R1. A tiny OS world model: State(t) + Action(t) → State(t+1)
 
-> **Status:** done for CPU quota, cpuset and offered load, in one
-> environment. See [`WORLD_MODEL_RESULTS.md`](WORLD_MODEL_RESULTS.md).
-> Learned models did not beat the mechanistic model outside the training
-> workloads. The next steps are in that document's *Next questions*.
+> **Status:** done for CPU quota, cpuset and offered load. v0.2 re-ran the
+> selection under a stricter protocol and confirmed the frozen model on
+> data collected afterwards, on Linux 6.10 and 6.17 and on arm64 and
+> x86-64 (GitHub-hosted VMs). See [`WORLD_MODEL_RESULTS.md`](WORLD_MODEL_RESULTS.md)
+> ("v0.2 results").
+>
+> Learned corrections did not beat the mechanism for usage or throttling
+> under workload shift, and the cause is identified (open-loop backlog
+> dynamics). Learning helped only for CPU pressure and for
+> regime-conditional calibration. Still open:
+> - bare metal, and kernels before 6.10 or after 6.17;
+> - real services;
+> - a workload-class signal that separates offered from runnable demand.
 
 **Scope:** Linux CPU scheduling under cgroup v2 limits, in disposable
 containers or VMs only. The host is never the subject, and learned

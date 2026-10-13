@@ -1,0 +1,1881 @@
+{
+ "model_sha256": "6fdf27fe7df7aeabc9552e728f6f1474ff7960dedae89aa4a07a1cd62f4328d3",
+ "environments": {
+  "confirm2-local": {
+   "environment": {
+    "kernel": "6.10.14-linuxkit",
+    "architecture": "aarch64",
+    "os": "Docker Desktop",
+    "hypervisor": "Docker Desktop VM (Apple Virtualization framework)",
+    "host_machine": "Apple M4 Pro",
+    "vm_cpus": 12,
+    "cgroup_driver": "cgroupfs",
+    "collected_at": "2026-10-13T12:09:02+00:00"
+   },
+   "all": {
+    "episodes": 294,
+    "runs": 30,
+    "usage_cores": {
+     "mae": 0.08272595238095237,
+     "ci95": [
+      0.05503533694357368,
+      0.11321628630764785
+     ],
+     "norm_mae": 0.15935428492935924,
+     "no_change_mae": 0.2776784109977324,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8333333333333334,
+       "mean_width": 0.1320324819727891
+      },
+      "0.95": {
+       "coverage": 0.9897959183673469,
+       "mean_width": 1.167430216904762
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.1603162009075397,
+     "ci95": [
+      0.11082122646541469,
+      0.21397626940091674
+     ],
+     "norm_mae": 0.18409914717489825,
+     "no_change_mae": 0.4472309843769275,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9183673469387755,
+       "mean_width": 0.6848265428571428
+      },
+      "0.95": {
+       "coverage": 0.9829931972789115,
+       "mean_width": 1.6761773265306124
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.08287981859410432,
+     "ci95": [
+      0.061961373674549555,
+      0.10576523924472417
+     ],
+     "norm_mae": 0.2068122597620867,
+     "no_change_mae": 0.22660619671201812,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9217687074829932,
+       "mean_width": 0.2680272653061224
+      },
+      "0.95": {
+       "coverage": 0.9897959183673469,
+       "mean_width": 0.4965986394557823
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.06957330272261905,
+     "ci95": [
+      0.05825134696448546,
+      0.0819809037453812
+     ],
+     "norm_mae": 0.2447125514450384,
+     "no_change_mae": 0.16316602347992062,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8027210884353742,
+       "mean_width": 0.18025073462244898
+      },
+      "0.95": {
+       "coverage": 0.95578231292517,
+       "mean_width": 0.4236713273139456
+      }
+     },
+     "clamped_rate": 0.1360544217687075
+    },
+    "deployed_abstention_rate": 0.1598639455782313,
+    "abstention_reasons": {
+     "feature g_pids": 25,
+     "feature g_host_busy": 14,
+     "the observed state is unlike the training data": 9,
+     "feature h_usage_slope": 4,
+     "feature h_usage_std": 2
+    },
+    "forced_ood_rate": 0.1598639455782313,
+    "false_safe_forced": {
+     "changes": 217,
+     "assessed_low": 93,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 34,
+     "assessments": {
+      "low": 93,
+      "possible": 90,
+      "unknown": 34
+     },
+     "point_estimate_rule_false_safe": "1/146"
+    },
+    "false_safe_deployed": {
+     "changes": 217,
+     "assessed_low": 93,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 34,
+     "assessments": {
+      "low": 93,
+      "possible": 90,
+      "unknown": 34
+     },
+     "point_estimate_rule_false_safe": "1/146"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 50
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 0.9830508474576272,
+      "n": 177
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 37
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.9333333333333333,
+      "n": 30
+     }
+    }
+   },
+   "held_in": {
+    "episodes": 150,
+    "runs": 15,
+    "usage_cores": {
+     "mae": 0.07734023888888888,
+     "ci95": [
+      0.04186868141666667,
+      0.12335911080555549
+     ],
+     "norm_mae": 0.1489798317177479,
+     "no_change_mae": 0.19340904444444448,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8066666666666666,
+       "mean_width": 0.13986012266666667
+      },
+      "0.95": {
+       "coverage": 0.9933333333333333,
+       "mean_width": 1.1496290500000002
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.15592209897777778,
+     "ci95": [
+      0.08880063652666667,
+      0.22510769077083334
+     ],
+     "norm_mae": 0.17905317918607785,
+     "no_change_mae": 0.3286874765855556,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9066666666666666,
+       "mean_width": 0.450538578
+      },
+      "0.95": {
+       "coverage": 0.98,
+       "mean_width": 1.2351375733333332
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.0778888888888889,
+     "ci95": [
+      0.044962963305555555,
+      0.1137777777777778
+     ],
+     "norm_mae": 0.1943582574710784,
+     "no_change_mae": 0.20140740555555556,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9266666666666666,
+       "mean_width": 0.22125929333333336
+      },
+      "0.95": {
+       "coverage": 0.98,
+       "mean_width": 0.4
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.06832805171313334,
+     "ci95": [
+      0.05385116756748501,
+      0.0838947700786061
+     ],
+     "norm_mae": 0.24033258758252526,
+     "no_change_mae": 0.14186988230566666,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8133333333333334,
+       "mean_width": 0.17474587766
+      },
+      "0.95": {
+       "coverage": 0.9466666666666667,
+       "mean_width": 0.40878447466666673
+      }
+     },
+     "clamped_rate": 0.17333333333333334
+    },
+    "deployed_abstention_rate": 0.08666666666666667,
+    "abstention_reasons": {
+     "feature g_host_busy": 7,
+     "feature h_usage_slope": 3,
+     "the observed state is unlike the training data": 3,
+     "feature h_usage_std": 2
+    },
+    "forced_ood_rate": 0.08666666666666667,
+    "false_safe_forced": {
+     "changes": 108,
+     "assessed_low": 62,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 11,
+     "assessments": {
+      "low": 62,
+      "possible": 35,
+      "unknown": 11
+     },
+     "point_estimate_rule_false_safe": "0/85"
+    },
+    "false_safe_deployed": {
+     "changes": 108,
+     "assessed_low": 62,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 11,
+     "assessments": {
+      "low": 62,
+      "possible": 35,
+      "unknown": 11
+     },
+     "point_estimate_rule_false_safe": "0/85"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 0.9722222222222222,
+      "n": 108
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 16
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 11
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 15
+     }
+    }
+   },
+   "new": {
+    "episodes": 120,
+    "runs": 12,
+    "usage_cores": {
+     "mae": 0.10463698749999999,
+     "ci95": [
+      0.059751477430555575,
+      0.15124021781249997
+     ],
+     "norm_mae": 0.2015613219348571,
+     "no_change_mae": 0.31385745277777777,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.85,
+       "mean_width": 0.12543941083333335
+      },
+      "0.95": {
+       "coverage": 0.9833333333333333,
+       "mean_width": 1.154206443916667
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.1962111541422222,
+     "ci95": [
+      0.12394279138480555,
+      0.2948421334929964
+     ],
+     "norm_mae": 0.22531912519944686,
+     "no_change_mae": 0.5594171558269444,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9166666666666666,
+       "mean_width": 0.8827145658333334
+      },
+      "0.95": {
+       "coverage": 0.9833333333333333,
+       "mean_width": 2.0471868166666667
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.09226851805555555,
+     "ci95": [
+      0.0633321759375,
+      0.12032754715277776
+     ],
+     "norm_mae": 0.23024013623173836,
+     "no_change_mae": 0.23777777777777775,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9083333333333333,
+       "mean_width": 0.30527785
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.575
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.06846233284263889,
+     "ci95": [
+      0.048411073003420145,
+      0.09128120347713886
+     ],
+     "norm_mae": 0.240804899180887,
+     "no_change_mae": 0.17904998704159722,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8,
+       "mean_width": 0.18160341608333333
+      },
+      "0.95": {
+       "coverage": 0.9583333333333334,
+       "mean_width": 0.42973589775250004
+      }
+     },
+     "clamped_rate": 0.11666666666666667
+    },
+    "deployed_abstention_rate": 0.26666666666666666,
+    "abstention_reasons": {
+     "feature g_pids": 25,
+     "the observed state is unlike the training data": 6,
+     "feature g_host_busy": 5,
+     "feature h_usage_slope": 1
+    },
+    "forced_ood_rate": 0.26666666666666666,
+    "false_safe_forced": {
+     "changes": 85,
+     "assessed_low": 24,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 21,
+     "assessments": {
+      "low": 24,
+      "possible": 40,
+      "unknown": 21
+     },
+     "point_estimate_rule_false_safe": "1/49"
+    },
+    "false_safe_deployed": {
+     "changes": 85,
+     "assessed_low": 24,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 21,
+     "assessments": {
+      "low": 24,
+      "possible": 40,
+      "unknown": 21
+     },
+     "point_estimate_rule_false_safe": "1/49"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 29
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 62
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 17
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.8333333333333334,
+      "n": 12
+     }
+    }
+   },
+   "batch": {
+    "episodes": 24,
+    "runs": 3,
+    "usage_cores": {
+     "mae": 0.0068314861111111085,
+     "ci95": [
+      0.006117916666666667,
+      0.007600291666666703
+     ],
+     "norm_mae": 0.013159432474440945,
+     "no_change_mae": 0.6234667430555555,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9166666666666666,
+       "mean_width": 0.1160750833333334
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 1.3448063749999999
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.008304571795138908,
+     "ci95": [
+      0.003530086666666686,
+      0.011303646458333367
+     ],
+     "norm_mae": 0.009536556982282406,
+     "no_change_mae": 0.6271970508229167,
+     "coverage": {
+      "0.8": {
+       "coverage": 1.0,
+       "mean_width": 1.1596862083333335
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 2.577628333333333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.06712963194444445,
+     "ci95": [
+      0.0375,
+      0.10555556249999998
+     ],
+     "norm_mae": 0.1675103917326299,
+     "no_change_mae": 0.3282407361111111,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9583333333333334,
+       "mean_width": 0.37407416666666665
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.7083333333333334
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.08291097093180556,
+     "ci95": [
+      0.062195160854166674,
+      0.10548344763083334
+     ],
+     "norm_mae": 0.29162558690650253,
+     "no_change_mae": 0.216847088010625,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.75,
+       "mean_width": 0.20789268333333333
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.4863913041666666
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "deployed_abstention_rate": 0.08333333333333333,
+    "abstention_reasons": {
+     "feature g_host_busy": 2
+    },
+    "forced_ood_rate": 0.08333333333333333,
+    "false_safe_forced": {
+     "changes": 24,
+     "assessed_low": 7,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 2,
+     "assessments": {
+      "possible": 15,
+      "low": 7,
+      "unknown": 2
+     },
+     "point_estimate_rule_false_safe": "0/12"
+    },
+    "false_safe_deployed": {
+     "changes": 24,
+     "assessed_low": 7,
+     "false_safe": 0,
+     "false_safe_rate_among_low": 0.0,
+     "withheld_or_unknown": 2,
+     "assessments": {
+      "possible": 15,
+      "low": 7,
+      "unknown": 2
+     },
+     "point_estimate_rule_false_safe": "0/12"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_unsaturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 2
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 10
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 5
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 7
+     }
+    }
+   },
+   "by_family": {
+    "arith": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.02507510555555555,
+      "ci95": [
+       0.022291333333333288,
+       0.03028680000000002
+      ],
+      "norm_mae": 0.04830195845836881,
+      "no_change_mae": 0.1982939777777778,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.1355115666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1303574400000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.17451857166666668,
+      "ci95": [
+       0.08711333333333339,
+       0.23295741500000003
+      ],
+      "norm_mae": 0.20040844299039073,
+      "no_change_mae": 0.37657745000000004,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.5890306666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.5261943333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.03444444444444445,
+      "ci95": [
+       0.0,
+       0.10333333333333332
+      ],
+      "norm_mae": 0.08595015665625437,
+      "no_change_mae": 0.2375925888888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.2555556
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.4666666666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.09091498388277777,
+      "ci95": [
+       0.037980714815,
+       0.13285587881666666
+      ],
+      "norm_mae": 0.31977837474870957,
+      "no_change_mae": 0.18541552409888887,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.18487535666666668
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.4295478666666666
+       }
+      },
+      "clamped_rate": 0.03333333333333333
+     },
+     "deployed_abstention_rate": 0.1,
+     "abstention_reasons": {
+      "feature g_host_busy": 2,
+      "the observed state is unlike the training data": 1
+     },
+     "forced_ood_rate": 0.1,
+     "false_safe_forced": {
+      "changes": 22,
+      "assessed_low": 12,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 2,
+      "assessments": {
+       "low": 12,
+       "possible": 8,
+       "unknown": 2
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "false_safe_deployed": {
+      "changes": 22,
+      "assessed_low": 12,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 2,
+      "assessments": {
+       "low": 12,
+       "possible": 8,
+       "unknown": 2
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 20
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      }
+     }
+    },
+    "batch_spin": {
+     "episodes": 24,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.0068314861111111085,
+      "ci95": [
+       0.006117916666666667,
+       0.007600291666666703
+      ],
+      "norm_mae": 0.013159432474440945,
+      "no_change_mae": 0.6234667430555555,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9166666666666666,
+        "mean_width": 0.1160750833333334
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.3448063749999999
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.008304571795138908,
+      "ci95": [
+       0.003530086666666686,
+       0.011303646458333367
+      ],
+      "norm_mae": 0.009536556982282406,
+      "no_change_mae": 0.6271970508229167,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 1.1596862083333335
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.577628333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.06712963194444445,
+      "ci95": [
+       0.0375,
+       0.10555556249999998
+      ],
+      "norm_mae": 0.1675103917326299,
+      "no_change_mae": 0.3282407361111111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9583333333333334,
+        "mean_width": 0.37407416666666665
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.7083333333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.08291097093180556,
+      "ci95": [
+       0.062195160854166674,
+       0.10548344763083334
+      ],
+      "norm_mae": 0.29162558690650253,
+      "no_change_mae": 0.216847088010625,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.75,
+        "mean_width": 0.20789268333333333
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.4863913041666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "deployed_abstention_rate": 0.08333333333333333,
+     "abstention_reasons": {
+      "feature g_host_busy": 2
+     },
+     "forced_ood_rate": 0.08333333333333333,
+     "false_safe_forced": {
+      "changes": 24,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 2,
+      "assessments": {
+       "possible": 15,
+       "low": 7,
+       "unknown": 2
+      },
+      "point_estimate_rule_false_safe": "0/12"
+     },
+     "false_safe_deployed": {
+      "changes": 24,
+      "assessed_low": 7,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 2,
+      "assessments": {
+       "possible": 15,
+       "low": 7,
+       "unknown": 2
+      },
+      "point_estimate_rule_false_safe": "0/12"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 10
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 7
+      }
+     }
+    },
+    "burst": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.22462118333333336,
+      "ci95": [
+       0.17856781666666668,
+       0.31447049999999993
+      ],
+      "norm_mae": 0.4326858382389742,
+      "no_change_mae": 0.19383096111111117,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6,
+        "mean_width": 0.1365531
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.3401801166666663
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.26418264099999994,
+      "ci95": [
+       0.17195117000000001,
+       0.39571747333333335
+      ],
+      "norm_mae": 0.30337419818576145,
+      "no_change_mae": 0.5966038400722221,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.6528227666666666
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.6552289999999998
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.16722222222222222,
+      "ci95": [
+       0.10333333333333335,
+       0.2033333333333333
+      ],
+      "norm_mae": 0.41727414763762194,
+      "no_change_mae": 0.29055555,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.2914815333333333
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.5333333333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.059676257683222225,
+      "ci95": [
+       0.034203345494666665,
+       0.09481358519
+      ],
+      "norm_mae": 0.2099013372496562,
+      "no_change_mae": 0.2056362996077778,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.18297607563333335
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.42462131999999997
+       }
+      },
+      "clamped_rate": 0.16666666666666666
+     },
+     "deployed_abstention_rate": 0.13333333333333333,
+     "abstention_reasons": {
+      "feature h_usage_slope": 2,
+      "feature h_usage_std": 2,
+      "feature g_host_busy": 1,
+      "the observed state is unlike the training data": 1
+     },
+     "forced_ood_rate": 0.13333333333333333,
+     "false_safe_forced": {
+      "changes": 21,
+      "assessed_low": 8,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 4,
+      "assessments": {
+       "possible": 9,
+       "low": 8,
+       "unknown": 4
+      },
+      "point_estimate_rule_false_safe": "0/11"
+     },
+     "false_safe_deployed": {
+      "changes": 21,
+      "assessed_low": 8,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 4,
+      "assessments": {
+       "possible": 9,
+       "low": 8,
+       "unknown": 4
+      },
+      "point_estimate_rule_false_safe": "0/11"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 6
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 0.8571428571428571,
+       "n": 14
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 7
+      }
+     }
+    },
+    "closed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.032346372222222225,
+      "ci95": [
+       0.015642983333333322,
+       0.042546750000000036
+      ],
+      "norm_mae": 0.06230853640456778,
+      "no_change_mae": 0.2080276555555556,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.14463366000000002
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1852237833333337
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.0733092058727778,
+      "ci95": [
+       0.05165462499999999,
+       0.0929761523666667
+      ],
+      "norm_mae": 0.08418464387782724,
+      "no_change_mae": 0.18618328883388888,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.34148543
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.9814873333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.09018518333333334,
+      "ci95": [
+       0.04999999999999998,
+       0.15388888333333334
+      ],
+      "norm_mae": 0.22504153458115217,
+      "no_change_mae": 0.16870370555555556,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.1877778
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.3333333333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.031497472561111114,
+      "ci95": [
+       0.01648646551666666,
+       0.05331375520000001
+      ],
+      "norm_mae": 0.11078713490474686,
+      "no_change_mae": 0.08085012534555555,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.16103811666666668
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.3840877
+       }
+      },
+      "clamped_rate": 0.06666666666666667
+     },
+     "deployed_abstention_rate": 0.23333333333333334,
+     "abstention_reasons": {
+      "feature g_pids": 6,
+      "feature g_host_busy": 1,
+      "feature h_usage_slope": 1
+     },
+     "forced_ood_rate": 0.23333333333333334,
+     "false_safe_forced": {
+      "changes": 21,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 5,
+      "assessments": {
+       "possible": 7,
+       "unknown": 5,
+       "low": 9
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "false_safe_deployed": {
+      "changes": 21,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 5,
+      "assessments": {
+       "possible": 7,
+       "unknown": 5,
+       "low": 9
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 23
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "hash": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.02748210000000002,
+      "ci95": [
+       0.023578816666666686,
+       0.03227740000000002
+      ],
+      "norm_mae": 0.05293853099073538,
+      "no_change_mae": 0.11201419444444444,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.1359589966666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.0149143766666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.10111680955555556,
+      "ci95": [
+       0.00038662166666666667,
+       0.28246983333333336
+      ],
+      "norm_mae": 0.11611751213441392,
+      "no_change_mae": 0.15316381844444443,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.16418133333333335
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.40456033333333336
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.012962961111111112,
+      "ci95": [
+       0.0,
+       0.03555555
+      ],
+      "norm_mae": 0.03234682852922709,
+      "no_change_mae": 0.07962962777777778,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.07185186666666667
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.13333333333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.05200030821111112,
+      "ci95": [
+       0.049079361950000025,
+       0.05423608700000001
+      ],
+      "norm_mae": 0.18290245827487936,
+      "no_change_mae": 0.09620984443888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.15664917933333333
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.38080560666666663
+       }
+      },
+      "clamped_rate": 0.23333333333333334
+     },
+     "deployed_abstention_rate": 0.0,
+     "abstention_reasons": {},
+     "forced_ood_rate": 0.0,
+     "false_safe_forced": {
+      "changes": 18,
+      "assessed_low": 15,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 15,
+       "possible": 3
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "false_safe_deployed": {
+      "changes": 18,
+      "assessed_low": 15,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 0,
+      "assessments": {
+       "low": 15,
+       "possible": 3
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 0.9642857142857143,
+       "n": 28
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      }
+     }
+    },
+    "hashbig": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.0785665833333333,
+      "ci95": [
+       0.0044547999999999584,
+       0.2266207666666667
+      ],
+      "norm_mae": 0.15134212839003774,
+      "no_change_mae": 0.6154644222222222,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.06993923333333342
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.0093820333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.11963100321277771,
+      "ci95": [
+       0.026335931666666642,
+       0.22991956199999994
+      ],
+      "norm_mae": 0.13737829079328,
+      "no_change_mae": 0.7355364574905554,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.8821877666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 3.8296639333333338
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.0711111111111111,
+      "ci95": [
+       0.006666666666666665,
+       0.13333333333333333
+      ],
+      "norm_mae": 0.17744548470968635,
+      "no_change_mae": 0.17444444444444443,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.45037053333333343
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.9
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.07132766135444445,
+      "ci95": [
+       0.060187027099999985,
+       0.08182406786333332
+      ],
+      "norm_mae": 0.25088321691790294,
+      "no_change_mae": 0.25024227204611116,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.21420613433333333
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.49562600666666673
+       }
+      },
+      "clamped_rate": 0.03333333333333333
+     },
+     "deployed_abstention_rate": 0.13333333333333333,
+     "abstention_reasons": {
+      "the observed state is unlike the training data": 3,
+      "feature g_host_busy": 2
+     },
+     "forced_ood_rate": 0.13333333333333333,
+     "false_safe_forced": {
+      "changes": 21,
+      "assessed_low": 1,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 2,
+      "assessments": {
+       "possible": 18,
+       "unknown": 2,
+       "low": 1
+      },
+      "point_estimate_rule_false_safe": "0/4"
+     },
+     "false_safe_deployed": {
+      "changes": 21,
+      "assessed_low": 1,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 2,
+      "assessments": {
+       "possible": 18,
+       "unknown": 2,
+       "low": 1
+      },
+      "point_estimate_rule_false_safe": "0/4"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 20
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      }
+     }
+    },
+    "mixed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.05327595,
+      "ci95": [
+       0.036450400000000015,
+       0.08418996666666664
+      ],
+      "norm_mae": 0.10262500064172195,
+      "no_change_mae": 0.05440397777777779,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.15667828333333336
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.08443974
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.007680774500000001,
+      "ci95": [
+       0.0015709383333333336,
+       0.011321347499999999
+      ],
+      "norm_mae": 0.008820219211084137,
+      "no_change_mae": 0.010247980855555557,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.0928488
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.6116126666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.07888888888888887,
+      "ci95": [
+       0.04333333333333333,
+       0.11
+      ],
+      "norm_mae": 0.1968535845998083,
+      "no_change_mae": 0.06555555555555555,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.16
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.26666666666666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.055670896019111106,
+      "ci95": [
+       0.02762706356666667,
+       0.09598938250000001
+      ],
+      "norm_mae": 0.1958131420091259,
+      "no_change_mae": 0.019389662527777782,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.16376363666666668
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.3802440999999999
+       }
+      },
+      "clamped_rate": 0.2
+     },
+     "deployed_abstention_rate": 0.06666666666666667,
+     "abstention_reasons": {
+      "feature g_host_busy": 1,
+      "feature h_usage_slope": 1
+     },
+     "forced_ood_rate": 0.06666666666666667,
+     "false_safe_forced": {
+      "changes": 25,
+      "assessed_low": 17,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 2,
+      "assessments": {
+       "low": 17,
+       "unknown": 2,
+       "possible": 6
+      },
+      "point_estimate_rule_false_safe": "0/25"
+     },
+     "false_safe_deployed": {
+      "changes": 25,
+      "assessed_low": 17,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 2,
+      "assessments": {
+       "low": 17,
+       "unknown": 2,
+       "possible": 6
+      },
+      "point_estimate_rule_false_safe": "0/25"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 29
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      }
+     }
+    },
+    "short": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.05624685555555556,
+      "ci95": [
+       0.010448366666666686,
+       0.10209445000000002
+      ],
+      "norm_mae": 0.10834783025893918,
+      "no_change_mae": 0.4085021111111111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.13459866666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1782535766666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.2321116981666667,
+      "ci95": [
+       0.10261148966666665,
+       0.38303362150000003
+      ],
+      "norm_mae": 0.26654552340873905,
+      "no_change_mae": 0.5068442935555555,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.7538093233333334
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.9780915333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.09592592777777777,
+      "ci95": [
+       0.0,
+       0.16111111666666664
+      ],
+      "norm_mae": 0.23936656993248018,
+      "no_change_mae": 0.3337037055555555,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.3274074666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.6
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.08337781276944442,
+      "ci95": [
+       0.07209655250833334,
+       0.09031952511666669
+      ],
+      "norm_mae": 0.29326762563025505,
+      "no_change_mae": 0.202698080855,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7333333333333333,
+        "mean_width": 0.18546514
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.4287034800000001
+       }
+      },
+      "clamped_rate": 0.23333333333333334
+     },
+     "deployed_abstention_rate": 0.13333333333333333,
+     "abstention_reasons": {
+      "feature g_host_busy": 3,
+      "the observed state is unlike the training data": 1
+     },
+     "forced_ood_rate": 0.13333333333333333,
+     "false_safe_forced": {
+      "changes": 22,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 3,
+      "assessments": {
+       "possible": 9,
+       "low": 10,
+       "unknown": 3
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "false_safe_deployed": {
+      "changes": 22,
+      "assessed_low": 10,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 3,
+      "assessments": {
+       "possible": 9,
+       "low": 10,
+       "unknown": 3
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 17
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 6
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "variable": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.17672932222222226,
+      "ci95": [
+       0.12022526666666675,
+       0.23416924999999997
+      ],
+      "norm_mae": 0.34043216134985194,
+      "no_change_mae": 0.18940621666666674,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7,
+        "mean_width": 0.14553103333333336
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.32018842
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.2087947120388889,
+      "ci95": [
+       0.1382404297166667,
+       0.3264473
+      ],
+      "norm_mae": 0.23976945688200949,
+      "no_change_mae": 0.4720987062611111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.5747967333333334
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.447038
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.09092592777777779,
+      "ci95": [
+       0.010000000000000002,
+       0.15111111666666668
+      ],
+      "norm_mae": 0.22688993428883042,
+      "no_change_mae": 0.26666666666666666,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.25555559999999994
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.4666666666666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.04871536238833332,
+      "ci95": [
+       0.033830746676666655,
+       0.06696153987166666
+      ],
+      "norm_mae": 0.17134820625301395,
+      "no_change_mae": 0.14568930458027776,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.17297561333333336
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.4038220013333333
+       }
+      },
+      "clamped_rate": 0.1
+     },
+     "deployed_abstention_rate": 0.06666666666666667,
+     "abstention_reasons": {
+      "feature g_host_busy": 2
+     },
+     "forced_ood_rate": 0.06666666666666667,
+     "false_safe_forced": {
+      "changes": 21,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 9,
+       "possible": 11,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "1/15"
+     },
+     "false_safe_deployed": {
+      "changes": 21,
+      "assessed_low": 9,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 1,
+      "assessments": {
+       "low": 9,
+       "possible": 11,
+       "unknown": 1
+      },
+      "point_estimate_rule_false_safe": "1/15"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 20
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      }
+     }
+    },
+    "wide": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.1309056722222222,
+      "ci95": [
+       0.0659806833333334,
+       0.1653993833333333
+      ],
+      "norm_mae": 0.252162461594971,
+      "no_change_mae": 0.24253151666666667,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.14165371666666665
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.1020315390000002
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.3831096954444444,
+      "ci95": [
+       0.196993253,
+       0.6080553333333332
+      ],
+      "norm_mae": 0.43994410924467064,
+      "no_change_mae": 0.8438501707222221,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.7323883333333333
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.9305580000000002
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.11685185,
+      "ci95": [
+       0.09333333333333332,
+       0.16388888333333332
+      ],
+      "norm_mae": 0.29158359134728457,
+      "no_change_mae": 0.3412962944444445,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.32740746666666676
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.6
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.12230883506666666,
+      "ci95": [
+       0.10471422686666666,
+       0.14979484116666664
+      ],
+      "norm_mae": 0.4302010386478841,
+      "no_change_mae": 0.23941824619444446,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6333333333333333,
+        "mean_width": 0.17819379999999999
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.43540788300999994
+       }
+      },
+      "clamped_rate": 0.26666666666666666
+     },
+     "deployed_abstention_rate": 0.6333333333333333,
+     "abstention_reasons": {
+      "feature g_pids": 19,
+      "the observed state is unlike the training data": 3
+     },
+     "forced_ood_rate": 0.6333333333333333,
+     "false_safe_forced": {
+      "changes": 22,
+      "assessed_low": 5,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 13,
+      "assessments": {
+       "possible": 4,
+       "low": 5,
+       "unknown": 13
+      },
+      "point_estimate_rule_false_safe": "0/14"
+     },
+     "false_safe_deployed": {
+      "changes": 22,
+      "assessed_low": 5,
+      "false_safe": 0,
+      "false_safe_rate_among_low": 0.0,
+      "withheld_or_unknown": 13,
+      "assessments": {
+       "possible": 4,
+       "low": 5,
+       "unknown": 13
+      },
+      "point_estimate_rule_false_safe": "0/14"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 15
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 6
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.5,
+       "n": 4
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      }
+     }
+    }
+   }
+  }
+ }
+}

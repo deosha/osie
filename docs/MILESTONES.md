@@ -13,7 +13,8 @@ tests or measurements in this repository. Anything not done is listed explicitly
 | 5 | Learned predictive-optimization research | Done (diagnosis only; no tuning) |
 | 6 | Future Kubernetes design | Design only, not implemented |
 | 7 | Iteration 2: hardening, distribution, temporal state | Done, except the items below |
-| 8 | Predictive CPU world model (v0.2) | Done in one environment; hypotheses partly supported (see below) |
+| 8 | Predictive CPU world model (first version) | Done in one environment; hypotheses partly supported (see below) |
+| 9 | v0.2: robust language, safety routing, observation and prediction | See below and [`V0_2_RELEASE_READINESS.md`](V0_2_RELEASE_READINESS.md) |
 
 ## 1. Native macOS engine
 
@@ -155,3 +156,32 @@ read-only into OSIE.
 - The shipped predictor is the mechanistic model, plus a learned residual for
   CPU pressure only.
 - Experiment 7 (cross-hardware) was not possible with one environment.
+
+## 9. v0.2: robust language, safety routing, observation and prediction
+
+**Goal:** fix what the independent v0.1 test exposed, and make prediction
+trustworthy enough to keep *or* to switch off. The audit of the starting
+point is [`V0_2_AUDIT.md`](V0_2_AUDIT.md); the release decision is
+[`V0_2_RELEASE_READINESS.md`](V0_2_RELEASE_READINESS.md).
+
+| Deliverable | Where |
+|---|---|
+| Staged understanding pipeline (normalise → clause-level safety → parse → frame → validate) | `src/intent/{safety,understand}.cpp`; `SafetyModes.*`, `MultiTurnSafety.*` |
+| New intents: process listing, cgroup status, effective CPU capacity | `src/intent/rule_parser.cpp`; `NewIntents.*` |
+| Frozen, family-split intent evaluation set; v0.1 → v0.2 results | `ml/datasets/v02/`; [`DATASETS.md`](DATASETS.md) |
+| Typed effective CPU capacity (host, online, affinity, cpuset, hierarchical quota) | `CpuCapacity`; `Capacity.*` |
+| Throttling rates over the sampling window; quota-bound diagnosis | `derive_cgroup_window`; `CgroupWindow.*` |
+| Observation-quality metadata on evidence (scope, unit, interval, age, permission) | `reason::annotate_evidence` |
+| World-model protocol with separate fit and calibration runs, LOFO selection, confirmatory data collected after freezing | `ml/world_model/v02_*.py`; [`WORLD_MODEL_EXPERIMENTS.md`](WORLD_MODEL_EXPERIMENTS.md) |
+| Demand-estimator validation, failure analysis, gates A–F, target-specific losses, bounded hyperparameter search | [`WORLD_MODEL_RESULTS.md`](WORLD_MODEL_RESULTS.md) ("v0.2 results") |
+| OSIEWM2 artifact with support envelope, regime-conditional intervals, upper-bound throttling assessment; prediction opt-in | `src/prediction/world_model.cpp`; `WorldModelV2.*`, `EnginePredict.IsOffUnlessExplicitlyEnabled` |
+| Cross-environment confirmation (x86-64 and arm64, Linux 6.17, GitHub-hosted VMs) | `.github/workflows/wm-collect.yml`; `ml/world_model/data/gha/` |
+| Fuzzing of `.osiewm`, fault injection, property tests | `tests/fuzz/fuzz_world_model_loader.cpp`, `tests/unit/test_fault_injection.cpp` |
+| Latency budget and v0.1 regression check | `tools/osie_perf.cpp`; [`BENCHMARKS.md`](BENCHMARKS.md) |
+| Install, upgrade from v0.1, uninstall; JSON schemas; model checksums | `packaging/upgrade_test.sh`, `docs/schemas/`, `models/SHA256SUMS` |
+
+**Not done:**
+- The intent test set is not of independent authorship.
+- No bare-metal host and no kernel older than 6.10 was tested.
+- There is no macOS code signing or notarisation.
+- Real (non-synthetic) services were not used for prediction.

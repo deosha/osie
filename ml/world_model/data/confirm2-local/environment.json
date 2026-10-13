@@ -1,0 +1,16 @@
+{
+ "collected_at": "2026-10-13T12:09:02+00:00",
+ "kernel": "6.10.14-linuxkit",
+ "os": "Docker Desktop",
+ "architecture": "aarch64",
+ "vm_cpus": 12,
+ "vm_memory_bytes": 8217751552,
+ "cgroup_version": "2",
+ "cgroup_driver": "cgroupfs",
+ "container_runtime": "docker 28.3.2",
+ "hypervisor": "Docker Desktop VM (Apple Virtualization framework)",
+ "host_machine": "Apple M4 Pro",
+ "host_cpus": 12,
+ "cpu_frequency": "not exposed inside the VM",
+ "image": "sha256:752d521b800789492d49d916a4580a3102f6cf54447c8c08a49e65f9429b9db2"
+}
