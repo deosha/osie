@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <random>
 #include <sstream>
 
 #include "osie/engine/engine.hpp"
@@ -68,6 +69,17 @@ std::string tiny_model(const std::string& extra = "", const std::string& actions
       << "ood_lo -1 -1 -1\nood_hi 10 10 10\nood_score_max 50\n"
       << actions << "provenance unit-test model\n" << extra << "end\n";
     return o.str();
+}
+
+/// The same model as an OSIEWM2 artifact with a support envelope.
+std::string tiny_model_v2(const std::string& support = "support_arch x86_64 aarch64\nsupport_kernel 6.1 6.12\n",
+                          const std::string& extra = "") {
+    std::string t = tiny_model(support + "feature_schema 1\nmodel_version t1\ndata_version d1\n"
+                                         "calibration_version c1\nsupport_cgroup 2\n"
+                                         "support_throttle_semantics summed_per_cpu\nsupport_capacity 0.5 3\n"
+                                         "workload_coverage arith hash\nsafe_throttle_max 0.25\n" + extra);
+    t.replace(0, 7, "OSIEWM2");
+    return t;
 }
 
 }  // namespace
@@ -272,6 +284,8 @@ namespace {
 
 std::unique_ptr<MockOs> linux_with_cgroup(bool with_throttle_stats = true) {
     auto os = std::make_unique<MockOs>(Platform::linux_os);
+    os->info.arch = "x86_64";
+    os->info.kernel_release = "6.8.0-45-generic";
     for (std::uint64_t i = 0; i < 40; ++i) os->cpu_script.push_back(MockOs::cpu(100 * i, 1000 + 100 * i));
     ProcessSnapshot ps;
     auto p = osie::test::proc(42, 1, "api", 0, 100 << 20);
@@ -287,21 +301,24 @@ std::unique_ptr<MockOs> linux_with_cgroup(bool with_throttle_stats = true) {
             c.throttled_usec.reset();
         }
         os->cgroup_script.push_back(c);
-        u += 500'000;  // 1 core used per 0.5 s window
-        t += 1'000'000;
+        // 1 core used and 2 CPUs' worth of throttled time per 0.05 s window
+        // (the tests' window length), consistent with summed-per-CPU accounting.
+        u += 50'000;
+        t += 100'000;
         n += 5;
     }
     return os;
 }
 
-EngineConfig fast() {
+EngineConfig fast(bool experimental = true) {
     EngineConfig c;
     c.sample_interval = Millis{5};
+    c.experimental_prediction = experimental;
     return c;
 }
 
-std::shared_ptr<const IWorldModel> model_with_window(double secs) {
-    std::string text = tiny_model();
+std::shared_ptr<const IWorldModel> model_with_window(double secs, bool v2 = true) {
+    std::string text = v2 ? tiny_model_v2() : tiny_model();
     text.replace(text.find("window_s 0.5"), 12, "window_s " + std::to_string(secs));
     auto m = WorldModel::load_from_memory(text);
     EXPECT_TRUE(m.ok());
@@ -358,7 +375,7 @@ TEST(EnginePredict, RefusesOrAbstainsWhenEvidenceIsMissing) {
         e.set_world_model(model_with_window(0.05));
         auto a = e.predict(PredictTarget{42, "", ""}, ActionKind::cpu_quota, 2.0);
         EXPECT_FALSE(a.answered);
-        EXPECT_NE(a.text.find("Insufficient evidence"), std::string::npos) << a.text;
+        EXPECT_NE(a.text.find("Prediction unavailable"), std::string::npos) << a.text;
         EXPECT_EQ(a.text.find("expected"), std::string::npos) << "no numbers when abstaining";
     }
     {  // unknown process
@@ -426,4 +443,164 @@ TEST(WorldModelShipped, LoadsAndGetsTheBatchCaseRight) {
     EXPECT_NEAR(p->targets[0].expected, 2.0, 0.05) << "usage";
     EXPECT_NEAR(p->targets[1].expected, 1.0, 0.05) << "throttled cores";
     for (const auto& t : p->targets) EXPECT_TRUE(std::isfinite(t.expected));
+}
+
+// ---------------------------------------------------------------- v0.2 ----
+
+TEST(WorldModelV2, LoaderRequiresTheSupportEnvelope) {
+    ASSERT_TRUE(WorldModel::load_from_memory(tiny_model_v2()).ok());
+    // Every support line is required in OSIEWM2.
+    for (const char* key : {"support_arch", "support_kernel", "feature_schema", "model_version", "data_version",
+                            "calibration_version", "support_cgroup", "support_throttle_semantics", "support_capacity",
+                            "workload_coverage"}) {
+        std::string t = tiny_model_v2();
+        const auto pos = t.find(std::string(key) + " ");
+        ASSERT_NE(pos, std::string::npos) << key;
+        t.erase(pos, t.find('\n', pos) - pos + 1);
+        EXPECT_FALSE(WorldModel::load_from_memory(t).ok()) << "missing " << key;
+    }
+    // v2-only keys are rejected in a v1 file, unknown feature schema in v2.
+    EXPECT_FALSE(WorldModel::load_from_memory(tiny_model("support_cgroup 2\n")).ok());
+    std::string t = tiny_model_v2();
+    t.replace(t.find("feature_schema 1"), 16, "feature_schema 9");
+    EXPECT_FALSE(WorldModel::load_from_memory(t).ok());
+    // Duplicates of non-repeatable keys are rejected.
+    EXPECT_FALSE(WorldModel::load_from_memory(tiny_model_v2("support_arch x86_64\nsupport_arch aarch64\nsupport_kernel 6.1 6.12\n")).ok());
+    EXPECT_FALSE(WorldModel::load_from_memory(tiny_model_v2("support_arch x86_64\nsupport_kernel 6.12 6.1\n")).ok())
+        << "inverted kernel range";
+}
+
+TEST(WorldModelV2, KernelVersionParsing) {
+    EXPECT_EQ(*kernel_version("6.10.14-linuxkit"), std::make_pair(6, 10));
+    EXPECT_EQ(*kernel_version("5.15.0-1063-azure"), std::make_pair(5, 15));
+    EXPECT_EQ(*kernel_version("6.8"), std::make_pair(6, 8));
+    for (const char* bad : {"", "linux", "6", "6.", ".8", "999999.1"}) EXPECT_FALSE(kernel_version(bad)) << bad;
+}
+
+TEST(WorldModelV2, OutsideTheEnvelopeIsWithheld) {
+    auto m = *WorldModel::load_from_memory(tiny_model_v2());
+    const std::vector<CgroupWindow> h = {window(1.0, 0.0, 2.0), window(1.0, 0.0, 2.0)};
+    const Intervention a{ActionKind::cpu_quota, 2.0, 1.5};
+    auto ok = m->predict_in(h, a, RuntimeEnvironment{"x86_64", "6.8.0-45-generic", 2});
+    ASSERT_TRUE(ok.ok());
+    EXPECT_FALSE(ok->abstained) << (ok->reasons.empty() ? "" : ok->reasons.front());
+    for (const auto& env : {RuntimeEnvironment{"riscv64", "6.8.0", 2}, RuntimeEnvironment{"x86_64", "5.15.0-azure", 2},
+                            RuntimeEnvironment{"x86_64", "6.18.1", 2}, RuntimeEnvironment{"x86_64", "6.8.0", 1},
+                            RuntimeEnvironment{"x86_64", "garbage", 2}}) {
+        auto p = m->predict_in(h, a, env);
+        ASSERT_TRUE(p.ok());
+        EXPECT_TRUE(p->abstained) << env.arch << " " << env.kernel_release;
+        EXPECT_FALSE(p->environment_issues.empty());
+        EXPECT_EQ(p->throttling_assessment, "unknown");
+    }
+    // An OSIEWM1 model has no envelope: its validity here is unknown.
+    auto legacy = *WorldModel::load_from_memory(tiny_model());
+    auto p = legacy->predict_in(h, a, RuntimeEnvironment{"x86_64", "6.8.0", 2});
+    ASSERT_TRUE(p.ok());
+    EXPECT_TRUE(p->abstained);
+}
+
+TEST(WorldModelV2, InconsistentThrottlingCountersAreWithheld) {
+    auto m = *WorldModel::load_from_memory(tiny_model_v2());
+    auto w = window(1.0, 0.0, 2.0);
+    w.throttled_ratio = 0.0;
+    w.throttled_frac = 0.8;  // throttled time without any throttled period
+    auto p = m->predict({w, w}, Intervention{ActionKind::cpu_quota, 2.0, 1.5});
+    ASSERT_TRUE(p.ok());
+    EXPECT_TRUE(p->abstained);
+    auto w2 = window(1.0, 9.0, 2.0);  // more throttled CPU-seconds per second than CPUs
+    w2.cpuset_cpus = 4;
+    p = m->predict({w2, w2}, Intervention{ActionKind::cpu_quota, 2.0, 1.5});
+    ASSERT_TRUE(p.ok());
+    EXPECT_TRUE(p->abstained);
+}
+
+TEST(WorldModelV2, ThrottlingAssessmentUsesTheUpperBoundNotThePointEstimate) {
+    auto m = *WorldModel::load_from_memory(tiny_model_v2());
+    // Demand 1 core, quota to 2: no throttling predicted, 95% upper bound 0.3 > 0.25 -> "possible", not "low".
+    auto p = m->predict({window(1.0, 0.0, 1.5), window(1.0, 0.0, 1.5)}, Intervention{ActionKind::cpu_quota, 1.5, 2.0});
+    ASSERT_TRUE(p.ok());
+    ASSERT_FALSE(p->abstained);
+    EXPECT_EQ(p->targets[1].expected, 0.0);
+    EXPECT_EQ(p->throttling_assessment, "possible") << "a point estimate of zero is not enough to call it low";
+    // With a tight interval the same case is "low"; a heavy cut is "likely".
+    std::string t = tiny_model_v2();
+    t.replace(t.find("conformal throttled_cores 0.95 0.3"), 34, "conformal throttled_cores 0.95 0.1");
+    auto tight = *WorldModel::load_from_memory(t);
+    p = tight->predict({window(1.0, 0.0, 1.5), window(1.0, 0.0, 1.5)}, Intervention{ActionKind::cpu_quota, 1.5, 2.0});
+    EXPECT_EQ(p->throttling_assessment, "low");
+    p = tight->predict({window(2.0, 1.0, 3.0), window(2.0, 1.0, 3.0)}, Intervention{ActionKind::cpu_quota, 3.0, 1.0});
+    EXPECT_EQ(p->throttling_assessment, "likely");
+}
+
+TEST(WorldModelV2, ResidualGateFallsBackToMechanismOutOfDistribution) {
+    // A residual model whose correction is +0.5 cores on usage for every input.
+    std::ostringstream o;
+    o << "features m_mech_usage_after\nmean 0\nscale 1\nw2 0 0 0 0\nb2 0.5 0 0 0\n";
+    std::string base = tiny_model_v2("support_arch x86_64\nsupport_kernel 6.1 6.12\n", "residual_on mechanistic\nresidual_gate usage_cores 1.0\n");
+    base.replace(base.find("features"), base.find("target usage_cores") - base.find("features"), o.str());
+    base.replace(base.find("ood_lo -1 -1 -1\nood_hi 10 10 10"), 30, "ood_lo -1\nood_hi 10");
+    auto m = WorldModel::load_from_memory(base);
+    ASSERT_TRUE(m.ok()) << m.error().message;
+    const std::vector<CgroupWindow> h = {window(1.0, 0.0, 2.0), window(1.0, 0.0, 2.0)};
+    auto in = (*m)->predict(h, Intervention{ActionKind::cpu_quota, 2.0, 2.5});
+    ASSERT_TRUE(in.ok());
+    EXPECT_NEAR(in->targets[0].expected, 1.5, 1e-9) << "in-distribution: mechanism (1.0) + residual (0.5)";
+    EXPECT_TRUE(in->targets[0].residual_applied);
+    // Gate smaller than the correction -> mechanism only.
+    std::string strict = base;
+    strict.replace(strict.find("residual_gate usage_cores 1.0"), 29, "residual_gate usage_cores 0.1");
+    auto m2 = *WorldModel::load_from_memory(strict);
+    auto out = m2->predict(h, Intervention{ActionKind::cpu_quota, 2.0, 2.5});
+    EXPECT_NEAR(out->targets[0].expected, 1.0, 1e-9);
+    EXPECT_FALSE(out->targets[0].residual_applied);
+}
+
+TEST(EnginePredict, IsOffUnlessExplicitlyEnabled) {
+    Engine e(linux_with_cgroup(), std::make_unique<intent::RuleParser>(), fast(false));
+    e.set_world_model(model_with_window(0.05));
+    auto a = e.predict(PredictTarget{42, "", ""}, ActionKind::cpu_quota, 2.0);
+    EXPECT_FALSE(a.answered);
+    EXPECT_NE(a.text.find("experimental"), std::string::npos);
+    for (const auto& d : e.audit().recent(100)) EXPECT_NE(d.capability, "observe.cgroup.v2") << "nothing observed";
+}
+
+TEST(EnginePredict, LegacyModelIsWithheldInTheEngine) {
+    Engine e(linux_with_cgroup(), std::make_unique<intent::RuleParser>(), fast());
+    e.set_world_model(model_with_window(0.05, /*v2=*/false));
+    auto a = e.predict(PredictTarget{42, "", ""}, ActionKind::cpu_quota, 2.0);
+    EXPECT_FALSE(a.answered);
+    EXPECT_NE(a.text.find("predates compatibility metadata"), std::string::npos) << a.text;
+}
+
+// Property: for random windows and interventions, a prediction is either
+// withheld or has ordered, physically bounded intervals; identical inputs
+// give identical outputs.
+TEST(WorldModelV2, PropertyBoundsAndDeterminism) {
+    auto m = *WorldModel::load_from_memory(tiny_model_v2());
+    std::mt19937 rng(5);
+    std::uniform_real_distribution<double> u(0.0, 4.0);
+    int answered = 0;
+    for (int i = 0; i < 3000; ++i) {
+        const double q = 0.5 + u(rng) * 0.6;
+        auto w = window(u(rng), u(rng) * 0.5, q);
+        const Intervention a{ActionKind::cpu_quota, q, 0.5 + u(rng) * 0.6};
+        auto p1 = m->predict({w, w}, a);
+        auto p2 = m->predict({w, w}, a);
+        if (!p1.ok()) continue;
+        ASSERT_TRUE(p2.ok());
+        if (p1->abstained) continue;
+        ++answered;
+        for (std::size_t t = 0; t < p1->targets.size(); ++t) {
+            const auto& x = p1->targets[t];
+            EXPECT_EQ(x.expected, p2->targets[t].expected);
+            EXPECT_GE(x.expected, 0.0);
+            for (const auto& iv : x.intervals) {
+                EXPECT_LE(iv.lo, x.expected + 1e-12);
+                EXPECT_GE(iv.hi, x.expected - 1e-12);
+            }
+            if (x.name == "usage_cores") EXPECT_LE(x.expected, std::min(a.proposed, 4.0) + 1e-9);
+        }
+    }
+    EXPECT_GT(answered, 100);
 }

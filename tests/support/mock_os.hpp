@@ -67,6 +67,10 @@ public:
     std::vector<FilesystemInfo> fs;
     std::vector<NetInterface> nets;
     std::optional<CpuCapacity> capacity;  // Linux cpu_capacity(); unset -> unsupported
+    // Fault injection: cgroup() fails with not_found after this many successful calls.
+    std::optional<int> cgroup_ok_calls;
+    int cgroup_calls{0};
+    std::optional<Errc> process_list_error;  // processes() fails with this error
     int fail_memory_with_eperm{0};
     mutable std::mutex mu;
     int process_calls{0};
@@ -113,6 +117,7 @@ public:
         std::lock_guard lk(mu);
         ++process_calls;
         if (c.cancelled()) return make_error(Errc::cancelled, "cancelled");
+        if (process_list_error) return make_error(*process_list_error, "injected process-list failure");
         if (proc_script.empty()) return make_error(Errc::unavailable, "no process script");
         auto v = pop(proc_script);
         Provenance pv = Provenance::now("mock.processes");
@@ -144,6 +149,7 @@ public:
     Result<Observation<CgroupInfo>> cgroup(const std::string& path) override {
         {
             std::lock_guard lk(mu);
+            if (cgroup_ok_calls && cgroup_calls++ >= *cgroup_ok_calls) return make_error(Errc::not_found, "cgroup removed");
             if (!cgroup_script.empty()) {
                 auto c = pop(cgroup_script);
                 c.path = path;

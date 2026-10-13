@@ -28,11 +28,17 @@ from datetime import datetime, timezone
 IMAGE = "osie-wm-lab"
 FAMILIES = {  # (CPU ms, blocking ms) per request; must match kFamilies in tools/world_model_lab.cpp
     "arith": (2.0, 0.0), "hash": (2.0, 0.0), "short": (0.3, 0.0), "burst": (1.0, 0.0), "mixed": (1.0, 2.0),
+    # v0.2 confirmatory families, never used for development or selection:
+    "variable": (1.5, 0.0),  # lognormal per-request work (sigma 1)
+    "closed": (2.0, 0.0),    # closed loop with exponential think time
+    "wide": (1.0, 0.0),      # 6-12 workers (more threads than CPUs)
+    "hashbig": (2.0, 0.0),   # 16 MiB working set per worker (memory-bound)
 }
+WORKERS = {"wide": [6, 8, 12]}  # default 1-4
 QUOTAS = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
 LOAD_FACTORS = [0.5, 0.75, 1.5, 2.0]
 ACTIONS = [("none", 0.15), ("cpu_quota", 0.55), ("cpuset", 0.15), ("offered_load", 0.15)]
-LANES = ["0-3", "4-7"]  # disjoint CPUs of the Docker VM, one experiment per lane at a time
+LANES = ["0-3", "4-7"]  # disjoint CPUs of the Docker VM, one experiment per lane at a time (see --lane-cpus)
 WINDOW_MS = 500
 
 
@@ -57,12 +63,32 @@ def environment():
         "cgroup_version": info.get("CgroupVersion"),
         "cgroup_driver": info.get("CgroupDriver"),
         "container_runtime": f"docker {info.get('ServerVersion')}",
-        "hypervisor": "Docker Desktop VM (Apple Virtualization framework)" if platform.system() == "Darwin" else "unknown",
-        "host_machine": sh("sysctl", "-n", "machdep.cpu.brand_string", check=False) if platform.system() == "Darwin" else platform.processor(),
+        "hypervisor": "Docker Desktop VM (Apple Virtualization framework)" if platform.system() == "Darwin" else _linux_hypervisor(),
+        "host_machine": sh("sysctl", "-n", "machdep.cpu.brand_string", check=False) if platform.system() == "Darwin" else _linux_cpu_model(),
         "host_cpus": os.cpu_count(),
         "cpu_frequency": "not exposed inside the VM",
         "image": sh("docker", "image", "inspect", IMAGE, "--format", "{{.Id}}"),
     }
+
+
+def _read(path):
+    try:
+        return open(path).read().strip()
+    except OSError:
+        return ""
+
+
+def _linux_cpu_model():
+    for line in _read("/proc/cpuinfo").splitlines():
+        if line.lower().startswith(("model name", "cpu model", "hardware")):
+            return line.split(":", 1)[1].strip()
+    return platform.machine()
+
+
+def _linux_hypervisor():
+    vendor, product = _read("/sys/class/dmi/id/sys_vendor"), _read("/sys/class/dmi/id/product_name")
+    flags = "hypervisor" in _read("/proc/cpuinfo")
+    return f"{vendor} {product}".strip() + (" (virtual machine)" if flags else "") or "unknown"
 
 
 def host_load():
@@ -212,7 +238,7 @@ def run_one(spec, out_path, lock):
         calib = lab.cmd("CALIBRATE")
         load_start = host_load()
         for ep in range(spec["episodes"]):
-            workers = rng.choice([1, 2, 3, 4])
+            workers = rng.choice(WORKERS.get(family, [1, 2, 3, 4]))
             q_before = rng.choice(QUOTAS)
             util = rng.uniform(0.3, 1.3)
             cpu_ms, block_ms = FAMILIES[family]
@@ -286,7 +312,10 @@ def main():
     ap.add_argument("--configs", type=int, default=3, help="configs per counterfactual run")
     ap.add_argument("--batch", action="store_true", help="held-out workload class: closed-loop batch threads")
     ap.add_argument("--run-offset", type=int, default=100, help="run-id offset so counterfactual runs never collide")
+    ap.add_argument("--lane-cpus", default=",".join(LANES), help="comma-separated CPU lists, one lane each (4 CPUs)")
+    ap.add_argument("--run-prefix", default="", help="prefix for run ids (e.g. an environment tag)")
     args = ap.parse_args()
+    LANES[:] = args.lane_cpus.split(",")
     os.makedirs(args.out, exist_ok=True)
     with open(os.path.join(args.out, "environment.json"), "w") as f:
         json.dump(environment(), f, indent=1)
@@ -296,13 +325,13 @@ def main():
     for fam in args.families.split(","):
         for i in range(args.runs_per_family):
             if args.batch:
-                specs.append({"family": "batch_spin", "run_id": f"batch-{args.run_offset + i:03d}",
+                specs.append({"family": "batch_spin", "run_id": f"{args.run_prefix}batch-{args.run_offset + i:03d}",
                               "seed": rng.randrange(1 << 30), "contention": False, "episodes": args.episodes})
             elif args.counterfactual:
-                specs.append({"family": fam, "run_id": f"cf-{fam}-{args.run_offset + i:03d}", "seed": rng.randrange(1 << 30),
+                specs.append({"family": fam, "run_id": f"{args.run_prefix}cf-{fam}-{args.run_offset + i:03d}", "seed": rng.randrange(1 << 30),
                               "contention": False, "configs": args.configs})
             else:
-                specs.append({"family": fam, "run_id": f"{fam}-{i:02d}", "seed": rng.randrange(1 << 30),
+                specs.append({"family": fam, "run_id": f"{args.run_prefix}{fam}-{i:02d}", "seed": rng.randrange(1 << 30),
                               "contention": i % 2 == 1, "episodes": args.episodes})
     rng.shuffle(specs)  # interleave families over time so drift is not confounded with family
     q = queue.Queue()

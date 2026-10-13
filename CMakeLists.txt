@@ -115,6 +115,8 @@ target_link_libraries(osie_wm_lab PRIVATE osie_core)
 
 add_executable(osie_eval tools/osie_eval.cpp)
 target_link_libraries(osie_eval PRIVATE osie_core)
+add_executable(osie_perf tools/osie_perf.cpp)
+target_link_libraries(osie_perf PRIVATE osie_core)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_executable(osie_cpu_lab tools/cpu_lab.cpp)  # isolated CPU-contention experiments
@@ -184,6 +186,10 @@ if(OSIE_FUZZ)
   target_link_libraries(osie_fuzz_model PRIVATE osie_core)
   target_compile_options(osie_fuzz_model PRIVATE -fsanitize=fuzzer)
   target_link_options(osie_fuzz_model PRIVATE -fsanitize=fuzzer)
+  add_executable(osie_fuzz_world_model tests/fuzz/fuzz_world_model_loader.cpp)
+  target_link_libraries(osie_fuzz_world_model PRIVATE osie_core)
+  target_compile_options(osie_fuzz_world_model PRIVATE -fsanitize=fuzzer)
+  target_link_options(osie_fuzz_world_model PRIVATE -fsanitize=fuzzer)
 endif()
 
 # ---------------------------------------------------------------- install ---

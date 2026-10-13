@@ -33,13 +33,36 @@ struct Interval {
     double lo{0}, hi{0};
 };
 
+/// Where the model was validated (OSIEWM2 `support_*` lines). Outside it,
+/// OSIE does not predict: it falls back to observation and diagnosis.
+struct SupportEnvelope {
+    std::vector<std::string> arch;                 // uname machine names, e.g. aarch64 x86_64
+    std::optional<std::pair<int, int>> kernel_min;  // (major, minor), inclusive
+    std::optional<std::pair<int, int>> kernel_max;
+    int cgroup_version{0};
+    std::string throttle_semantics;  // "summed_per_cpu": cpu.stat throttled_usec summed over CPUs
+    std::optional<std::pair<double, double>> capacity;  // CPU capacity after the change, cores
+    std::vector<std::string> workloads;  // workload classes in the training data
+    std::string model_version, data_version, calibration_version;
+    int feature_schema{0};
+};
+
+/// The machine a prediction is requested on.
+struct RuntimeEnvironment {
+    std::string arch;            // uname -m
+    std::string kernel_release;  // uname -r
+    int cgroup_version{2};
+};
+
 struct TargetPrediction {
     std::string name;    // e.g. "usage_cores"
     std::string unit;
+    std::string status{"validated"};  // validated | experimental (interval coverage not established)
     double current{0};   // mean over the observed history (same definition as the target)
     double expected{0};  // point prediction after the intervention, physically bounded
     std::vector<Interval> intervals;
     bool clamped{false}; // raw model output violated a physical bound and was clamped
+    bool residual_applied{false};  // the learned correction was used (residual models only)
 };
 
 struct WorldPrediction {
@@ -51,6 +74,12 @@ struct WorldPrediction {
     std::vector<std::string> missing;      // unavailable inputs
     std::string model_id;                  // provenance: model name + version
     std::size_t history_windows{0};
+    /// For quota/cpuset changes: "low" when even the upper interval bound of
+    /// throttled CPU time is below the model's threshold, "likely" when the
+    /// lower bound is above it, "possible" otherwise, "unknown" when the
+    /// prediction was withheld. Never a claim of zero risk.
+    std::string throttling_assessment;
+    std::vector<std::string> environment_issues;  // why this machine is outside the support envelope
 };
 
 class IWorldModel {
@@ -64,6 +93,12 @@ public:
     [[nodiscard]] virtual double window_seconds() const noexcept = 0;
     [[nodiscard]] virtual bool supports(ActionKind k) const noexcept = 0;
     [[nodiscard]] virtual const std::string& provenance() const noexcept = 0;
+    /// Reasons `env` is outside the validated envelope (empty = compatible).
+    [[nodiscard]] virtual std::vector<std::string> check_environment(const RuntimeEnvironment& env) const = 0;
+    /// predict() plus the environment check: outside the envelope the
+    /// prediction is withheld, never silently extrapolated.
+    [[nodiscard]] Result<WorldPrediction> predict_in(const std::vector<CgroupWindow>& history, const Intervention& action,
+                                                     const RuntimeEnvironment& env) const;
 };
 
 /// Linear or tiny-MLP model loaded from a .osiewm file.
@@ -82,6 +117,9 @@ public:
     [[nodiscard]] const std::string& kind() const noexcept { return kind_; }
     /// One line describing what the model was trained on (environment, data).
     [[nodiscard]] const std::string& provenance() const noexcept override { return provenance_; }
+    [[nodiscard]] std::vector<std::string> check_environment(const RuntimeEnvironment& env) const override;
+    [[nodiscard]] const SupportEnvelope& support() const noexcept { return support_; }
+    [[nodiscard]] int format_version() const noexcept { return format_; }
 
     struct Target {
         std::string name, unit, transform;  // transform: identity | log1p
@@ -89,6 +127,8 @@ public:
         bool cap_bound{false};               // upper bound = capacity after the intervention
         std::vector<std::pair<double, double>> conformal;  // (level, half-width in target units)
         std::optional<double> abstain_width;  // abstain if the primary (lowest-level) interval is wider
+        std::string status{"validated"};
+        std::optional<double> residual_gate;  // apply the residual only in-distribution and when |r| <= gate
     };
 
 private:
@@ -109,6 +149,12 @@ private:
     std::vector<double> w1_, b1_, w2_, b2_;    // linear: w2_/b2_ only
     std::vector<Target> targets_;
     std::vector<std::pair<ActionKind, std::pair<double, double>>> action_ranges_;
+    int format_{1};
+    SupportEnvelope support_;
+    std::optional<double> safe_throttle_max_;  // cores; threshold of the throttling assessment
 };
+
+/// Parses "6.10.14-linuxkit" -> (6, 10).
+std::optional<std::pair<int, int>> kernel_version(std::string_view release);
 
 }  // namespace osie::predict

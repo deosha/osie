@@ -49,6 +49,9 @@ struct EngineConfig {
     HistoryConfig history{};
     /// Cgroups inspected for cgroup_status questions (of the N busiest processes).
     std::size_t cgroup_scan_n{40};
+    /// Predictions are experimental and off unless explicitly enabled
+    /// (`osie predict --experimental` or OSIE_EXPERIMENTAL_PREDICT=1).
+    bool experimental_prediction{false};
 };
 
 struct Answer {

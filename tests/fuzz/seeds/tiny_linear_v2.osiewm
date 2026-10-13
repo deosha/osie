@@ -1,0 +1,39 @@
+OSIEWM2
+id test-model
+kind linear
+history 2
+window_s 0.5
+features m_mech_usage_after m_demand_after m_cap_after
+mean 0 0 0
+scale 1 1 1
+w2 1 0 0  0 1 -1  0 0 0  0 0 0
+b2 0 0 0 0
+target usage_cores cores identity 0 cap
+target throttled_cores cores identity 0 64
+target throttled_ratio fraction identity 0 1
+target psi_some fraction identity 0 1
+conformal usage_cores 0.8 0.1
+conformal usage_cores 0.95 0.2
+conformal throttled_cores 0.8 0.1
+conformal throttled_cores 0.95 0.3
+conformal throttled_ratio 0.8 0.1
+conformal psi_some 0.8 0.1
+ood_lo -1 -1 -1
+ood_hi 10 10 10
+ood_score_max 50
+action cpu_quota 0.5 3
+action none 0 0
+provenance fuzz seed
+support_arch x86_64 aarch64
+support_kernel 6.1 6.12
+feature_schema 1
+model_version t1
+data_version d1
+calibration_version c1
+support_cgroup 2
+support_throttle_semantics summed_per_cpu
+support_capacity 0.5 3
+workload_coverage arith hash
+safe_throttle_max 0.25
+target_status psi_some experimental
+end

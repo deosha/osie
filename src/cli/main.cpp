@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cmath>
+#include <cstdlib>
 #include <mutex>
 #include <sstream>
 #include <thread>
@@ -44,6 +45,7 @@ struct Options {
     bool verbose = false;
     bool dot = false;
     bool concepts = false;
+    bool experimental = false;  // enable experimental predictions
 };
 
 void usage() {
@@ -59,6 +61,7 @@ void usage() {
         "  version             version, platform and where the intent model is looked up\n"
         "  predict             Linux: predict a cgroup's CPU usage/throttling under a hypothetical change\n"
         "                      --cpu-quota CORES | --cpuset N, and --pid P | --name NAME | --cgroup PATH\n"
+        "                      EXPERIMENTAL: requires --experimental (or OSIE_EXPERIMENTAL_PREDICT=1)\n"
         "                      (read-only: nothing is changed; see docs/WORLD_MODEL.md)\n"
         "options:\n"
         "  --json              machine-readable output\n"
@@ -84,6 +87,7 @@ bool parse_args(int argc, char** argv, Options& o) {
             return true;
         };
         if (a == "--json") o.json = true;
+        else if (a == "--experimental") o.experimental = true;
         else if (a == "--verbose" || a == "-v") o.verbose = true;
         else if (a == "--dot") o.dot = true;
         else if (a == "--concepts") o.concepts = true;
@@ -476,6 +480,8 @@ int main(int argc, char** argv) {
     }
     EngineConfig cfg;
     cfg.sample_interval = Millis{o.interval_ms};
+    const char* exp_env = std::getenv("OSIE_EXPERIMENTAL_PREDICT");
+    cfg.experimental_prediction = o.experimental || (exp_env != nullptr && std::string(exp_env) == "1");
     Engine e(make_native_os(), std::move(parser), cfg);
     if (!o.audit_path.empty()) {
         if (auto r = e.audit().open_file(o.audit_path); !r) std::fprintf(stderr, "warning: %s\n", r.error().describe().c_str());
@@ -526,12 +532,18 @@ int main(int argc, char** argv) {
             w.begin_object().kv("answered", r.answered).kv("cgroup", r.cgroup).kv("text", r.text);
             if (r.prediction) {
                 const auto& p = *r.prediction;
-                w.kv("model", p.model_id).kv("abstained", p.abstained).kv("out_of_distribution", p.out_of_distribution);
+                w.kv("model", p.model_id).kv("experimental", true).kv("abstained", p.abstained)
+                    .kv("out_of_distribution", p.out_of_distribution);
+                if (!p.throttling_assessment.empty()) w.kv("throttling_assessment", p.throttling_assessment);
+                w.key("environment_issues").begin_array();
+                for (const auto& x : p.environment_issues) w.value(x);
+                w.end_array();
                 w.key("reasons").begin_array();
                 for (const auto& x : p.reasons) w.value(x);
                 w.end_array().key("targets").begin_array();
                 for (const auto& t2 : p.targets) {
-                    w.begin_object().kv("name", t2.name).kv("unit", t2.unit).kv("current", t2.current);
+                    w.begin_object().kv("name", t2.name).kv("unit", t2.unit).kv("status", t2.status)
+                        .kv("current", t2.current).kv("clamped", t2.clamped);
                     if (!p.abstained) {
                         w.kv("expected", t2.expected).key("intervals").begin_array();
                         for (const auto& iv : t2.intervals)

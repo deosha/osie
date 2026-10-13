@@ -234,14 +234,21 @@ void hash(std::vector<std::uint32_t>& buf, std::size_t words) {
 /// milliseconds of single-thread CPU at calibration time.
 struct Family {
     const char* name;
-    const char* kind;  // arith | hash
+    const char* kind;  // arith | hash | hashbig (16 MiB working set per worker)
     double work_ms;
     double sleep_ms;   // blocking part after the work (I/O-like)
     bool bursty;       // on/off arrivals with the same mean rate
+    double work_sigma{0};  // lognormal spread of per-request work (0 = fixed), mean preserved
+    bool closed{false};    // closed loop: each worker issues its next request after a think time
 };
+// v0.1 families (development data) and v0.2 families that were added only
+// after the v0.2 model was frozen (confirmatory test): variable, closed, wide, hashbig.
 const Family kFamilies[] = {
-    {"arith", "arith", 2.0, 0.0, false}, {"hash", "hash", 2.0, 0.0, false},  {"short", "arith", 0.3, 0.0, false},
-    {"burst", "arith", 1.0, 0.0, true},  {"mixed", "arith", 1.0, 2.0, false},
+    {"arith", "arith", 2.0, 0.0, false},   {"hash", "hash", 2.0, 0.0, false},
+    {"short", "arith", 0.3, 0.0, false},   {"burst", "arith", 1.0, 0.0, true},
+    {"mixed", "arith", 1.0, 2.0, false},   {"variable", "arith", 1.5, 0.0, false, 1.0, false},
+    {"closed", "arith", 2.0, 0.0, false, 0.0, true}, {"wide", "arith", 1.0, 0.0, false},
+    {"hashbig", "hashbig", 2.0, 0.0, false},
 };
 
 class Server {
@@ -276,7 +283,9 @@ public:
             queue_.clear();
             reset_stats_locked();
         }
-        gen_ = std::thread([this, seed] { generate(seed); });
+        workers_ = workers;
+        seed_ = seed;
+        if (!fam_->closed) gen_ = std::thread([this, seed] { generate(seed); });
         for (int i = 0; i < workers; ++i) pool_.emplace_back([this, i] { work(i); });
         return true;
     }
@@ -353,21 +362,52 @@ private:
     }
 
     void work(int idx) {
-        std::vector<std::uint32_t> buf(1 << 20, static_cast<std::uint32_t>(idx));
-        const auto arith_iters = static_cast<std::uint64_t>(fam_->work_ms * arith_per_ms);
-        const auto hash_words = static_cast<std::size_t>(fam_->work_ms * hash_words_per_ms);
+        const bool big = std::strcmp(fam_->kind, "hashbig") == 0;
+        std::vector<std::uint32_t> buf(big ? (4U << 20) : (1U << 20), static_cast<std::uint32_t>(idx));
+        std::mt19937_64 rng(seed_ * 7919ULL + static_cast<unsigned>(idx));
+        std::exponential_distribution<double> expo(1.0);
+        const double sigma = fam_->work_sigma;
+        std::lognormal_distribution<double> spread(-0.5 * sigma * sigma, sigma);  // mean 1
+        std::size_t cursor = 0;
         while (true) {
             std::uint64_t arrival = 0;
-            {
+            if (fam_->closed) {
+                // Think time so that all workers together offer `rate` requests/s.
+                const double per_worker = std::max(1e-3, rate_.load() / std::max(1, workers_));
+                const double think_s = std::max(0.0, 1.0 / per_worker - fam_->work_ms / 1000.0) * expo(rng);
+                const auto until = now_ns() + static_cast<std::uint64_t>(think_s * 1e9);
+                while (running_ && now_ns() < until)
+                    std::this_thread::sleep_for(std::chrono::microseconds(
+                        std::min<std::uint64_t>(20'000, (until - std::min(until, now_ns())) / 1000 + 1)));
+                if (!running_) return;
+                arrival = now_ns();
+                std::lock_guard lk(mu_);
+                ++arrivals_;
+            } else {
                 std::unique_lock lk(mu_);
                 cv_.wait(lk, [this] { return !queue_.empty() || !running_; });
                 if (!running_) return;
                 arrival = queue_.front();
                 queue_.pop_front();
             }
+            const double scale = sigma > 0 ? std::min(20.0, spread(rng)) : 1.0;
             const auto c0 = thread_cpu_ns();
-            if (std::strcmp(fam_->kind, "hash") == 0) hash(buf, hash_words);
-            else arith(arith_iters);
+            if (std::strcmp(fam_->kind, "hash") == 0) {
+                hash(buf, static_cast<std::size_t>(fam_->work_ms * scale * hash_words_per_ms));
+            } else if (big) {
+                // Same work as `hash`, striding through a 16 MiB buffer so the
+                // working set does not fit in cache (memory-bound requests).
+                const auto words = static_cast<std::size_t>(fam_->work_ms * scale * hash_words_per_ms);
+                std::uint32_t h = 2166136261U;
+                for (std::size_t i = 0; i < words; ++i) {
+                    cursor = (cursor + 4099) & (buf.size() - 1);
+                    h = (h ^ buf[cursor]) * 16777619U;
+                    buf[cursor] = h;
+                }
+                g_sink = g_sink + h;
+            } else {
+                arith(static_cast<std::uint64_t>(fam_->work_ms * scale * arith_per_ms));
+            }
             const auto c1 = thread_cpu_ns();
             if (fam_->sleep_ms > 0)
                 std::this_thread::sleep_for(std::chrono::microseconds(static_cast<long>(fam_->sleep_ms * 1000)));
@@ -380,6 +420,8 @@ private:
 
     static constexpr std::size_t kMaxQueue = 20000;
     const Family* fam_{nullptr};
+    int workers_{1};
+    unsigned seed_{0};
     std::atomic<double> rate_{0};
     std::atomic<bool> running_{false};
     std::mutex mu_;

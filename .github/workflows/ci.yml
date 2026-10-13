@@ -60,11 +60,15 @@ jobs:
         run: |
           cmake -S . -B build-fuzz -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang \
                 -DOSIE_FUZZ=ON -DOSIE_SANITIZE=address,undefined -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF
-          ninja -C build-fuzz osie_fuzz_model
-      - name: Fuzz the model loader (5 minutes, seeded with tiny models of each architecture)
+          ninja -C build-fuzz osie_fuzz_model osie_fuzz_world_model
+      - name: Fuzz the intent model loader (5 minutes, seeded with tiny models of each architecture)
         run: |
           mkdir -p corpus && cp tests/fuzz/seeds/*.osiem corpus/
           ./build-fuzz/osie_fuzz_model -max_total_time=300 -max_len=8192 -rss_limit_mb=2048 corpus
+      - name: Fuzz the world model loader (3 minutes, seeded with OSIEWM1/OSIEWM2 models)
+        run: |
+          mkdir -p corpus_wm && cp tests/fuzz/seeds/*.osiewm corpus_wm/
+          ./build-fuzz/osie_fuzz_world_model -max_total_time=180 -max_len=8192 -rss_limit_mb=2048 corpus_wm
 
   python-parity:
     runs-on: ubuntu-24.04

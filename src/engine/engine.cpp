@@ -1227,6 +1227,13 @@ PredictionAnswer Engine::predict(const PredictTarget& target, predict::ActionKin
         ans.text = "Prediction is not available in this build.\n";
         return ans;
     }
+    if (!cfg_.experimental_prediction) {
+        ans.text = "CPU predictions are experimental and off by default: they were validated only in the environments "
+                   "listed in docs/WORLD_MODEL_RESULTS.md, and some workload classes are known to be predicted badly. "
+                   "Enable them explicitly with --experimental (or OSIE_EXPERIMENTAL_PREDICT=1). Nothing was "
+                   "observed or predicted.\n";
+        return ans;
+    }
     const auto decision = policy_.authorize(*cap, os_->platform(), os_->supported());
     audit_.record(decision);
     if (!decision.allowed) {
@@ -1317,7 +1324,13 @@ PredictionAnswer Engine::predict(const PredictTarget& target, predict::ActionKin
     const double cpus = last.cpuset_cpus.value_or(last.host_cpus.value_or(1.0));
     if (kind == predict::ActionKind::cpu_quota) a.previous = last.quota_cores.value_or(cpus);
     if (kind == predict::ActionKind::cpuset) a.previous = cpus;
-    auto p = world_model_->predict(hist, a);
+    predict::RuntimeEnvironment env;
+    if (auto si = broker_.system_info()) {
+        env.arch = si->value.arch;
+        env.kernel_release = si->value.kernel_release;
+    }
+    env.cgroup_version = os_->supported().contains(ObservationKind::cgroup) ? 2 : 1;
+    auto p = world_model_->predict_in(hist, a, env);
     if (!p) {
         ans.text = "Cannot evaluate this intervention: " + p.error().message + ". Nothing was predicted.\n";
         return ans;
@@ -1335,16 +1348,25 @@ PredictionAnswer Engine::predict(const PredictTarget& target, predict::ActionKin
     o += "Observed over " + fmt::num(static_cast<double>(hist.size()) * world_model_->window_seconds(), 1) + " s (" +
          std::to_string(hist.size()) + " windows).\n\n";
     if (p->abstained) {
-        o += "Insufficient evidence: OSIE will not give numbers for this case.\n";
+        o += "Prediction unavailable.\nReason:\n";
         for (const auto& r : p->reasons) o += "  - " + r + "\n";
+        o += "OSIE falls back to observation: ask 'why is this container throttled?' for the current state.\n";
     } else {
         for (const auto& t : p->targets) {
-            o += target_label(t.name) + ":\n";
+            o += target_label(t.name) + (t.status == "experimental" ? " (experimental: interval coverage not established)" : "") + ":\n";
             o += "  now " + fmt_val(t.current, t.unit) + "  ->  expected " + fmt_val(t.expected, t.unit);
             for (const auto& iv : t.intervals)
                 o += "  [" + fmt::pct(100.0 * iv.level, 0) + " interval " + fmt_val(iv.lo, t.unit) + " - " + fmt_val(iv.hi, t.unit) + "]";
+            if (t.clamped) o += "  (raw model output was outside physical bounds and was clamped)";
             o += "\n";
         }
+        if (p->throttling_assessment == "low")
+            o += "Throttling: predicted low (even the upper interval bound is small). This is not a guarantee: the "
+                 "validation false-safe rate is reported in docs/WORLD_MODEL_RESULTS.md.\n";
+        else if (p->throttling_assessment == "likely")
+            o += "Throttling: likely (even the lower interval bound is material).\n";
+        else if (p->throttling_assessment == "possible")
+            o += "Throttling: cannot be ruled out (the interval includes material throttling).\n";
         ans.answered = true;
     }
     o += "\nNot predicted: application latency and throughput. OSIE cannot observe them for this workload, and the "
@@ -1363,7 +1385,7 @@ PredictionAnswer Engine::predict(const PredictTarget& target, predict::ActionKin
                  (ed.doc_ref.empty() ? "" : "; " + ed.doc_ref) + ")\n";
         }
     }
-    o += "  - the model was validated only in the environment it was trained in: " +
+    o += "  - validated only in: " +
          (world_model_->provenance().empty() ? std::string("unknown") : world_model_->provenance()) + "\n";
     o += "Model: " + world_model_->id() + ". Evidence: cgroup " + path + " cpu.stat, cpu.max, cpu.pressure, "
          "cpuset.cpus.effective.\n";
