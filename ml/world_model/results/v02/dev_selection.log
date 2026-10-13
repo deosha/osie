@@ -1,0 +1,73 @@
+{
+ "episodes": 752,
+ "runs": 64,
+ "families": [
+  "arith",
+  "batch",
+  "burst",
+  "hash",
+  "mixed",
+  "short"
+ ],
+ "fit": {
+  "runs": 43,
+  "episodes": 504
+ },
+ "calib": {
+  "runs": 21,
+  "episodes": 248
+ },
+ "target_scale": {
+  "usage_cores": 0.519132274463936,
+  "throttled_cores": 0.8708144680063932,
+  "throttled_ratio": 0.4007490595066649,
+  "psi_some": 0.28430622913203935
+ },
+ "partition_seed": 20261013
+}
+
+== mechanistic demand estimators (LOFO and run-CV, fit partition)
+mech_E1_usage+throttled      LOFO core=0.169 (worst 0.332) run-CV core=0.196 | usage=0.123 throt=0.214 throt=0.205 psi_s=0.593
+mech_E2_usage+psi            LOFO core=0.271 (worst 0.581) run-CV core=0.233 | usage=0.184 throt=0.359 throt=0.240 psi_s=0.593
+no_change                    LOFO core=0.514 (worst 1.379) run-CV core=0.398 | usage=0.512 throt=0.515 throt=0.501 psi_s=0.593
+
+== model sweep (LOFO on fit partition; selection metric = LOFO core, ties -> fewer params)
+  gbt_d4_lr0.1/direct                                  LOFO core=0.255±0.000 worst=0.623 params=-1
+  gbt_d3_lr0.05/direct                                 LOFO core=0.257±0.000 worst=0.621 params=-1
+  mlp_h16_lr0.001_wd0.001_b64_quantile/direct          LOFO core=0.270±0.004 worst=0.665 params=660
+  mlp_h16_lr0.001_wd0_b32_mae/direct                   LOFO core=0.270±0.002 worst=0.675 params=660
+  mlp_h16_lr0.003_wd0.001_b64_mae/direct               LOFO core=0.271±0.003 worst=0.679 params=660
+  gbt_d3_lr0.05/res_e1                                 LOFO core=0.221±0.000 worst=0.486 params=-1
+  gbt_d4_lr0.1/res_e1                                  LOFO core=0.227±0.000 worst=0.513 params=-1
+  mlp_h16_lr0.0003_wd0.001_b64_quantile/res_e1         LOFO core=0.233±0.001 worst=0.430 params=660
+  mlp_h8_lr0.0003_wd0.001_b64_mae/res_e1               LOFO core=0.244±0.011 worst=0.508 params=332
+  mlp_h8_lr0.0003_wd0_b64_quantile/res_e1              LOFO core=0.245±0.011 worst=0.513 params=332
+  mlp_h8_lr0.003_wd0.0001_b64_quantile/res_e2          LOFO core=0.249±0.003 worst=0.702 params=332
+  mlp_h32_lr0.003_wd0_b32_quantile/res_e2              LOFO core=0.257±0.003 worst=0.720 params=1316
+  mlp_h32_lr0.001_wd0.0001_b64_quantile/res_e2         LOFO core=0.257±0.001 worst=0.728 params=1316
+  mlp_h64_lr0.001_wd0.001_b32_quantile/res_e2          LOFO core=0.258±0.001 worst=0.737 params=2628
+  mlp_h16_lr0.003_wd0_b32_mae/res_e2                   LOFO core=0.258±0.000 worst=0.750 params=660
+5 seeds mlp_h16_lr0.001_wd0.001_b64_quantile/direct: core=0.271±0.005
+5 seeds mlp_h16_lr0.0003_wd0.001_b64_quantile/res_e1: core=0.236±0.006
+5 seeds mlp_h8_lr0.003_wd0.0001_b64_quantile/res_e2: core=0.260±0.011
+
+== target-specific: separate tiny models per target vs shared (res_e1, h16)
+  separate h8 mae      asym=1: core=0.268 usage=0.244 throt=0.292 throt=0.313 psi_s=0.301
+  separate h8 mae      asym=3: core=0.304 usage=0.244 throt=0.364 throt=0.313 psi_s=0.301
+  separate h8 huber    asym=1: core=0.298 usage=0.247 throt=0.348 throt=0.326 psi_s=0.320
+  separate h8 huber    asym=3: core=0.313 usage=0.247 throt=0.378 throt=0.326 psi_s=0.320
+  separate h8 quantile asym=1: core=0.274 usage=0.235 throt=0.314 throt=0.309 psi_s=0.299
+  separate h8 quantile asym=3: core=0.290 usage=0.235 throt=0.345 throt=0.309 psi_s=0.299
+
+== gating policies (LOFO)
+  A_mechanistic                core=0.169 worst=0.332 ratio=0.205 psi=0.593 | arith=0.18 batch=0.01 burst=0.33 hash=0.17 mixed=0.07 short=0.25
+  B_learned                    core=0.266 worst=0.680 ratio=0.360 psi=0.284 | arith=0.18 batch=0.68 burst=0.26 hash=0.17 mixed=0.10 short=0.20
+  C_residual                   core=0.234 worst=0.413 ratio=0.252 psi=0.301 | arith=0.18 batch=0.41 burst=0.32 hash=0.17 mixed=0.08 short=0.24
+  D_rule_gate                  core=0.177 worst=0.332 ratio=0.212 psi=0.561 | arith=0.19 batch=0.02 burst=0.33 hash=0.17 mixed=0.09 short=0.26
+  E_learned_gate               core=0.213 worst=0.321 ratio=0.233 psi=0.398 | arith=0.17 batch=0.32 burst=0.32 hash=0.17 mixed=0.07 short=0.23
+  F_abstain_on_disagreement    core=0.115 worst=0.183 ratio=0.174 psi=0.222 | arith=0.11 batch=0.11 burst=0.18 hash=0.15 mixed=0.07 short=0.06
+  A_on_F_accepted              core=0.089 worst=0.184 ratio=0.159 psi=0.356 | arith=0.10 batch=0.00 burst=0.18 hash=0.15 mixed=0.05 short=0.04
+  psi_C_residual_D_gated       core=0.169 worst=0.332 ratio=0.205 psi=0.561 | arith=0.18 batch=0.01 burst=0.33 hash=0.17 mixed=0.07 short=0.25
+  abstention/OOD rates per held-out family: {"arith": {"F_abstain_rate": 0.08333333333333337, "ood_rate": 0.07291666666666667, "D_residual_applied_rate": 0.8463541666666666}, "batch": {"F_abstain_rate": 0.5416666666666667, "ood_rate": 0.5416666666666666, "D_residual_applied_rate": 0.34375}, "burst": {"F_abstain_rate": 0.125, "ood_rate": 0.3541666666666667, "D_residual_applied_rate": 0.5}, "hash": {"F_abstain_rate": 0.02083333333333337, "ood_rate": 0.010416666666666666, "D_residual_applied_rate": 0.9583333333333334}, "mixed": {"F_abstain_rate": 0.03125, "ood_rate": 0.03125, "D_residual_applied_rate": 0.9244791666666666}, "short": {"F_abstain_rate": 0.22916666666666663, "ood_rate": 0.2916666666666667, "D_residual_applied_rate": 0.5989583333333334}}
+
+wrote results/v02/dev_selection.json in 1181s

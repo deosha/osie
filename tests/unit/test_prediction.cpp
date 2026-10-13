@@ -200,7 +200,8 @@ TEST(WorldModelPredict, BoundedIntervalsAndProvenance) {
             EXPECT_GE(iv.hi, t.expected);
             EXPECT_GE(iv.lo, 0.0) << "intervals respect physical bounds";
         }
-    EXPECT_LE(p->targets[0].intervals.back().hi, 2.0 + 1e-9) << "usage interval capped at the new quota";
+    EXPECT_LE(p->targets[0].intervals.back().hi, 2.0 * 1.03 + 1e-9)
+        << "usage interval capped at the new quota plus the 3% measurement tolerance";
     EXPECT_EQ(p->model_id, "test-model");
 }
 

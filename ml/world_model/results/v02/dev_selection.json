@@ -1,0 +1,3081 @@
+{
+ "summary": {
+  "episodes": 752,
+  "runs": 64,
+  "families": [
+   "arith",
+   "batch",
+   "burst",
+   "hash",
+   "mixed",
+   "short"
+  ],
+  "fit": {
+   "runs": 43,
+   "episodes": 504
+  },
+  "calib": {
+   "runs": 21,
+   "episodes": 248
+  },
+  "runs_by_family_and_partition": {
+   "arith": {
+    "fit": [
+     "arith-00",
+     "arith-03",
+     "arith-04",
+     "arith-05",
+     "arith-07",
+     "arith-09",
+     "cf-arith-100",
+     "cf-arith-101"
+    ],
+    "calib": [
+     "arith-01",
+     "arith-02",
+     "arith-06",
+     "arith-08"
+    ]
+   },
+   "batch": {
+    "fit": [
+     "batch-100",
+     "batch-102",
+     "batch-103"
+    ],
+    "calib": [
+     "batch-101"
+    ]
+   },
+   "burst": {
+    "fit": [
+     "burst-01",
+     "burst-03",
+     "burst-04",
+     "burst-05",
+     "burst-08",
+     "burst-09",
+     "cf-burst-100",
+     "cf-burst-101"
+    ],
+    "calib": [
+     "burst-00",
+     "burst-02",
+     "burst-06",
+     "burst-07"
+    ]
+   },
+   "hash": {
+    "fit": [
+     "cf-hash-100",
+     "hash-00",
+     "hash-01",
+     "hash-03",
+     "hash-04",
+     "hash-06",
+     "hash-07",
+     "hash-08"
+    ],
+    "calib": [
+     "cf-hash-101",
+     "hash-02",
+     "hash-05",
+     "hash-09"
+    ]
+   },
+   "mixed": {
+    "fit": [
+     "cf-mixed-100",
+     "mixed-00",
+     "mixed-01",
+     "mixed-03",
+     "mixed-04",
+     "mixed-05",
+     "mixed-08",
+     "mixed-09"
+    ],
+    "calib": [
+     "cf-mixed-101",
+     "mixed-02",
+     "mixed-06",
+     "mixed-07"
+    ]
+   },
+   "short": {
+    "fit": [
+     "cf-short-100",
+     "cf-short-101",
+     "short-01",
+     "short-03",
+     "short-05",
+     "short-06",
+     "short-07",
+     "short-09"
+    ],
+    "calib": [
+     "short-00",
+     "short-02",
+     "short-04",
+     "short-08"
+    ]
+   }
+  },
+  "target_scale": {
+   "usage_cores": 0.519132274463936,
+   "throttled_cores": 0.8708144680063932,
+   "throttled_ratio": 0.4007490595066649,
+   "psi_some": 0.28430622913203935
+  },
+  "partition_seed": 20261013
+ },
+ "mechanistic": {
+  "mech_E1_usage+throttled": {
+   "lofo": {
+    "mean": {
+     "usage_cores": 0.12290353107077663,
+     "throttled_cores": 0.21438809434209058,
+     "throttled_ratio": 0.2052964936147101,
+     "psi_some": 0.5929176721111181
+    },
+    "worst_fold": {
+     "usage_cores": 0.335229552851993,
+     "throttled_cores": 0.35219825652533515,
+     "throttled_ratio": 0.41733191272778597,
+     "psi_some": 0.9967764361547472
+    },
+    "core": 0.1686458127064336,
+    "core_worst": 0.3315628664791631,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.1299547337065922,
+      "throttled_cores": 0.22817275645913493,
+      "throttled_ratio": 0.24274565268760412,
+      "psi_some": 0.6205770948847741
+     },
+     "batch": {
+      "usage_cores": 0.008134560008332278,
+      "throttled_cores": 0.010728127994485264,
+      "throttled_ratio": 0.11783489219002612,
+      "psi_some": 0.9967764361547472
+     },
+     "burst": {
+      "usage_cores": 0.335229552851993,
+      "throttled_cores": 0.32789618010633315,
+      "throttled_ratio": 0.41733191272778597,
+      "psi_some": 0.7222227083450814
+     },
+     "hash": {
+      "usage_cores": 0.03686188130787155,
+      "throttled_cores": 0.3002512000600931,
+      "throttled_ratio": 0.13039817113675686,
+      "psi_some": 0.37845031417459957
+     },
+     "mixed": {
+      "usage_cores": 0.07277529702379266,
+      "throttled_cores": 0.06708204490716184,
+      "throttled_ratio": 0.048520249725304866,
+      "psi_some": 0.1550721192496989
+     },
+     "short": {
+      "usage_cores": 0.1544651615260782,
+      "throttled_cores": 0.35219825652533515,
+      "throttled_ratio": 0.2749480832207826,
+      "psi_some": 0.6844073598578072
+     }
+    }
+   },
+   "runs": {
+    "mean": {
+     "usage_cores": 0.14425295778596775,
+     "throttled_cores": 0.24856387565686236,
+     "throttled_ratio": 0.22258757814473618,
+     "psi_some": 0.5450353888404529
+    },
+    "worst_fold": {
+     "usage_cores": 0.2882059495173044,
+     "throttled_cores": 0.4733547035618165,
+     "throttled_ratio": 0.43095625381729646,
+     "psi_some": 0.7849643117202165
+    },
+    "core": 0.19640841672141507,
+    "core_worst": 0.38078032653956045,
+    "folds": {
+     "runs0": {
+      "usage_cores": 0.04741496972475718,
+      "throttled_cores": 0.2170495397916422,
+      "throttled_ratio": 0.14209501705267857,
+      "psi_some": 0.3972928936185561
+     },
+     "runs1": {
+      "usage_cores": 0.07772077842257177,
+      "throttled_cores": 0.14221307902172184,
+      "throttled_ratio": 0.1669969454439792,
+      "psi_some": 0.3171875694217726
+     },
+     "runs2": {
+      "usage_cores": 0.1541301648010429,
+      "throttled_cores": 0.24668104965854745,
+      "throttled_ratio": 0.23483801005676846,
+      "psi_some": 0.6754451949604324
+     },
+     "runs3": {
+      "usage_cores": 0.2882059495173044,
+      "throttled_cores": 0.4733547035618165,
+      "throttled_ratio": 0.43095625381729646,
+      "psi_some": 0.7849643117202165
+     },
+     "runs4": {
+      "usage_cores": 0.15379292646416254,
+      "throttled_cores": 0.1635210062505838,
+      "throttled_ratio": 0.1380516643529582,
+      "psi_some": 0.550286974481287
+     }
+    }
+   }
+  },
+  "mech_E2_usage+psi": {
+   "lofo": {
+    "mean": {
+     "usage_cores": 0.1840614957260225,
+     "throttled_cores": 0.3585357650771009,
+     "throttled_ratio": 0.24024262585734044,
+     "psi_some": 0.5929176721111181
+    },
+    "worst_fold": {
+     "usage_cores": 0.5222764348265387,
+     "throttled_cores": 0.6403461610731613,
+     "throttled_ratio": 0.6792834961542682,
+     "psi_some": 0.9967764361547472
+    },
+    "core": 0.2712986304015617,
+    "core_worst": 0.58131129794985,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.10691739929442969,
+      "throttled_cores": 0.2955690152482398,
+      "throttled_ratio": 0.1613009477915567,
+      "psi_some": 0.6205770948847741
+     },
+     "batch": {
+      "usage_cores": 0.5222764348265387,
+      "throttled_cores": 0.6403461610731613,
+      "throttled_ratio": 0.6792834961542682,
+      "psi_some": 0.9967764361547472
+     },
+     "burst": {
+      "usage_cores": 0.21672521420434449,
+      "throttled_cores": 0.45813701972556714,
+      "throttled_ratio": 0.3029627526609959,
+      "psi_some": 0.7222227083450814
+     },
+     "hash": {
+      "usage_cores": 0.04488807847274459,
+      "throttled_cores": 0.3049069701450052,
+      "throttled_ratio": 0.11480237658219458,
+      "psi_some": 0.37845031417459957
+     },
+     "mixed": {
+      "usage_cores": 0.06295976667079357,
+      "throttled_cores": 0.05396020262734021,
+      "throttled_ratio": 0.0225272588010344,
+      "psi_some": 0.1550721192496989
+     },
+     "short": {
+      "usage_cores": 0.1506020808872839,
+      "throttled_cores": 0.3982952216432919,
+      "throttled_ratio": 0.16057892315399264,
+      "psi_some": 0.6844073598578072
+     }
+    }
+   },
+   "runs": {
+    "mean": {
+     "usage_cores": 0.13958297856965757,
+     "throttled_cores": 0.32714621757483486,
+     "throttled_ratio": 0.18152357482856382,
+     "psi_some": 0.5450353888404529
+    },
+    "worst_fold": {
+     "usage_cores": 0.24151794223895937,
+     "throttled_cores": 0.6832606310345843,
+     "throttled_ratio": 0.4002167167242461,
+     "psi_some": 0.7849643117202165
+    },
+    "core": 0.23336459807224622,
+    "core_worst": 0.46238928663677187,
+    "folds": {
+     "runs0": {
+      "usage_cores": 0.050396102487119954,
+      "throttled_cores": 0.22808948734329657,
+      "throttled_ratio": 0.11436916006679006,
+      "psi_some": 0.3972928936185561
+     },
+     "runs1": {
+      "usage_cores": 0.08161749651157837,
+      "throttled_cores": 0.1629918503316059,
+      "throttled_ratio": 0.14851304078672023,
+      "psi_some": 0.3171875694217726
+     },
+     "runs2": {
+      "usage_cores": 0.19939927455349882,
+      "throttled_cores": 0.35538978081531825,
+      "throttled_ratio": 0.19657632741624229,
+      "psi_some": 0.6754451949604324
+     },
+     "runs3": {
+      "usage_cores": 0.24151794223895937,
+      "throttled_cores": 0.6832606310345843,
+      "throttled_ratio": 0.4002167167242461,
+      "psi_some": 0.7849643117202165
+     },
+     "runs4": {
+      "usage_cores": 0.12498407705713131,
+      "throttled_cores": 0.2059993383493693,
+      "throttled_ratio": 0.04794262914882058,
+      "psi_some": 0.550286974481287
+     }
+    }
+   }
+  },
+  "no_change": {
+   "lofo": {
+    "mean": {
+     "usage_cores": 0.5120632440793355,
+     "throttled_cores": 0.5154411241011302,
+     "throttled_ratio": 0.5014601527795707,
+     "psi_some": 0.5929176721260737
+    },
+    "worst_fold": {
+     "usage_cores": 1.7258309408557242,
+     "throttled_cores": 1.0329906162330222,
+     "throttled_ratio": 0.6963233529804541,
+     "psi_some": 0.9967764362021484
+    },
+    "core": 0.5137521840902328,
+    "core_worst": 1.3794107785443732,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.3682840455234896,
+      "throttled_cores": 0.4092411960484877,
+      "throttled_ratio": 0.5870805869018958,
+      "psi_some": 0.6205770949808548
+     },
+     "batch": {
+      "usage_cores": 1.7258309408557242,
+      "throttled_cores": 1.0329906162330222,
+      "throttled_ratio": 0.4436137117742159,
+      "psi_some": 0.9967764362021484
+     },
+     "burst": {
+      "usage_cores": 0.3992116410720663,
+      "throttled_cores": 0.6190153480480601,
+      "throttled_ratio": 0.6963233529804541,
+      "psi_some": 0.7222227082916105
+     },
+     "hash": {
+      "usage_cores": 0.1415308992583027,
+      "throttled_cores": 0.3245010150259544,
+      "throttled_ratio": 0.4371154640431483,
+      "psi_some": 0.37845031417822683
+     },
+     "mixed": {
+      "usage_cores": 0.07244753270135647,
+      "throttled_cores": 0.11502502989840932,
+      "throttled_ratio": 0.21660825770225392,
+      "psi_some": 0.15507211923614253
+     },
+     "short": {
+      "usage_cores": 0.3650744050650737,
+      "throttled_cores": 0.5918735393528478,
+      "throttled_ratio": 0.6280195432754565,
+      "psi_some": 0.6844073598674592
+     }
+    }
+   },
+   "runs": {
+    "mean": {
+     "usage_cores": 0.3435397945022932,
+     "throttled_cores": 0.4527787389399105,
+     "throttled_ratio": 0.5128609065376462,
+     "psi_some": 0.5450353888507611
+    },
+    "worst_fold": {
+     "usage_cores": 0.5426125065284021,
+     "throttled_cores": 0.8266064873003991,
+     "throttled_ratio": 0.6539685892814694,
+     "psi_some": 0.7849643116928324
+    },
+    "core": 0.39815926672110186,
+    "core_worst": 0.6443445387598424,
+    "folds": {
+     "runs0": {
+      "usage_cores": 0.19222506645312135,
+      "throttled_cores": 0.2998446007865381,
+      "throttled_ratio": 0.4226909598693954,
+      "psi_some": 0.3972928936306062
+     },
+     "runs1": {
+      "usage_cores": 0.26338991869253797,
+      "throttled_cores": 0.21923496893551117,
+      "throttled_ratio": 0.4958564119535654,
+      "psi_some": 0.3171875694358311
+     },
+     "runs2": {
+      "usage_cores": 0.5426125065284021,
+      "throttled_cores": 0.5656098837133514,
+      "throttled_ratio": 0.580232877617353,
+      "psi_some": 0.6754451949181458
+     },
+     "runs3": {
+      "usage_cores": 0.4620825902192857,
+      "throttled_cores": 0.8266064873003991,
+      "throttled_ratio": 0.6539685892814694,
+      "psi_some": 0.7849643116928324
+     },
+     "runs4": {
+      "usage_cores": 0.257388890618119,
+      "throttled_cores": 0.35259775396375276,
+      "throttled_ratio": 0.4115556939664476,
+      "psi_some": 0.5502869745763894
+     }
+    }
+   }
+  }
+ },
+ "sweep": {
+  "ridge_a0.1/direct": {
+   "core": 0.33615059793897184,
+   "core_sd": 0.0,
+   "core_worst": 0.6883982475317869,
+   "mean": {
+    "usage_cores": 0.26952502266859496,
+    "throttled_cores": 0.40277617320934866,
+    "throttled_ratio": 0.49759255190554014,
+    "psi_some": 0.419867691574117
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "ridge_a1/direct": {
+   "core": 0.3320512603911706,
+   "core_sd": 0.0,
+   "core_worst": 0.6792338902142183,
+   "mean": {
+    "usage_cores": 0.26774792983080353,
+    "throttled_cores": 0.39635459095153774,
+    "throttled_ratio": 0.5078138880892539,
+    "psi_some": 0.42742719829222486
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "ridge_a10/direct": {
+   "core": 0.3362542186849564,
+   "core_sd": 0.0,
+   "core_worst": 0.684492147242278,
+   "mean": {
+    "usage_cores": 0.27146677709002914,
+    "throttled_cores": 0.40104166027988364,
+    "throttled_ratio": 0.5453168967259837,
+    "psi_some": 0.4537380530154093
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "ridge_a100/direct": {
+   "core": 0.3612089009455184,
+   "core_sd": 0.0,
+   "core_worst": 0.6949814966009418,
+   "mean": {
+    "usage_cores": 0.3282363412797091,
+    "throttled_cores": 0.3941814606113277,
+    "throttled_ratio": 0.5530156996640374,
+    "psi_some": 0.458352393359176
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "gbt_d3_lr0.05/direct": {
+   "core": 0.25708787783193277,
+   "core_sd": 0.0,
+   "core_worst": 0.6211133863037878,
+   "mean": {
+    "usage_cores": 0.24585905677038747,
+    "throttled_cores": 0.26831669889347803,
+    "throttled_ratio": 0.2644501015761792,
+    "psi_some": 0.24835026071971267
+   },
+   "seeds": 1,
+   "params": -1
+  },
+  "gbt_d4_lr0.1/direct": {
+   "core": 0.25504168185486015,
+   "core_sd": 0.0,
+   "core_worst": 0.6228954321853377,
+   "mean": {
+    "usage_cores": 0.24960429754483382,
+    "throttled_cores": 0.2604790661648865,
+    "throttled_ratio": 0.27873078826182845,
+    "psi_some": 0.2522515983187432
+   },
+   "seeds": 1,
+   "params": -1
+  },
+  "mlp_h8_lr0.001_wd0.0001_b32_quantile/direct": {
+   "core": 0.27932838501628326,
+   "core_sd": 0.0060214052794354544,
+   "core_worst": 0.7039125853053828,
+   "mean": {
+    "usage_cores": 0.25461484731269346,
+    "throttled_cores": 0.30404192271987307,
+    "throttled_ratio": 0.39245828794952164,
+    "psi_some": 0.3381094546716231
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0.001_b16_huber/direct": {
+   "core": 0.3039144603889429,
+   "core_sd": 0.00412509405595618,
+   "core_worst": 0.6872205462078733,
+   "mean": {
+    "usage_cores": 0.2832446500345482,
+    "throttled_cores": 0.3245842707433376,
+    "throttled_ratio": 0.40804691745432253,
+    "psi_some": 0.3594312227155392
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.001_wd0.001_b32_quantile/direct": {
+   "core": 0.2812069276091411,
+   "core_sd": 0.005918960110478794,
+   "core_worst": 0.7131875340024705,
+   "mean": {
+    "usage_cores": 0.2573193678662168,
+    "throttled_cores": 0.30509448735206546,
+    "throttled_ratio": 0.39472507036811366,
+    "psi_some": 0.33808292745057866
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0_b64_mae/direct": {
+   "core": 0.2918709573883357,
+   "core_sd": 0.010480929105601028,
+   "core_worst": 0.6509240637427547,
+   "mean": {
+    "usage_cores": 0.27806034358766013,
+    "throttled_cores": 0.3056815711890112,
+    "throttled_ratio": 0.47330378717907023,
+    "psi_some": 0.3644305041283836
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0.0001_b16_mae/direct": {
+   "core": 0.27101388871897514,
+   "core_sd": 0.00781381978518883,
+   "core_worst": 0.6213040881047494,
+   "mean": {
+    "usage_cores": 0.24590845910547787,
+    "throttled_cores": 0.2961193183324723,
+    "throttled_ratio": 0.43539317974690084,
+    "psi_some": 0.34584270665878514
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.003_wd0.0001_b32_quantile/direct": {
+   "core": 0.2775879263182737,
+   "core_sd": 0.012921661972706833,
+   "core_worst": 0.7182946755758738,
+   "mean": {
+    "usage_cores": 0.2568222612123927,
+    "throttled_cores": 0.29835359142415474,
+    "throttled_ratio": 0.3472731062499731,
+    "psi_some": 0.3118178290369293
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0.0001_b32_mae/direct": {
+   "core": 0.2800925812878581,
+   "core_sd": 0.01039304839519925,
+   "core_worst": 0.6317832414748323,
+   "mean": {
+    "usage_cores": 0.2565745826262907,
+    "throttled_cores": 0.30361057994942553,
+    "throttled_ratio": 0.4593660222390574,
+    "psi_some": 0.34671808204094373
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.001_wd0.001_b16_huber/direct": {
+   "core": 0.3061802668387438,
+   "core_sd": 0.012265175052498273,
+   "core_worst": 0.731186228402106,
+   "mean": {
+    "usage_cores": 0.2834418674343863,
+    "throttled_cores": 0.3289186662431013,
+    "throttled_ratio": 0.3892037607113057,
+    "psi_some": 0.33725413102098745
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0_b64_huber/direct": {
+   "core": 0.3240380940456905,
+   "core_sd": 0.0049484424057223975,
+   "core_worst": 0.701601046421124,
+   "mean": {
+    "usage_cores": 0.30232487526971885,
+    "throttled_cores": 0.34575131282166216,
+    "throttled_ratio": 0.43960909395322023,
+    "psi_some": 0.3853875475761781
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.003_wd0.0001_b16_huber/direct": {
+   "core": 0.3096543760367778,
+   "core_sd": 0.01740271627556203,
+   "core_worst": 0.7478156647628115,
+   "mean": {
+    "usage_cores": 0.2830717639072451,
+    "throttled_cores": 0.3362369881663106,
+    "throttled_ratio": 0.3859725593011648,
+    "psi_some": 0.3324606282524899
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h16_lr0.001_wd0_b16_mae/direct": {
+   "core": 0.27704027967855416,
+   "core_sd": 0.0023720021871670716,
+   "core_worst": 0.702937793023566,
+   "mean": {
+    "usage_cores": 0.2626347059657336,
+    "throttled_cores": 0.29144585339137485,
+    "throttled_ratio": 0.34300348319988505,
+    "psi_some": 0.26952370452745344
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.0003_wd0_b32_huber/direct": {
+   "core": 0.30826350150310794,
+   "core_sd": 0.0023298030076886467,
+   "core_worst": 0.7285214321163056,
+   "mean": {
+    "usage_cores": 0.2823136017970026,
+    "throttled_cores": 0.3342134012092133,
+    "throttled_ratio": 0.3960705488855234,
+    "psi_some": 0.3298764630581451
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.0003_wd0.0001_b16_quantile/direct": {
+   "core": 0.27359313083761627,
+   "core_sd": 0.0011712226719555185,
+   "core_worst": 0.6798869308515649,
+   "mean": {
+    "usage_cores": 0.25599875453370885,
+    "throttled_cores": 0.2911875071415237,
+    "throttled_ratio": 0.3856239839294852,
+    "psi_some": 0.30731314041710234
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0_b16_huber/direct": {
+   "core": 0.3237982413606919,
+   "core_sd": 0.0048550838006808095,
+   "core_worst": 0.7731288063026814,
+   "mean": {
+    "usage_cores": 0.30870478050786254,
+    "throttled_cores": 0.33889170221352116,
+    "throttled_ratio": 0.39329354606653205,
+    "psi_some": 0.32668636857322864
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.001_wd0.001_b64_quantile/direct": {
+   "core": 0.27039871729381915,
+   "core_sd": 0.004049049680095007,
+   "core_worst": 0.6653784100467195,
+   "mean": {
+    "usage_cores": 0.254916727483569,
+    "throttled_cores": 0.2858807071040693,
+    "throttled_ratio": 0.36880568473102626,
+    "psi_some": 0.29298751800079026
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.0003_wd0_b64_quantile/direct": {
+   "core": 0.2841050612382473,
+   "core_sd": 0.0008754387625931059,
+   "core_worst": 0.7164376390248471,
+   "mean": {
+    "usage_cores": 0.2581216145960733,
+    "throttled_cores": 0.31008850788042125,
+    "throttled_ratio": 0.4211164710497557,
+    "psi_some": 0.3320215522776556
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.001_wd0_b32_mae/direct": {
+   "core": 0.27045236878421386,
+   "core_sd": 0.0015486039454624956,
+   "core_worst": 0.6746778730050407,
+   "mean": {
+    "usage_cores": 0.261343779666215,
+    "throttled_cores": 0.2795609579022128,
+    "throttled_ratio": 0.35584473200462685,
+    "psi_some": 0.28468938065120575
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0.001_b64_mae/direct": {
+   "core": 0.27062580260375424,
+   "core_sd": 0.0025925181545096987,
+   "core_worst": 0.6794902970498022,
+   "mean": {
+    "usage_cores": 0.26040213702438625,
+    "throttled_cores": 0.2808494681831222,
+    "throttled_ratio": 0.3462253309806225,
+    "psi_some": 0.2867091086100765
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0.0001_b64_huber/direct": {
+   "core": 0.32477238193869346,
+   "core_sd": 0.012302409801032477,
+   "core_worst": 0.7949271017846486,
+   "mean": {
+    "usage_cores": 0.2981933788874522,
+    "throttled_cores": 0.35135138498993473,
+    "throttled_ratio": 0.3859115155731584,
+    "psi_some": 0.31907872166297513
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0_b16_mae/direct": {
+   "core": 0.2884662036182496,
+   "core_sd": 0.0008481166902432058,
+   "core_worst": 0.7418157519765857,
+   "mean": {
+    "usage_cores": 0.27860680494399026,
+    "throttled_cores": 0.298325602292509,
+    "throttled_ratio": 0.3547113419999789,
+    "psi_some": 0.29284997501015375
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h32_lr0.0003_wd0_b64_huber/direct": {
+   "core": 0.30374167791583195,
+   "core_sd": 0.004982254391104668,
+   "core_worst": 0.7316764590859,
+   "mean": {
+    "usage_cores": 0.28574203860578606,
+    "throttled_cores": 0.32174131722587784,
+    "throttled_ratio": 0.4061398191250316,
+    "psi_some": 0.33295574156123803
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.001_b16_mae/direct": {
+   "core": 0.28593546176936613,
+   "core_sd": 0.0064005870990459235,
+   "core_worst": 0.7445933881921403,
+   "mean": {
+    "usage_cores": 0.27660841323508845,
+    "throttled_cores": 0.2952625103036439,
+    "throttled_ratio": 0.32759582176872903,
+    "psi_some": 0.2980779388602433
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.0003_wd0.0001_b64_mae/direct": {
+   "core": 0.28174575114194633,
+   "core_sd": 0.004412238747363045,
+   "core_worst": 0.7243198413895953,
+   "mean": {
+    "usage_cores": 0.2617600454583887,
+    "throttled_cores": 0.30173145682550395,
+    "throttled_ratio": 0.40198058803710246,
+    "psi_some": 0.32630079004697254
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.001_wd0_b16_huber/direct": {
+   "core": 0.31248687884241544,
+   "core_sd": 0.003616173679088508,
+   "core_worst": 0.8070077062616118,
+   "mean": {
+    "usage_cores": 0.3006902580655925,
+    "throttled_cores": 0.32428349961923836,
+    "throttled_ratio": 0.3810528915299779,
+    "psi_some": 0.31776160529673125
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.001_b16_quantile/direct": {
+   "core": 0.2950661260673846,
+   "core_sd": 0.0046330726813598455,
+   "core_worst": 0.7961814220993173,
+   "mean": {
+    "usage_cores": 0.2746263602590195,
+    "throttled_cores": 0.3155058918757496,
+    "throttled_ratio": 0.32960011172116627,
+    "psi_some": 0.2826915701076401
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.001_b64_quantile/direct": {
+   "core": 0.2823072690483216,
+   "core_sd": 0.008505551489657065,
+   "core_worst": 0.7367668018209349,
+   "mean": {
+    "usage_cores": 0.2693801101681538,
+    "throttled_cores": 0.2952344279284894,
+    "throttled_ratio": 0.3272994404709647,
+    "psi_some": 0.2946982166686632
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.001_b16_huber/direct": {
+   "core": 0.3145333023023811,
+   "core_sd": 0.005333826772059486,
+   "core_worst": 0.7914608862648945,
+   "mean": {
+    "usage_cores": 0.30298741497620324,
+    "throttled_cores": 0.32607918962855886,
+    "throttled_ratio": 0.3894151557575748,
+    "psi_some": 0.32091834357692917
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.001_wd0.001_b32_quantile/direct": {
+   "core": 0.2782260358232349,
+   "core_sd": 0.004968836947324862,
+   "core_worst": 0.722230007150275,
+   "mean": {
+    "usage_cores": 0.2671275988669377,
+    "throttled_cores": 0.2893244727795321,
+    "throttled_ratio": 0.3464797639794324,
+    "psi_some": 0.29239271381723086
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.0003_wd0_b64_mae/direct": {
+   "core": 0.2817570173275274,
+   "core_sd": 0.004288505845156332,
+   "core_worst": 0.7231607352837222,
+   "mean": {
+    "usage_cores": 0.2619584928918436,
+    "throttled_cores": 0.30155554176321114,
+    "throttled_ratio": 0.4010462671479825,
+    "psi_some": 0.3261264612967234
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.001_b32_quantile/direct": {
+   "core": 0.2804040414476337,
+   "core_sd": 0.0020870779381351734,
+   "core_worst": 0.7338443586367369,
+   "mean": {
+    "usage_cores": 0.27041842804068683,
+    "throttled_cores": 0.29038965485458057,
+    "throttled_ratio": 0.3374433853404946,
+    "psi_some": 0.30669214468712847
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h64_lr0.0003_wd0_b32_quantile/direct": {
+   "core": 0.27673846512623557,
+   "core_sd": 0.005918107352348989,
+   "core_worst": 0.7065775194236373,
+   "mean": {
+    "usage_cores": 0.2653981871615423,
+    "throttled_cores": 0.28807874309092885,
+    "throttled_ratio": 0.36720049291908874,
+    "psi_some": 0.29262480956786563
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.003_wd0.0001_b64_quantile/direct": {
+   "core": 0.281726799813686,
+   "core_sd": 0.0021521899977169356,
+   "core_worst": 0.7311561149050334,
+   "mean": {
+    "usage_cores": 0.26864634658322006,
+    "throttled_cores": 0.2948072530441519,
+    "throttled_ratio": 0.3515728552096991,
+    "psi_some": 0.2949682104371562
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.0001_b64_quantile/direct": {
+   "core": 0.2784718540851594,
+   "core_sd": 0.00666531741450474,
+   "core_worst": 0.7172532941961784,
+   "mean": {
+    "usage_cores": 0.2647151915285047,
+    "throttled_cores": 0.29222851664181415,
+    "throttled_ratio": 0.3818946135749601,
+    "psi_some": 0.30252305855868034
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.001_wd0.0001_b16_huber/direct": {
+   "core": 0.31138587274812946,
+   "core_sd": 0.0018756278287137274,
+   "core_worst": 0.7687828595594469,
+   "mean": {
+    "usage_cores": 0.2891683694021301,
+    "throttled_cores": 0.33360337609412893,
+    "throttled_ratio": 0.3696584120803471,
+    "psi_some": 0.307721552140951
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.001_wd0.001_b64_quantile/direct": {
+   "core": 0.2717124153939685,
+   "core_sd": 0.00018265522233792963,
+   "core_worst": 0.6994151606417044,
+   "mean": {
+    "usage_cores": 0.26367336011150583,
+    "throttled_cores": 0.27975147067643114,
+    "throttled_ratio": 0.34074191826794853,
+    "psi_some": 0.2796716763426727
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.001_b16_mae/direct": {
+   "core": 0.2734185788461619,
+   "core_sd": 0.004907918591637583,
+   "core_worst": 0.6999345971446618,
+   "mean": {
+    "usage_cores": 0.26572736896337534,
+    "throttled_cores": 0.28110978872894843,
+    "throttled_ratio": 0.34950997331456324,
+    "psi_some": 0.2815280697043362
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.003_wd0.0001_b64_mae/direct": {
+   "core": 0.2806036092370573,
+   "core_sd": 0.003352560115963743,
+   "core_worst": 0.7401754569566065,
+   "mean": {
+    "usage_cores": 0.2681678857725366,
+    "throttled_cores": 0.293039332701578,
+    "throttled_ratio": 0.3475867642796456,
+    "psi_some": 0.29368968059566
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.0001_b64_mae/direct": {
+   "core": 0.279002301236811,
+   "core_sd": 0.006418785047736991,
+   "core_worst": 0.7170265575456181,
+   "mean": {
+    "usage_cores": 0.2666288229562361,
+    "throttled_cores": 0.291375779517386,
+    "throttled_ratio": 0.3805235612518829,
+    "psi_some": 0.3014965386512799
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.001_wd0.0001_b32_mae/direct": {
+   "core": 0.27410250722765045,
+   "core_sd": 0.0028143130582083398,
+   "core_worst": 0.6945403862447904,
+   "mean": {
+    "usage_cores": 0.26529252047656815,
+    "throttled_cores": 0.28291249397873275,
+    "throttled_ratio": 0.35001165259695,
+    "psi_some": 0.28801634058093417
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.003_wd0.001_b64_huber/direct": {
+   "core": 0.30417076224715633,
+   "core_sd": 0.006535041648498524,
+   "core_worst": 0.7460124666434078,
+   "mean": {
+    "usage_cores": 0.2790568174527335,
+    "throttled_cores": 0.3292847070415792,
+    "throttled_ratio": 0.37106096092787616,
+    "psi_some": 0.3217001018498982
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "ridge_a0.1/res_e1": {
+   "core": 0.33613899043199325,
+   "core_sd": 0.0,
+   "core_worst": 0.688127273219608,
+   "mean": {
+    "usage_cores": 0.2693976966023282,
+    "throttled_cores": 0.40288028426165834,
+    "throttled_ratio": 0.3936610236254554,
+    "psi_some": 0.4195917489447026
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "ridge_a1/res_e1": {
+   "core": 0.3311885649214852,
+   "core_sd": 0.0,
+   "core_worst": 0.6759642680325346,
+   "mean": {
+    "usage_cores": 0.2659781867653184,
+    "throttled_cores": 0.39639894307765194,
+    "throttled_ratio": 0.3897293615801496,
+    "psi_some": 0.4256367066295221
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "ridge_a10/res_e1": {
+   "core": 0.32459341492805766,
+   "core_sd": 0.0,
+   "core_worst": 0.6522896961527707,
+   "mean": {
+    "usage_cores": 0.25508740749631176,
+    "throttled_cores": 0.39409942235980355,
+    "throttled_ratio": 0.38240714514414326,
+    "psi_some": 0.4455393590276698
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "ridge_a100/res_e1": {
+   "core": 0.30213837150256606,
+   "core_sd": 0.0,
+   "core_worst": 0.5699616379370827,
+   "mean": {
+    "usage_cores": 0.23033165137911893,
+    "throttled_cores": 0.37394509162601325,
+    "throttled_ratio": 0.3536706212360754,
+    "psi_some": 0.43301378333596113
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "gbt_d3_lr0.05/res_e1": {
+   "core": 0.2211359716330536,
+   "core_sd": 0.0,
+   "core_worst": 0.48617738088194606,
+   "mean": {
+    "usage_cores": 0.16566005852318047,
+    "throttled_cores": 0.2766118847429267,
+    "throttled_ratio": 0.2802256533891107,
+    "psi_some": 0.27270185599935337
+   },
+   "seeds": 1,
+   "params": -1
+  },
+  "gbt_d4_lr0.1/res_e1": {
+   "core": 0.22745715955934115,
+   "core_sd": 0.0,
+   "core_worst": 0.5133182730707676,
+   "mean": {
+    "usage_cores": 0.17556919700027188,
+    "throttled_cores": 0.2793451221184104,
+    "throttled_ratio": 0.29185618762170923,
+    "psi_some": 0.2818052353911087
+   },
+   "seeds": 1,
+   "params": -1
+  },
+  "mlp_h8_lr0.0003_wd0.001_b32_quantile/res_e1": {
+   "core": 0.24945229132821448,
+   "core_sd": 0.00717364636376247,
+   "core_worst": 0.5589607331657808,
+   "mean": {
+    "usage_cores": 0.22159082733402002,
+    "throttled_cores": 0.2773137553224089,
+    "throttled_ratio": 0.3088211540268948,
+    "psi_some": 0.3263036488983678
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0.0001_b32_huber/res_e1": {
+   "core": 0.28392072528560686,
+   "core_sd": 0.005827599669561451,
+   "core_worst": 0.6782886400294247,
+   "mean": {
+    "usage_cores": 0.23703932671741137,
+    "throttled_cores": 0.3308021238538024,
+    "throttled_ratio": 0.36102953676327043,
+    "psi_some": 0.36394665086146083
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.003_wd0.001_b16_quantile/res_e1": {
+   "core": 0.2480666026467042,
+   "core_sd": 0.012273362261710302,
+   "core_worst": 0.6014616067614029,
+   "mean": {
+    "usage_cores": 0.2224938058971481,
+    "throttled_cores": 0.27363939939626025,
+    "throttled_ratio": 0.3214678777284533,
+    "psi_some": 0.3089604561337095
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.003_wd0.001_b16_huber/res_e1": {
+   "core": 0.2794505048026224,
+   "core_sd": 0.01262063686339604,
+   "core_worst": 0.7172258243686884,
+   "mean": {
+    "usage_cores": 0.2429442671571327,
+    "throttled_cores": 0.3159567424481121,
+    "throttled_ratio": 0.3540571839743908,
+    "psi_some": 0.3022331278263751
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0.001_b64_mae/res_e1": {
+   "core": 0.24411372502698672,
+   "core_sd": 0.011480574055413612,
+   "core_worst": 0.5080973246004297,
+   "mean": {
+    "usage_cores": 0.21659113947324166,
+    "throttled_cores": 0.2716363105807318,
+    "throttled_ratio": 0.3004925578384743,
+    "psi_some": 0.3367254381116709
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.001_wd0.001_b16_quantile/res_e1": {
+   "core": 0.25297846902210774,
+   "core_sd": 0.013886510480423303,
+   "core_worst": 0.60983666968693,
+   "mean": {
+    "usage_cores": 0.23096650689905787,
+    "throttled_cores": 0.27499043114515764,
+    "throttled_ratio": 0.3316287347112587,
+    "psi_some": 0.30916385099066457
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0.0001_b32_mae/res_e1": {
+   "core": 0.24948677844570916,
+   "core_sd": 0.00718670905660207,
+   "core_worst": 0.5584964130979804,
+   "mean": {
+    "usage_cores": 0.22297738965494163,
+    "throttled_cores": 0.2759961672364767,
+    "throttled_ratio": 0.30813393716187865,
+    "psi_some": 0.33014444866646264
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.003_wd0.0001_b64_huber/res_e1": {
+   "core": 0.288034465508876,
+   "core_sd": 0.007632153620911936,
+   "core_worst": 0.7034949801860841,
+   "mean": {
+    "usage_cores": 0.24780722814915465,
+    "throttled_cores": 0.32826170286859735,
+    "throttled_ratio": 0.372901533781405,
+    "psi_some": 0.3547187475864789
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0_b64_quantile/res_e1": {
+   "core": 0.24487282146415182,
+   "core_sd": 0.0110500083761714,
+   "core_worst": 0.512528050864176,
+   "mean": {
+    "usage_cores": 0.21715525471056835,
+    "throttled_cores": 0.2725903882177353,
+    "throttled_ratio": 0.3013282262078495,
+    "psi_some": 0.33685473127280563
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0_b64_huber/res_e1": {
+   "core": 0.2759957978920633,
+   "core_sd": 0.0024341440356408506,
+   "core_worst": 0.6202270064141886,
+   "mean": {
+    "usage_cores": 0.22821671583809702,
+    "throttled_cores": 0.3237748799460296,
+    "throttled_ratio": 0.35106094652291026,
+    "psi_some": 0.3767431829902336
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h16_lr0.003_wd0.001_b64_huber/res_e1": {
+   "core": 0.2844371848114972,
+   "core_sd": 0.008676652707372667,
+   "core_worst": 0.7023734864582141,
+   "mean": {
+    "usage_cores": 0.2537484173411324,
+    "throttled_cores": 0.3151259522818621,
+    "throttled_ratio": 0.35035562399441966,
+    "psi_some": 0.3341072643397279
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.0003_wd0.001_b64_quantile/res_e1": {
+   "core": 0.23296047694722577,
+   "core_sd": 0.0014007796801984301,
+   "core_worst": 0.4303233289344094,
+   "mean": {
+    "usage_cores": 0.20351638690188584,
+    "throttled_cores": 0.26240456699256565,
+    "throttled_ratio": 0.2529310680142513,
+    "psi_some": 0.3092189230459786
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0.0001_b16_mae/res_e1": {
+   "core": 0.26882977769768956,
+   "core_sd": 0.01029045812626081,
+   "core_worst": 0.6661242458637073,
+   "mean": {
+    "usage_cores": 0.2524723533142055,
+    "throttled_cores": 0.28518720208117376,
+    "throttled_ratio": 0.34050142082564133,
+    "psi_some": 0.29416365973507397
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0.0001_b32_quantile/res_e1": {
+   "core": 0.26932118469778776,
+   "core_sd": 0.0033145265405636615,
+   "core_worst": 0.6967294697702251,
+   "mean": {
+    "usage_cores": 0.24627742469294256,
+    "throttled_cores": 0.29236494470263297,
+    "throttled_ratio": 0.32744076822718726,
+    "psi_some": 0.31191467920723004
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0_b16_mae/res_e1": {
+   "core": 0.2690303996589945,
+   "core_sd": 0.0009105736668806319,
+   "core_worst": 0.6671056608385985,
+   "mean": {
+    "usage_cores": 0.24506706356148067,
+    "throttled_cores": 0.29299373575650833,
+    "throttled_ratio": 0.3354171245394769,
+    "psi_some": 0.30978832941688805
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.001_wd0.0001_b32_huber/res_e1": {
+   "core": 0.2577165035260609,
+   "core_sd": 0.025971745020047204,
+   "core_worst": 0.5241088021701017,
+   "mean": {
+    "usage_cores": 0.22238016839458624,
+    "throttled_cores": 0.2930528386575356,
+    "throttled_ratio": 0.3164107958968725,
+    "psi_some": 0.3549692906627576
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0_b32_quantile/res_e1": {
+   "core": 0.2636723003721713,
+   "core_sd": 0.018124976448233174,
+   "core_worst": 0.6401384357020377,
+   "mean": {
+    "usage_cores": 0.2434031459010064,
+    "throttled_cores": 0.28394145484333627,
+    "throttled_ratio": 0.32973318786286965,
+    "psi_some": 0.29647047686138894
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0_b32_huber/res_e1": {
+   "core": 0.2900858637801413,
+   "core_sd": 0.004759138029420795,
+   "core_worst": 0.7124676877051858,
+   "mean": {
+    "usage_cores": 0.25954426752183213,
+    "throttled_cores": 0.32062746003845044,
+    "throttled_ratio": 0.35784353370089683,
+    "psi_some": 0.33839835712015653
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.001_wd0.001_b16_huber/res_e1": {
+   "core": 0.2813535524706031,
+   "core_sd": 0.008546598518624715,
+   "core_worst": 0.684874252393333,
+   "mean": {
+    "usage_cores": 0.25440963594147786,
+    "throttled_cores": 0.30829746899972843,
+    "throttled_ratio": 0.3505395857524949,
+    "psi_some": 0.32899122696887184
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.001_wd0.0001_b16_quantile/res_e1": {
+   "core": 0.26836301510252514,
+   "core_sd": 0.0038301039113725066,
+   "core_worst": 0.6663549045049834,
+   "mean": {
+    "usage_cores": 0.24057711134780269,
+    "throttled_cores": 0.2961489188572476,
+    "throttled_ratio": 0.324940352688483,
+    "psi_some": 0.3030852165190259
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h32_lr0.001_wd0_b32_huber/res_e1": {
+   "core": 0.2899609949117795,
+   "core_sd": 3.659231546840336e-05,
+   "core_worst": 0.698447556057866,
+   "mean": {
+    "usage_cores": 0.26102500140643126,
+    "throttled_cores": 0.31889698841712766,
+    "throttled_ratio": 0.36091429845488143,
+    "psi_some": 0.33700951937443235
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.0003_wd0.001_b32_quantile/res_e1": {
+   "core": 0.259132448362317,
+   "core_sd": 0.00440774266886762,
+   "core_worst": 0.6166322433295728,
+   "mean": {
+    "usage_cores": 0.22973607132426538,
+    "throttled_cores": 0.28852882540036867,
+    "throttled_ratio": 0.3212345196810644,
+    "psi_some": 0.31426074087707473
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.001_b64_quantile/res_e1": {
+   "core": 0.2715947554681881,
+   "core_sd": 0.0021754755739751275,
+   "core_worst": 0.6732017276989137,
+   "mean": {
+    "usage_cores": 0.24908458136346887,
+    "throttled_cores": 0.29410492957290735,
+    "throttled_ratio": 0.3329320285057944,
+    "psi_some": 0.288922696754463
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.0003_wd0.0001_b16_huber/res_e1": {
+   "core": 0.2839335689344013,
+   "core_sd": 0.0031047046385220267,
+   "core_worst": 0.6700144184951016,
+   "mean": {
+    "usage_cores": 0.2560530431427308,
+    "throttled_cores": 0.3118140947260718,
+    "throttled_ratio": 0.3602009861847546,
+    "psi_some": 0.34173657796735324
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.001_b16_huber/res_e1": {
+   "core": 0.2873456466597205,
+   "core_sd": 0.0015721819445337903,
+   "core_worst": 0.7236948006233082,
+   "mean": {
+    "usage_cores": 0.25832932912770723,
+    "throttled_cores": 0.3163619641917338,
+    "throttled_ratio": 0.35655539462379165,
+    "psi_some": 0.3381944816600493
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.001_wd0.0001_b16_quantile/res_e1": {
+   "core": 0.26018809776950846,
+   "core_sd": 0.009522661057489917,
+   "core_worst": 0.6434999909355228,
+   "mean": {
+    "usage_cores": 0.23702257763675677,
+    "throttled_cores": 0.2833536179022602,
+    "throttled_ratio": 0.3295136266242245,
+    "psi_some": 0.29195423352494454
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.0001_b32_huber/res_e1": {
+   "core": 0.2832002753622919,
+   "core_sd": 0.0013993800482197116,
+   "core_worst": 0.6983572585442259,
+   "mean": {
+    "usage_cores": 0.2518890476496361,
+    "throttled_cores": 0.3145115030749477,
+    "throttled_ratio": 0.36217266312146945,
+    "psi_some": 0.3153752359897324
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.0001_b16_mae/res_e1": {
+   "core": 0.27141938664127796,
+   "core_sd": 0.008563926516877873,
+   "core_worst": 0.690195379962566,
+   "mean": {
+    "usage_cores": 0.24018561632999075,
+    "throttled_cores": 0.30265315695256517,
+    "throttled_ratio": 0.33029129474214225,
+    "psi_some": 0.2894843206454173
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.001_wd0.0001_b64_huber/res_e1": {
+   "core": 0.2832112160840581,
+   "core_sd": 0.0008379642400915266,
+   "core_worst": 0.6724564518180993,
+   "mean": {
+    "usage_cores": 0.2562099101311688,
+    "throttled_cores": 0.3102125220369474,
+    "throttled_ratio": 0.35878981096392104,
+    "psi_some": 0.3413785735025474
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0_b32_mae/res_e1": {
+   "core": 0.27621232838850757,
+   "core_sd": 0.0014138540968980373,
+   "core_worst": 0.7120198764767723,
+   "mean": {
+    "usage_cores": 0.2509885030465783,
+    "throttled_cores": 0.30143615373043686,
+    "throttled_ratio": 0.3323761052816716,
+    "psi_some": 0.30319383457995863
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h64_lr0.001_wd0.0001_b16_mae/res_e1": {
+   "core": 0.27089861038783314,
+   "core_sd": 0.0043226735066072275,
+   "core_worst": 0.6839018657590817,
+   "mean": {
+    "usage_cores": 0.24751435755189669,
+    "throttled_cores": 0.2942828632237696,
+    "throttled_ratio": 0.32865366611402286,
+    "psi_some": 0.28913273764152286
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.003_wd0.001_b32_quantile/res_e1": {
+   "core": 0.2750460057330083,
+   "core_sd": 0.0006646436341032347,
+   "core_worst": 0.6960183887812722,
+   "mean": {
+    "usage_cores": 0.24816043935144325,
+    "throttled_cores": 0.30193157211457344,
+    "throttled_ratio": 0.32338332787938084,
+    "psi_some": 0.2858173485146768
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.0001_b16_mae/res_e1": {
+   "core": 0.2613189455238316,
+   "core_sd": 0.003392503887501702,
+   "core_worst": 0.6338422905336885,
+   "mean": {
+    "usage_cores": 0.23460783111024025,
+    "throttled_cores": 0.2880300599374229,
+    "throttled_ratio": 0.3286876960783054,
+    "psi_some": 0.290833989078103
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.0001_b64_mae/res_e1": {
+   "core": 0.26630269815478136,
+   "core_sd": 0.0030603873007425952,
+   "core_worst": 0.6633406974907773,
+   "mean": {
+    "usage_cores": 0.23416590296039044,
+    "throttled_cores": 0.2984394933491723,
+    "throttled_ratio": 0.333120292233009,
+    "psi_some": 0.29487161441098075
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.003_wd0.0001_b16_quantile/res_e1": {
+   "core": 0.2773327669522389,
+   "core_sd": 0.005235785632433987,
+   "core_worst": 0.7151512448748397,
+   "mean": {
+    "usage_cores": 0.24801672870604774,
+    "throttled_cores": 0.3066488051984301,
+    "throttled_ratio": 0.3119321922713806,
+    "psi_some": 0.2855848655771721
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.001_wd0.001_b64_quantile/res_e1": {
+   "core": 0.271453158653834,
+   "core_sd": 0.000273843078809094,
+   "core_worst": 0.6969109938843621,
+   "mean": {
+    "usage_cores": 0.24072270087200598,
+    "throttled_cores": 0.3021836164356621,
+    "throttled_ratio": 0.3323122869203461,
+    "psi_some": 0.29095865865679404
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.001_b32_mae/res_e1": {
+   "core": 0.26487577761080866,
+   "core_sd": 0.0020638189013416075,
+   "core_worst": 0.6565117217181824,
+   "mean": {
+    "usage_cores": 0.23893026987640856,
+    "throttled_cores": 0.29082128534520874,
+    "throttled_ratio": 0.3334627279960931,
+    "psi_some": 0.28955979129309173
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.001_wd0.0001_b64_huber/res_e1": {
+   "core": 0.28250467637283505,
+   "core_sd": 0.0009911976401294764,
+   "core_worst": 0.6769865018605992,
+   "mean": {
+    "usage_cores": 0.25295444835113556,
+    "throttled_cores": 0.3120549043945346,
+    "throttled_ratio": 0.3516818716323875,
+    "psi_some": 0.3067172144419779
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.001_b16_huber/res_e1": {
+   "core": 0.2808973697622441,
+   "core_sd": 0.0029815375873721572,
+   "core_worst": 0.6744761260739425,
+   "mean": {
+    "usage_cores": 0.24966741449258983,
+    "throttled_cores": 0.31212732503189844,
+    "throttled_ratio": 0.34037109738631205,
+    "psi_some": 0.30160617720003174
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.003_wd0_b64_quantile/res_e1": {
+   "core": 0.2708023457269636,
+   "core_sd": 0.0016119183348601573,
+   "core_worst": 0.6783617687408178,
+   "mean": {
+    "usage_cores": 0.24323276836470464,
+    "throttled_cores": 0.2983719230892225,
+    "throttled_ratio": 0.3375897831104676,
+    "psi_some": 0.29085085410600026
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "ridge_a0.1/res_e2": {
+   "core": 0.3476047137809997,
+   "core_sd": 0.0,
+   "core_worst": 0.7544091813994473,
+   "mean": {
+    "usage_cores": 0.3141855153846543,
+    "throttled_cores": 0.38102391217734516,
+    "throttled_ratio": 0.343347828661321,
+    "psi_some": 0.4195917489447026
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "ridge_a1/res_e2": {
+   "core": 0.3431348882827401,
+   "core_sd": 0.0,
+   "core_worst": 0.7502038970619207,
+   "mean": {
+    "usage_cores": 0.310863744074866,
+    "throttled_cores": 0.37540603249061416,
+    "throttled_ratio": 0.3358483777656645,
+    "psi_some": 0.4256367066295221
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "ridge_a10/res_e2": {
+   "core": 0.33671934600991293,
+   "core_sd": 0.0,
+   "core_worst": 0.748444057260828,
+   "mean": {
+    "usage_cores": 0.2995505806387701,
+    "throttled_cores": 0.3738881113810557,
+    "throttled_ratio": 0.3245192469018791,
+    "psi_some": 0.4455393590276698
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "ridge_a100/res_e2": {
+   "core": 0.31734305738574775,
+   "core_sd": 0.0,
+   "core_worst": 0.7116439874628562,
+   "mean": {
+    "usage_cores": 0.27007239995477694,
+    "throttled_cores": 0.3646137148167186,
+    "throttled_ratio": 0.308397443285448,
+    "psi_some": 0.43301378333596113
+   },
+   "seeds": 1,
+   "params": 148
+  },
+  "gbt_d3_lr0.05/res_e2": {
+   "core": 0.26091356062700494,
+   "core_sd": 0.0,
+   "core_worst": 0.7059109980170024,
+   "mean": {
+    "usage_cores": 0.23810593381756526,
+    "throttled_cores": 0.28372118743644464,
+    "throttled_ratio": 0.3078622274877531,
+    "psi_some": 0.27270185599935337
+   },
+   "seeds": 1,
+   "params": -1
+  },
+  "gbt_d4_lr0.1/res_e2": {
+   "core": 0.2664411976566945,
+   "core_sd": 0.0,
+   "core_worst": 0.7214345868133888,
+   "mean": {
+    "usage_cores": 0.246376915970261,
+    "throttled_cores": 0.28650547934312803,
+    "throttled_ratio": 0.3355622263896725,
+    "psi_some": 0.2818052353911087
+   },
+   "seeds": 1,
+   "params": -1
+  },
+  "mlp_h8_lr0.001_wd0.001_b64_quantile/res_e2": {
+   "core": 0.2623886156816414,
+   "core_sd": 0.000997691742345097,
+   "core_worst": 0.7651851862452398,
+   "mean": {
+    "usage_cores": 0.237623946713872,
+    "throttled_cores": 0.2871532846494108,
+    "throttled_ratio": 0.24867124965028498,
+    "psi_some": 0.3128719277300168
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0_b32_quantile/res_e2": {
+   "core": 0.2659208791478467,
+   "core_sd": 0.0016458093584128808,
+   "core_worst": 0.742823994360099,
+   "mean": {
+    "usage_cores": 0.23898570801282784,
+    "throttled_cores": 0.29285605028286543,
+    "throttled_ratio": 0.2520685423787179,
+    "psi_some": 0.3601881669360709
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.0003_wd0.0001_b16_mae/res_e2": {
+   "core": 0.2638440716738065,
+   "core_sd": 0.002242404065638137,
+   "core_worst": 0.7521056151864212,
+   "mean": {
+    "usage_cores": 0.24062659468205633,
+    "throttled_cores": 0.2870615486655568,
+    "throttled_ratio": 0.2511841662396418,
+    "psi_some": 0.34179526471576593
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.003_wd0.0001_b64_quantile/res_e2": {
+   "core": 0.2491458652540808,
+   "core_sd": 0.002796970103981028,
+   "core_worst": 0.7021348346062851,
+   "mean": {
+    "usage_cores": 0.23343382697098647,
+    "throttled_cores": 0.26485790353717514,
+    "throttled_ratio": 0.24658138571019927,
+    "psi_some": 0.29064753118603215
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.003_wd0.001_b16_huber/res_e2": {
+   "core": 0.27894675113779427,
+   "core_sd": 0.006207184278874012,
+   "core_worst": 0.7694304092486269,
+   "mean": {
+    "usage_cores": 0.24880440020427688,
+    "throttled_cores": 0.3090891020713117,
+    "throttled_ratio": 0.27312208032460084,
+    "psi_some": 0.34931265133543965
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.001_wd0.0001_b32_huber/res_e2": {
+   "core": 0.2791620408071137,
+   "core_sd": 0.0016403788275478615,
+   "core_worst": 0.7617301458596281,
+   "mean": {
+    "usage_cores": 0.24337936403833435,
+    "throttled_cores": 0.31494471757589304,
+    "throttled_ratio": 0.282441212258697,
+    "psi_some": 0.3482761073366586
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.001_wd0.0001_b64_huber/res_e2": {
+   "core": 0.2763177681494232,
+   "core_sd": 0.007574225917020838,
+   "core_worst": 0.7459079219283421,
+   "mean": {
+    "usage_cores": 0.24221907377940943,
+    "throttled_cores": 0.31041646251943705,
+    "throttled_ratio": 0.2785737661794012,
+    "psi_some": 0.3494817593668813
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.001_wd0.0001_b64_quantile/res_e2": {
+   "core": 0.2589976715262227,
+   "core_sd": 0.00402727576413392,
+   "core_worst": 0.7422889222278712,
+   "mean": {
+    "usage_cores": 0.24015968571645002,
+    "throttled_cores": 0.27783565733599536,
+    "throttled_ratio": 0.24980578458359765,
+    "psi_some": 0.32043418458579354
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.003_wd0.0001_b16_mae/res_e2": {
+   "core": 0.26232322729433144,
+   "core_sd": 0.0011436041138992714,
+   "core_worst": 0.7762063538967612,
+   "mean": {
+    "usage_cores": 0.23874923130129622,
+    "throttled_cores": 0.28589722328736655,
+    "throttled_ratio": 0.24740663678400693,
+    "psi_some": 0.2988861166822962
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h8_lr0.003_wd0_b32_huber/res_e2": {
+   "core": 0.2843104404795848,
+   "core_sd": 0.0075386986108743614,
+   "core_worst": 0.7636605787560194,
+   "mean": {
+    "usage_cores": 0.2483226183633077,
+    "throttled_cores": 0.3202982625958619,
+    "throttled_ratio": 0.28050944316458526,
+    "psi_some": 0.35029127311855346
+   },
+   "seeds": 2,
+   "params": 332
+  },
+  "mlp_h16_lr0.0003_wd0_b64_quantile/res_e2": {
+   "core": 0.2627581733101111,
+   "core_sd": 0.00391724403361654,
+   "core_worst": 0.7617757299318655,
+   "mean": {
+    "usage_cores": 0.232635220063338,
+    "throttled_cores": 0.29288112655688414,
+    "throttled_ratio": 0.24852488567858128,
+    "psi_some": 0.3062095607627726
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.0003_wd0.0001_b16_quantile/res_e2": {
+   "core": 0.2635878474454297,
+   "core_sd": 0.0009028582941767449,
+   "core_worst": 0.7713975930465922,
+   "mean": {
+    "usage_cores": 0.23469254155454616,
+    "throttled_cores": 0.29248315333631314,
+    "throttled_ratio": 0.24840835706781061,
+    "psi_some": 0.2943370588555745
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.001_wd0_b64_huber/res_e2": {
+   "core": 0.27244477939799794,
+   "core_sd": 0.0021083767710680656,
+   "core_worst": 0.7443164493122594,
+   "mean": {
+    "usage_cores": 0.23693578485327452,
+    "throttled_cores": 0.30795377394272133,
+    "throttled_ratio": 0.2877285937992154,
+    "psi_some": 0.32745830888761346
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0_b64_mae/res_e2": {
+   "core": 0.2628461972456543,
+   "core_sd": 0.0004060523286386897,
+   "core_worst": 0.7648254866778575,
+   "mean": {
+    "usage_cores": 0.23663791336950019,
+    "throttled_cores": 0.2890544811218084,
+    "throttled_ratio": 0.24835761484715208,
+    "psi_some": 0.2878410795291837
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0.001_b64_quantile/res_e2": {
+   "core": 0.26330823000346176,
+   "core_sd": 0.0008541408196231504,
+   "core_worst": 0.7675623059641007,
+   "mean": {
+    "usage_cores": 0.23467069673690877,
+    "throttled_cores": 0.29194576327001476,
+    "throttled_ratio": 0.24848616480656505,
+    "psi_some": 0.2911079589791586
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.0003_wd0_b64_huber/res_e2": {
+   "core": 0.27087831255399586,
+   "core_sd": 0.0018176202506072214,
+   "core_worst": 0.7333080901445301,
+   "mean": {
+    "usage_cores": 0.23408980182307057,
+    "throttled_cores": 0.3076668232849212,
+    "throttled_ratio": 0.27690993299518907,
+    "psi_some": 0.3380600741099257
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.001_wd0.0001_b32_mae/res_e2": {
+   "core": 0.2620034240882468,
+   "core_sd": 0.0030223254670156963,
+   "core_worst": 0.7681260510888541,
+   "mean": {
+    "usage_cores": 0.2348199963284207,
+    "throttled_cores": 0.2891868518480728,
+    "throttled_ratio": 0.2510071752099079,
+    "psi_some": 0.2854037334830749
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0.001_b16_huber/res_e2": {
+   "core": 0.2818249150165459,
+   "core_sd": 0.004121212370086336,
+   "core_worst": 0.7556059108645763,
+   "mean": {
+    "usage_cores": 0.2455266450255556,
+    "throttled_cores": 0.3181231850075361,
+    "throttled_ratio": 0.2866456885995834,
+    "psi_some": 0.34572180021977067
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.003_wd0_b32_mae/res_e2": {
+   "core": 0.25823591299156035,
+   "core_sd": 0.00010769057116172265,
+   "core_worst": 0.7500371853445643,
+   "mean": {
+    "usage_cores": 0.23296225052173425,
+    "throttled_cores": 0.28350957546138644,
+    "throttled_ratio": 0.25080645679192753,
+    "psi_some": 0.291001359643294
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h16_lr0.001_wd0.0001_b16_mae/res_e2": {
+   "core": 0.260480934272249,
+   "core_sd": 0.0005637787388222959,
+   "core_worst": 0.7673430999860515,
+   "mean": {
+    "usage_cores": 0.2325716999794541,
+    "throttled_cores": 0.28839016856504396,
+    "throttled_ratio": 0.24874401427364867,
+    "psi_some": 0.2827994521200767
+   },
+   "seeds": 2,
+   "params": 660
+  },
+  "mlp_h32_lr0.001_wd0.001_b32_huber/res_e2": {
+   "core": 0.2871689034679579,
+   "core_sd": 0.010962769346652357,
+   "core_worst": 0.7957180726240017,
+   "mean": {
+    "usage_cores": 0.2506160968049588,
+    "throttled_cores": 0.3237217101309571,
+    "throttled_ratio": 0.2955037939408871,
+    "psi_some": 0.3339619401570523
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.001_wd0.0001_b64_quantile/res_e2": {
+   "core": 0.25721299714464274,
+   "core_sd": 0.0010722839280665475,
+   "core_worst": 0.7278631254755998,
+   "mean": {
+    "usage_cores": 0.2390348277318562,
+    "throttled_cores": 0.27539116655742935,
+    "throttled_ratio": 0.2557127608054073,
+    "psi_some": 0.29020615006912254
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.0003_wd0_b16_quantile/res_e2": {
+   "core": 0.25941031326888725,
+   "core_sd": 0.0018689570943399292,
+   "core_worst": 0.7519745179110506,
+   "mean": {
+    "usage_cores": 0.23382959299825207,
+    "throttled_cores": 0.2849910335395224,
+    "throttled_ratio": 0.2532425057589437,
+    "psi_some": 0.29424062646831406
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0_b32_quantile/res_e2": {
+   "core": 0.25664747127466747,
+   "core_sd": 0.00270478086994827,
+   "core_worst": 0.7200552722711016,
+   "mean": {
+    "usage_cores": 0.23788548965090495,
+    "throttled_cores": 0.27540945289842994,
+    "throttled_ratio": 0.25929033007968827,
+    "psi_some": 0.28696255231882
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.001_wd0.001_b16_mae/res_e2": {
+   "core": 0.2658000672767594,
+   "core_sd": 0.007351765208696709,
+   "core_worst": 0.7720794261429252,
+   "mean": {
+    "usage_cores": 0.23812176906937238,
+    "throttled_cores": 0.2934783654841464,
+    "throttled_ratio": 0.2560353260172294,
+    "psi_some": 0.30391129676965
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.0003_wd0.001_b32_mae/res_e2": {
+   "core": 0.2604013017532919,
+   "core_sd": 0.00018454806685780367,
+   "core_worst": 0.7526193542555177,
+   "mean": {
+    "usage_cores": 0.23373977621282788,
+    "throttled_cores": 0.287062827293756,
+    "throttled_ratio": 0.25220042079608634,
+    "psi_some": 0.31146204167915903
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.0003_wd0.0001_b32_quantile/res_e2": {
+   "core": 0.25958021797586744,
+   "core_sd": 0.00048556983109260266,
+   "core_worst": 0.7452762581978583,
+   "mean": {
+    "usage_cores": 0.23308650369034262,
+    "throttled_cores": 0.28607393226139227,
+    "throttled_ratio": 0.2523250738003534,
+    "psi_some": 0.31138617010415814
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.003_wd0.0001_b16_mae/res_e2": {
+   "core": 0.25947911775893007,
+   "core_sd": 0.005094100756233594,
+   "core_worst": 0.7385189645151196,
+   "mean": {
+    "usage_cores": 0.23552230167606086,
+    "throttled_cores": 0.28343593384179927,
+    "throttled_ratio": 0.25869977831620905,
+    "psi_some": 0.29694334605037587
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.0003_wd0_b64_huber/res_e2": {
+   "core": 0.27691385827592174,
+   "core_sd": 0.005953121427365815,
+   "core_worst": 0.742295798555363,
+   "mean": {
+    "usage_cores": 0.24489436754824523,
+    "throttled_cores": 0.30893334900359826,
+    "throttled_ratio": 0.28416397993442144,
+    "psi_some": 0.3589763677816604
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h32_lr0.001_wd0_b16_mae/res_e2": {
+   "core": 0.26304587576276656,
+   "core_sd": 0.0051399497172815445,
+   "core_worst": 0.7592743170902949,
+   "mean": {
+    "usage_cores": 0.2385187222498812,
+    "throttled_cores": 0.2875730292756519,
+    "throttled_ratio": 0.2566131336661864,
+    "psi_some": 0.29576108439745574
+   },
+   "seeds": 2,
+   "params": 1316
+  },
+  "mlp_h64_lr0.001_wd0.0001_b16_mae/res_e2": {
+   "core": 0.2623816255652951,
+   "core_sd": 0.003826939852340533,
+   "core_worst": 0.7545636082229499,
+   "mean": {
+    "usage_cores": 0.23852967049185547,
+    "throttled_cores": 0.2862335806387347,
+    "throttled_ratio": 0.26203667730240576,
+    "psi_some": 0.2919853015480468
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.0001_b64_huber/res_e2": {
+   "core": 0.27727654607713426,
+   "core_sd": 0.004052509030350787,
+   "core_worst": 0.7494160910487909,
+   "mean": {
+    "usage_cores": 0.24411787293091122,
+    "throttled_cores": 0.3104352192233574,
+    "throttled_ratio": 0.29136741806064903,
+    "psi_some": 0.3361272443117323
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.001_wd0_b32_huber/res_e2": {
+   "core": 0.2801879499470817,
+   "core_sd": 0.00580403744268998,
+   "core_worst": 0.7576107177116755,
+   "mean": {
+    "usage_cores": 0.2467157221841229,
+    "throttled_cores": 0.3136601777100404,
+    "throttled_ratio": 0.30016932573216215,
+    "psi_some": 0.33764961230496027
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.001_wd0.001_b32_quantile/res_e2": {
+   "core": 0.2575397911195286,
+   "core_sd": 0.0011618811709195875,
+   "core_worst": 0.7365801757651075,
+   "mean": {
+    "usage_cores": 0.23750964191397342,
+    "throttled_cores": 0.27756994032508386,
+    "throttled_ratio": 0.2614132505837752,
+    "psi_some": 0.2889868418854262
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.003_wd0.001_b32_quantile/res_e2": {
+   "core": 0.25998661588236216,
+   "core_sd": 0.0011334705138722756,
+   "core_worst": 0.7370030006307811,
+   "mean": {
+    "usage_cores": 0.2393524969333365,
+    "throttled_cores": 0.28062073483138794,
+    "throttled_ratio": 0.2647810730280697,
+    "psi_some": 0.29632875244618717
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.003_wd0.0001_b16_mae/res_e2": {
+   "core": 0.2749060758599395,
+   "core_sd": 0.00021518523081792695,
+   "core_worst": 0.822058379045396,
+   "mean": {
+    "usage_cores": 0.24004988660475024,
+    "throttled_cores": 0.30976226511512867,
+    "throttled_ratio": 0.267650063560121,
+    "psi_some": 0.2922402051914356
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.0001_b16_huber/res_e2": {
+   "core": 0.2782660156850024,
+   "core_sd": 0.005305475901347445,
+   "core_worst": 0.75828399420544,
+   "mean": {
+    "usage_cores": 0.24465676890367222,
+    "throttled_cores": 0.3118752624663326,
+    "throttled_ratio": 0.2953890096429488,
+    "psi_some": 0.3343225411771562
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.0003_wd0.001_b32_mae/res_e2": {
+   "core": 0.259330682783937,
+   "core_sd": 0.0031137814428477684,
+   "core_worst": 0.7406822744364594,
+   "mean": {
+    "usage_cores": 0.23495304081013368,
+    "throttled_cores": 0.2837083247577402,
+    "throttled_ratio": 0.25652151535059825,
+    "psi_some": 0.2938076127803171
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.003_wd0_b32_mae/res_e2": {
+   "core": 0.26705865791791317,
+   "core_sd": 0.005410796002653734,
+   "core_worst": 0.7711786580896596,
+   "mean": {
+    "usage_cores": 0.24126191482223835,
+    "throttled_cores": 0.2928554010135879,
+    "throttled_ratio": 0.2657681915851276,
+    "psi_some": 0.2957716565296544
+   },
+   "seeds": 2,
+   "params": 2628
+  },
+  "mlp_h64_lr0.001_wd0.001_b64_mae/res_e2": {
+   "core": 0.2601360913921724,
+   "core_sd": 0.0031161956367284915,
+   "core_worst": 0.7415241829312225,
+   "mean": {
+    "usage_cores": 0.23892645669608564,
+    "throttled_cores": 0.28134572608825925,
+    "throttled_ratio": 0.25731805219800896,
+    "psi_some": 0.2946087004018599
+   },
+   "seeds": 2,
+   "params": 2628
+  }
+ },
+ "top_5seed": {
+  "mlp_h16_lr0.001_wd0.001_b64_quantile/direct": {
+   "core": 0.2713673491119864,
+   "core_sd": 0.005156901805317592,
+   "core_worst": 0.6680106151966113,
+   "mean": {
+    "usage_cores": 0.2546605725031089,
+    "throttled_cores": 0.28807412572086377,
+    "throttled_ratio": 0.36123610468636197,
+    "psi_some": 0.3038101477287428
+   },
+   "seeds": 5,
+   "params": 660
+  },
+  "mlp_h16_lr0.0003_wd0.001_b64_quantile/res_e1": {
+   "core": 0.23627230900316834,
+   "core_sd": 0.006288617257214911,
+   "core_worst": 0.4566672008942021,
+   "mean": {
+    "usage_cores": 0.2078312866978401,
+    "throttled_cores": 0.26471333130849656,
+    "throttled_ratio": 0.28059336864874934,
+    "psi_some": 0.3131917631246922
+   },
+   "seeds": 5,
+   "params": 660
+  },
+  "mlp_h8_lr0.003_wd0.0001_b64_quantile/res_e2": {
+   "core": 0.25960504314827226,
+   "core_sd": 0.010842672290689059,
+   "core_worst": 0.7370321705328775,
+   "mean": {
+    "usage_cores": 0.2368091549054637,
+    "throttled_cores": 0.28240093139108063,
+    "throttled_ratio": 0.2473415556959197,
+    "psi_some": 0.29833877513702445
+   },
+   "seeds": 5,
+   "params": 332
+  }
+ },
+ "target_specific": {
+  "separate_h8/mae/asym_throttled=1": {
+   "mean": {
+    "usage_cores": 0.24427124794780997,
+    "throttled_cores": 0.29229474560013297,
+    "throttled_ratio": 0.3130963885412999,
+    "psi_some": 0.3009428544793784
+   },
+   "worst_fold": {
+    "usage_cores": 0.8016745260143814,
+    "throttled_cores": 0.7346680353546805,
+    "throttled_ratio": 0.7569734970353709,
+    "psi_some": 0.4897236501482044
+   },
+   "core": 0.2682829967739715,
+   "core_worst": 0.7681712806845309,
+   "folds": {
+    "arith": {
+     "usage_cores": 0.12311210892500217,
+     "throttled_cores": 0.20679639224197088,
+     "throttled_ratio": 0.23546221201755796,
+     "psi_some": 0.3188896981875417
+    },
+    "batch": {
+     "usage_cores": 0.8016745260143814,
+     "throttled_cores": 0.7346680353546805,
+     "throttled_ratio": 0.7569734970353709,
+     "psi_some": 0.4897236501482044
+    },
+    "burst": {
+     "usage_cores": 0.3014017322915798,
+     "throttled_cores": 0.20968173127217002,
+     "throttled_ratio": 0.4092704249779054,
+     "psi_some": 0.27618137412309113
+    },
+    "hash": {
+     "usage_cores": 0.041948954263692634,
+     "throttled_cores": 0.24867746608355942,
+     "throttled_ratio": 0.1472318194247389,
+     "psi_some": 0.300122595800621
+    },
+    "mixed": {
+     "usage_cores": 0.07115933707455478,
+     "throttled_cores": 0.0704852296283199,
+     "throttled_ratio": 0.06492543463518988,
+     "psi_some": 0.13788492429252486
+    },
+    "short": {
+     "usage_cores": 0.12633082911764937,
+     "throttled_cores": 0.2834596190200971,
+     "throttled_ratio": 0.2647149431570366,
+     "psi_some": 0.2828548843242872
+    }
+   }
+  },
+  "separate_h8/mae/asym_throttled=3": {
+   "mean": {
+    "usage_cores": 0.24427124794780997,
+    "throttled_cores": 0.36398078937976036,
+    "throttled_ratio": 0.3130963885412999,
+    "psi_some": 0.3009428544793784
+   },
+   "worst_fold": {
+    "usage_cores": 0.8016745260143814,
+    "throttled_cores": 0.9640530728846547,
+    "throttled_ratio": 0.7569734970353709,
+    "psi_some": 0.4897236501482044
+   },
+   "core": 0.3041260186637852,
+   "core_worst": 0.8828637994495181,
+   "folds": {
+    "arith": {
+     "usage_cores": 0.12311210892500217,
+     "throttled_cores": 0.19466973723647474,
+     "throttled_ratio": 0.23546221201755796,
+     "psi_some": 0.3188896981875417
+    },
+    "batch": {
+     "usage_cores": 0.8016745260143814,
+     "throttled_cores": 0.9640530728846547,
+     "throttled_ratio": 0.7569734970353709,
+     "psi_some": 0.4897236501482044
+    },
+    "burst": {
+     "usage_cores": 0.3014017322915798,
+     "throttled_cores": 0.3525059767849037,
+     "throttled_ratio": 0.4092704249779054,
+     "psi_some": 0.27618137412309113
+    },
+    "hash": {
+     "usage_cores": 0.041948954263692634,
+     "throttled_cores": 0.26045675687517117,
+     "throttled_ratio": 0.1472318194247389,
+     "psi_some": 0.300122595800621
+    },
+    "mixed": {
+     "usage_cores": 0.07115933707455478,
+     "throttled_cores": 0.15231141750692823,
+     "throttled_ratio": 0.06492543463518988,
+     "psi_some": 0.13788492429252486
+    },
+    "short": {
+     "usage_cores": 0.12633082911764937,
+     "throttled_cores": 0.25988777499042975,
+     "throttled_ratio": 0.2647149431570366,
+     "psi_some": 0.2828548843242872
+    }
+   }
+  },
+  "separate_h8/huber/asym_throttled=1": {
+   "mean": {
+    "usage_cores": 0.24745836458077097,
+    "throttled_cores": 0.3478137835794741,
+    "throttled_ratio": 0.32623524389453656,
+    "psi_some": 0.31989945115903506
+   },
+   "worst_fold": {
+    "usage_cores": 0.7919379528132247,
+    "throttled_cores": 0.7907613525706532,
+    "throttled_ratio": 0.7038637516402625,
+    "psi_some": 0.49571031338720667
+   },
+   "core": 0.29763607408012255,
+   "core_worst": 0.7913496526919389,
+   "folds": {
+    "arith": {
+     "usage_cores": 0.13901606905447722,
+     "throttled_cores": 0.2501496774995029,
+     "throttled_ratio": 0.27512724139226563,
+     "psi_some": 0.2802879876452062
+    },
+    "batch": {
+     "usage_cores": 0.7919379528132247,
+     "throttled_cores": 0.7907613525706532,
+     "throttled_ratio": 0.7038637516402625,
+     "psi_some": 0.49571031338720667
+    },
+    "burst": {
+     "usage_cores": 0.293324413485866,
+     "throttled_cores": 0.307531496704074,
+     "throttled_ratio": 0.4197111096414085,
+     "psi_some": 0.30552453878837454
+    },
+    "hash": {
+     "usage_cores": 0.05570760736575681,
+     "throttled_cores": 0.2692385534077936,
+     "throttled_ratio": 0.1807937110623313,
+     "psi_some": 0.3173304944188822
+    },
+    "mixed": {
+     "usage_cores": 0.06897076286082288,
+     "throttled_cores": 0.1496606418580142,
+     "throttled_ratio": 0.09489149427711904,
+     "psi_some": 0.21842817831835623
+    },
+    "short": {
+     "usage_cores": 0.1357933819044783,
+     "throttled_cores": 0.31954097943680676,
+     "throttled_ratio": 0.2830241553538325,
+     "psi_some": 0.3021151943961846
+    }
+   }
+  },
+  "separate_h8/huber/asym_throttled=3": {
+   "mean": {
+    "usage_cores": 0.24745836458077097,
+    "throttled_cores": 0.3780061548809553,
+    "throttled_ratio": 0.32623524389453656,
+    "psi_some": 0.31989945115903506
+   },
+   "worst_fold": {
+    "usage_cores": 0.7919379528132247,
+    "throttled_cores": 0.8856604391374034,
+    "throttled_ratio": 0.7038637516402625,
+    "psi_some": 0.49571031338720667
+   },
+   "core": 0.31273225973086316,
+   "core_worst": 0.838799195975314,
+   "folds": {
+    "arith": {
+     "usage_cores": 0.13901606905447722,
+     "throttled_cores": 0.24642691426073862,
+     "throttled_ratio": 0.27512724139226563,
+     "psi_some": 0.2802879876452062
+    },
+    "batch": {
+     "usage_cores": 0.7919379528132247,
+     "throttled_cores": 0.8856604391374034,
+     "throttled_ratio": 0.7038637516402625,
+     "psi_some": 0.49571031338720667
+    },
+    "burst": {
+     "usage_cores": 0.293324413485866,
+     "throttled_cores": 0.3071314976524169,
+     "throttled_ratio": 0.4197111096414085,
+     "psi_some": 0.30552453878837454
+    },
+    "hash": {
+     "usage_cores": 0.05570760736575681,
+     "throttled_cores": 0.2891112900239142,
+     "throttled_ratio": 0.1807937110623313,
+     "psi_some": 0.3173304944188822
+    },
+    "mixed": {
+     "usage_cores": 0.06897076286082288,
+     "throttled_cores": 0.24779157667115911,
+     "throttled_ratio": 0.09489149427711904,
+     "psi_some": 0.21842817831835623
+    },
+    "short": {
+     "usage_cores": 0.1357933819044783,
+     "throttled_cores": 0.2919152115400996,
+     "throttled_ratio": 0.2830241553538325,
+     "psi_some": 0.3021151943961846
+    }
+   }
+  },
+  "separate_h8/quantile/asym_throttled=1": {
+   "mean": {
+    "usage_cores": 0.23479182986238756,
+    "throttled_cores": 0.3141990535373527,
+    "throttled_ratio": 0.3090976651554553,
+    "psi_some": 0.299262546393309
+   },
+   "worst_fold": {
+    "usage_cores": 0.7625572588028222,
+    "throttled_cores": 0.8119909619259587,
+    "throttled_ratio": 0.7293723997917421,
+    "psi_some": 0.4876032951010808
+   },
+   "core": 0.27449544169987017,
+   "core_worst": 0.7872741103643904,
+   "folds": {
+    "arith": {
+     "usage_cores": 0.125041576704485,
+     "throttled_cores": 0.2077835487531801,
+     "throttled_ratio": 0.2415741301890478,
+     "psi_some": 0.30222047345262504
+    },
+    "batch": {
+     "usage_cores": 0.7625572588028222,
+     "throttled_cores": 0.8119909619259587,
+     "throttled_ratio": 0.7293723997917421,
+     "psi_some": 0.4876032951010808
+    },
+    "burst": {
+     "usage_cores": 0.28872328333907693,
+     "throttled_cores": 0.23206311703030552,
+     "throttled_ratio": 0.4069611949014944,
+     "psi_some": 0.2856711958825814
+    },
+    "hash": {
+     "usage_cores": 0.041385195044040285,
+     "throttled_cores": 0.2508982327719913,
+     "throttled_ratio": 0.14721326009782182,
+     "psi_some": 0.3029904944132516
+    },
+    "mixed": {
+     "usage_cores": 0.06450298012725579,
+     "throttled_cores": 0.06945501250498631,
+     "throttled_ratio": 0.06495918444612303,
+     "psi_some": 0.13725553012435945
+    },
+    "short": {
+     "usage_cores": 0.12654068515664502,
+     "throttled_cores": 0.31300344823769466,
+     "throttled_ratio": 0.26450582150650265,
+     "psi_some": 0.27983428938595606
+    }
+   }
+  },
+  "separate_h8/quantile/asym_throttled=3": {
+   "mean": {
+    "usage_cores": 0.23479182986238756,
+    "throttled_cores": 0.345210711222224,
+    "throttled_ratio": 0.3090976651554553,
+    "psi_some": 0.299262546393309
+   },
+   "worst_fold": {
+    "usage_cores": 0.7625572588028222,
+    "throttled_cores": 0.8748830674163043,
+    "throttled_ratio": 0.7293723997917421,
+    "psi_some": 0.4876032951010808
+   },
+   "core": 0.2900012705423058,
+   "core_worst": 0.8187201631095633,
+   "folds": {
+    "arith": {
+     "usage_cores": 0.125041576704485,
+     "throttled_cores": 0.1915716582264828,
+     "throttled_ratio": 0.2415741301890478,
+     "psi_some": 0.30222047345262504
+    },
+    "batch": {
+     "usage_cores": 0.7625572588028222,
+     "throttled_cores": 0.8748830674163043,
+     "throttled_ratio": 0.7293723997917421,
+     "psi_some": 0.4876032951010808
+    },
+    "burst": {
+     "usage_cores": 0.28872328333907693,
+     "throttled_cores": 0.3230432979905749,
+     "throttled_ratio": 0.4069611949014944,
+     "psi_some": 0.2856711958825814
+    },
+    "hash": {
+     "usage_cores": 0.041385195044040285,
+     "throttled_cores": 0.2661243417509001,
+     "throttled_ratio": 0.14721326009782182,
+     "psi_some": 0.3029904944132516
+    },
+    "mixed": {
+     "usage_cores": 0.06450298012725579,
+     "throttled_cores": 0.1557916356213881,
+     "throttled_ratio": 0.06495918444612303,
+     "psi_some": 0.13725553012435945
+    },
+    "short": {
+     "usage_cores": 0.12654068515664502,
+     "throttled_cores": 0.25985026632769437,
+     "throttled_ratio": 0.26450582150650265,
+     "psi_some": 0.27983428938595606
+    }
+   }
+  }
+ },
+ "gating": {
+  "policies": {
+   "A_mechanistic": {
+    "mean": {
+     "usage_cores": 0.12290353107077663,
+     "throttled_cores": 0.21438809434209058,
+     "throttled_ratio": 0.2052964936147101,
+     "psi_some": 0.5929176721111181
+    },
+    "worst_fold": {
+     "usage_cores": 0.335229552851993,
+     "throttled_cores": 0.35219825652533515,
+     "throttled_ratio": 0.41733191272778597,
+     "psi_some": 0.9967764361547472
+    },
+    "core": 0.1686458127064336,
+    "core_worst": 0.3315628664791631,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.1299547337065922,
+      "throttled_cores": 0.22817275645913493,
+      "throttled_ratio": 0.24274565268760412,
+      "psi_some": 0.6205770948847741
+     },
+     "batch": {
+      "usage_cores": 0.008134560008332278,
+      "throttled_cores": 0.010728127994485264,
+      "throttled_ratio": 0.11783489219002612,
+      "psi_some": 0.9967764361547472
+     },
+     "burst": {
+      "usage_cores": 0.335229552851993,
+      "throttled_cores": 0.32789618010633315,
+      "throttled_ratio": 0.41733191272778597,
+      "psi_some": 0.7222227083450814
+     },
+     "hash": {
+      "usage_cores": 0.03686188130787155,
+      "throttled_cores": 0.3002512000600931,
+      "throttled_ratio": 0.13039817113675686,
+      "psi_some": 0.37845031417459957
+     },
+     "mixed": {
+      "usage_cores": 0.07277529702379266,
+      "throttled_cores": 0.06708204490716184,
+      "throttled_ratio": 0.048520249725304866,
+      "psi_some": 0.1550721192496989
+     },
+     "short": {
+      "usage_cores": 0.1544651615260782,
+      "throttled_cores": 0.35219825652533515,
+      "throttled_ratio": 0.2749480832207826,
+      "psi_some": 0.6844073598578072
+     }
+    }
+   },
+   "B_learned": {
+    "mean": {
+     "usage_cores": 0.2541915064845187,
+     "throttled_cores": 0.2785078287429295,
+     "throttled_ratio": 0.36018391114616405,
+     "psi_some": 0.2844634098210905
+    },
+    "worst_fold": {
+     "usage_cores": 0.8406071533752485,
+     "throttled_cores": 0.5188464287796334,
+     "throttled_ratio": 0.8009275880950579,
+     "psi_some": 0.3618375532344886
+    },
+    "core": 0.26634966761372414,
+    "core_worst": 0.6797267910774409,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.13563562034833693,
+      "throttled_cores": 0.22774141370038287,
+      "throttled_ratio": 0.31067404861728154,
+      "psi_some": 0.26760666536264455
+     },
+     "batch": {
+      "usage_cores": 0.8406071533752485,
+      "throttled_cores": 0.5188464287796334,
+      "throttled_ratio": 0.8009275880950579,
+      "psi_some": 0.3618375532344886
+     },
+     "burst": {
+      "usage_cores": 0.2653581114998101,
+      "throttled_cores": 0.26411122581034996,
+      "throttled_ratio": 0.3339756591543426,
+      "psi_some": 0.2961013946274726
+     },
+     "hash": {
+      "usage_cores": 0.07380220583942901,
+      "throttled_cores": 0.2631586017834822,
+      "throttled_ratio": 0.27972897014523,
+      "psi_some": 0.28086644494023066
+     },
+     "mixed": {
+      "usage_cores": 0.09553498190467498,
+      "throttled_cores": 0.10715016432649575,
+      "throttled_ratio": 0.1494618496524533,
+      "psi_some": 0.19222500284754707
+     },
+     "short": {
+      "usage_cores": 0.11421096593961295,
+      "throttled_cores": 0.2900391380572329,
+      "throttled_ratio": 0.28633535121261877,
+      "psi_some": 0.3081433979141594
+     }
+    }
+   },
+   "C_residual": {
+    "mean": {
+     "usage_cores": 0.19788147451751092,
+     "throttled_cores": 0.27084103873733745,
+     "throttled_ratio": 0.25242309610103136,
+     "psi_some": 0.30069290773932306
+    },
+    "worst_fold": {
+     "usage_cores": 0.47918115646630316,
+     "throttled_cores": 0.34717309926988343,
+     "throttled_ratio": 0.410157721980247,
+     "psi_some": 0.49328435416285993
+    },
+    "core": 0.23436125662742419,
+    "core_worst": 0.4131771278680933,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.12834533697633532,
+      "throttled_cores": 0.23080315846333158,
+      "throttled_ratio": 0.241316302056689,
+      "psi_some": 0.3541377682446872
+     },
+     "batch": {
+      "usage_cores": 0.47918115646630316,
+      "throttled_cores": 0.34717309926988343,
+      "throttled_ratio": 0.37796008667008407,
+      "psi_some": 0.49328435416285993
+     },
+     "burst": {
+      "usage_cores": 0.32365540145170507,
+      "throttled_cores": 0.31801637014231765,
+      "throttled_ratio": 0.410157721980247,
+      "psi_some": 0.23503728935886514
+     },
+     "hash": {
+      "usage_cores": 0.03860686039716761,
+      "throttled_cores": 0.29478187795557204,
+      "throttled_ratio": 0.14400362080624363,
+      "psi_some": 0.2978640790415711
+     },
+     "mixed": {
+      "usage_cores": 0.0706760041382227,
+      "throttled_cores": 0.09278918989771609,
+      "throttled_ratio": 0.06535332534288352,
+      "psi_some": 0.13185576989620812
+     },
+     "short": {
+      "usage_cores": 0.14682408767533178,
+      "throttled_cores": 0.341482536695204,
+      "throttled_ratio": 0.2757475197500407,
+      "psi_some": 0.2919781857317468
+     }
+    }
+   },
+   "D_rule_gate": {
+    "mean": {
+     "usage_cores": 0.1280117031761521,
+     "throttled_cores": 0.22680456658652481,
+     "throttled_ratio": 0.21191583550864257,
+     "psi_some": 0.5611493344747882
+    },
+    "worst_fold": {
+     "usage_cores": 0.3360904413222457,
+     "throttled_cores": 0.3625280917071308,
+     "throttled_ratio": 0.4195134621359323,
+     "psi_some": 1.0041374807449315
+    },
+    "core": 0.17740813488133844,
+    "core_worst": 0.3322964949522075,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.14104657331857395,
+      "throttled_cores": 0.2411585709563377,
+      "throttled_ratio": 0.2503224480080229,
+      "psi_some": 0.49066576606114576
+     },
+     "batch": {
+      "usage_cores": 0.015075056874413701,
+      "throttled_cores": 0.021377015804702658,
+      "throttled_ratio": 0.12047886819207775,
+      "psi_some": 1.0041374807449315
+     },
+     "burst": {
+      "usage_cores": 0.3360904413222457,
+      "throttled_cores": 0.3285025485821693,
+      "throttled_ratio": 0.4195134621359323,
+      "psi_some": 0.6664833892197307
+     },
+     "hash": {
+      "usage_cores": 0.040109002289019355,
+      "throttled_cores": 0.3044496038966803,
+      "throttled_ratio": 0.14272945484484298,
+      "psi_some": 0.34661200084423904
+     },
+     "mixed": {
+      "usage_cores": 0.0762974962095446,
+      "throttled_cores": 0.10281156857212817,
+      "throttled_ratio": 0.05982838144007705,
+      "psi_some": 0.185425000241178
+     },
+     "short": {
+      "usage_cores": 0.1594516490431153,
+      "throttled_cores": 0.3625280917071308,
+      "throttled_ratio": 0.27862239843090253,
+      "psi_some": 0.6735723697375039
+     }
+    }
+   },
+   "E_learned_gate": {
+    "mean": {
+     "usage_cores": 0.17670087338032525,
+     "throttled_cores": 0.24930663358750096,
+     "throttled_ratio": 0.23328493420539997,
+     "psi_some": 0.39798040629583314
+    },
+    "worst_fold": {
+     "usage_cores": 0.373627542178953,
+     "throttled_cores": 0.335762384699875,
+     "throttled_ratio": 0.40804013159317093,
+     "psi_some": 0.6257131720225311
+    },
+    "core": 0.2130037534839131,
+    "core_worst": 0.32124705251517083,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.12086014743130567,
+      "throttled_cores": 0.22402323248311887,
+      "throttled_ratio": 0.23543586030906205,
+      "psi_some": 0.4972116349116459
+     },
+     "batch": {
+      "usage_cores": 0.373627542178953,
+      "throttled_cores": 0.2688665628513886,
+      "throttled_ratio": 0.30977119498398586,
+      "psi_some": 0.6257131720225311
+     },
+     "burst": {
+      "usage_cores": 0.33056949254302265,
+      "throttled_cores": 0.3089443293818996,
+      "throttled_ratio": 0.40804013159317093,
+      "psi_some": 0.2869546070306523
+     },
+     "hash": {
+      "usage_cores": 0.03702649275134655,
+      "throttled_cores": 0.2983864753066484,
+      "throttled_ratio": 0.13051511156732842,
+      "psi_some": 0.36844308173984
+     },
+     "mixed": {
+      "usage_cores": 0.07327409248313599,
+      "throttled_cores": 0.05985681680207544,
+      "throttled_ratio": 0.04916505535047894,
+      "psi_some": 0.13495940911864648
+     },
+     "short": {
+      "usage_cores": 0.12484747289418777,
+      "throttled_cores": 0.335762384699875,
+      "throttled_ratio": 0.2667822514283736,
+      "psi_some": 0.4746005329516826
+     }
+    }
+   },
+   "F_abstain_on_disagreement": {
+    "mean": {
+     "usage_cores": 0.106276498591952,
+     "throttled_cores": 0.12370744961339726,
+     "throttled_ratio": 0.17414395788006976,
+     "psi_some": 0.22159890905373306
+    },
+    "worst_fold": {
+     "usage_cores": 0.24732794537024871,
+     "throttled_cores": 0.2621095818843101,
+     "throttled_ratio": 0.3349856522389861,
+     "psi_some": 0.28423189671857507
+    },
+    "core": 0.11499197410267463,
+    "core_worst": 0.18330900701603897,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.11656593631328853,
+      "throttled_cores": 0.11140609061978826,
+      "throttled_ratio": 0.23420865771677624,
+      "psi_some": 0.28423189671857507
+     },
+     "batch": {
+      "usage_cores": 0.09232752592119566,
+      "throttled_cores": 0.13449803420548992,
+      "throttled_ratio": 0.16030332843596792,
+      "psi_some": 0.22784991551906844
+     },
+     "burst": {
+      "usage_cores": 0.24732794537024871,
+      "throttled_cores": 0.11929006866182924,
+      "throttled_ratio": 0.3349856522389861,
+      "psi_some": 0.2258294048642514
+     },
+     "hash": {
+      "usage_cores": 0.03909463625105191,
+      "throttled_cores": 0.2621095818843101,
+      "throttled_ratio": 0.14671639390327057,
+      "psi_some": 0.2765044736148094
+     },
+     "mixed": {
+      "usage_cores": 0.0723187774029393,
+      "throttled_cores": 0.06502293985440713,
+      "throttled_ratio": 0.06664129546605936,
+      "psi_some": 0.12436733603914388
+     },
+     "short": {
+      "usage_cores": 0.07002417029298795,
+      "throttled_cores": 0.049917982454558994,
+      "throttled_ratio": 0.10200841951935849,
+      "psi_some": 0.1908104275665501
+     }
+    }
+   },
+   "A_on_F_accepted": {
+    "mean": {
+     "usage_cores": 0.09043209689873322,
+     "throttled_cores": 0.0871884559410291,
+     "throttled_ratio": 0.15866713066900898,
+     "psi_some": 0.3558737272309192
+    },
+    "worst_fold": {
+     "usage_cores": 0.2593635608821374,
+     "throttled_cores": 0.26313272328180254,
+     "throttled_ratio": 0.3376613346720451,
+     "psi_some": 0.5354977492334158
+    },
+    "core": 0.08881027641988115,
+    "core_worst": 0.1843478254332694,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.11919558462979538,
+      "throttled_cores": 0.08628772459712816,
+      "throttled_ratio": 0.2326766505164701,
+      "psi_some": 0.4835289938500296
+     },
+     "batch": {
+      "usage_cores": 0.0052613559805929555,
+      "throttled_cores": 0.0035759241204788576,
+      "throttled_ratio": 0.10586236303702883,
+      "psi_some": 0.2976785802616424
+     },
+     "burst": {
+      "usage_cores": 0.2593635608821374,
+      "throttled_cores": 0.10933208998440143,
+      "throttled_ratio": 0.3376613346720451,
+      "psi_some": 0.5354977492334158
+     },
+     "hash": {
+      "usage_cores": 0.037584566070943425,
+      "throttled_cores": 0.26313272328180254,
+      "throttled_ratio": 0.13317260030987935,
+      "psi_some": 0.3353420283037736
+     },
+     "mixed": {
+      "usage_cores": 0.07504256297314028,
+      "throttled_cores": 0.02717054158868512,
+      "throttled_ratio": 0.05008541907128245,
+      "psi_some": 0.11148401646052863
+     },
+     "short": {
+      "usage_cores": 0.04614495085578995,
+      "throttled_cores": 0.03363173207367849,
+      "throttled_ratio": 0.0925444164073479,
+      "psi_some": 0.37171099527612544
+     }
+    }
+   },
+   "psi_C_residual_D_gated": {
+    "mean": {
+     "usage_cores": 0.12290353107077663,
+     "throttled_cores": 0.21438809434209058,
+     "throttled_ratio": 0.2052964936147101,
+     "psi_some": 0.5611493344747882
+    },
+    "worst_fold": {
+     "usage_cores": 0.335229552851993,
+     "throttled_cores": 0.35219825652533515,
+     "throttled_ratio": 0.41733191272778597,
+     "psi_some": 1.0041374807449315
+    },
+    "core": 0.1686458127064336,
+    "core_worst": 0.3315628664791631,
+    "folds": {
+     "arith": {
+      "usage_cores": 0.1299547337065922,
+      "throttled_cores": 0.22817275645913493,
+      "throttled_ratio": 0.24274565268760412,
+      "psi_some": 0.49066576606114576
+     },
+     "batch": {
+      "usage_cores": 0.008134560008332278,
+      "throttled_cores": 0.010728127994485264,
+      "throttled_ratio": 0.11783489219002612,
+      "psi_some": 1.0041374807449315
+     },
+     "burst": {
+      "usage_cores": 0.335229552851993,
+      "throttled_cores": 0.32789618010633315,
+      "throttled_ratio": 0.41733191272778597,
+      "psi_some": 0.6664833892197307
+     },
+     "hash": {
+      "usage_cores": 0.03686188130787155,
+      "throttled_cores": 0.3002512000600931,
+      "throttled_ratio": 0.13039817113675686,
+      "psi_some": 0.34661200084423904
+     },
+     "mixed": {
+      "usage_cores": 0.07277529702379266,
+      "throttled_cores": 0.06708204490716184,
+      "throttled_ratio": 0.048520249725304866,
+      "psi_some": 0.185425000241178
+     },
+     "short": {
+      "usage_cores": 0.1544651615260782,
+      "throttled_cores": 0.35219825652533515,
+      "throttled_ratio": 0.2749480832207826,
+      "psi_some": 0.6735723697375039
+     }
+    }
+   }
+  },
+  "rates": {
+   "arith": {
+    "F_abstain_rate": 0.08333333333333337,
+    "ood_rate": 0.07291666666666667,
+    "D_residual_applied_rate": 0.8463541666666666
+   },
+   "batch": {
+    "F_abstain_rate": 0.5416666666666667,
+    "ood_rate": 0.5416666666666666,
+    "D_residual_applied_rate": 0.34375
+   },
+   "burst": {
+    "F_abstain_rate": 0.125,
+    "ood_rate": 0.3541666666666667,
+    "D_residual_applied_rate": 0.5
+   },
+   "hash": {
+    "F_abstain_rate": 0.02083333333333337,
+    "ood_rate": 0.010416666666666666,
+    "D_residual_applied_rate": 0.9583333333333334
+   },
+   "mixed": {
+    "F_abstain_rate": 0.03125,
+    "ood_rate": 0.03125,
+    "D_residual_applied_rate": 0.9244791666666666
+   },
+   "short": {
+    "F_abstain_rate": 0.22916666666666663,
+    "ood_rate": 0.2916666666666667,
+    "D_residual_applied_rate": 0.5989583333333334
+   }
+  },
+  "base_learners": {
+   "B": "mlp_h16_lr0.001_wd0.001_b64_quantile/direct",
+   "C": "mlp_h16_lr0.0003_wd0.001_b64_quantile/res_e1"
+  }
+ },
+ "wall_time_s": 1181.0106091499329
+}

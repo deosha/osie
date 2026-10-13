@@ -466,9 +466,13 @@ Result<WorldPrediction> WorldModel::predict(const std::vector<CgroupWindow>& his
         if (!std::isfinite(v)) v = tg.lo;
         if (v < tg.lo || v > hi) tp.clamped = true;
         tp.expected = std::clamp(v, tg.lo, std::max(tg.lo, hi));
+        // Measured usage can exceed the configured capacity slightly (period
+        // alignment and accounting granularity: up to 2.2% in the development
+        // data), so intervals for capacity-bounded targets allow 3% above it.
+        const double iv_hi = tg.cap_bound ? cap * 1.03 : hi;
         for (const auto& [level, hw] : tg.conformal) {
-            tp.intervals.push_back(Interval{level, std::clamp(tp.expected - hw, tg.lo, std::max(tg.lo, hi)),
-                                            std::clamp(tp.expected + hw, tg.lo, std::max(tg.lo, hi))});
+            tp.intervals.push_back(Interval{level, std::clamp(tp.expected - hw, tg.lo, std::max(tg.lo, iv_hi)),
+                                            std::clamp(tp.expected + hw, tg.lo, std::max(tg.lo, iv_hi))});
         }
         // The usefulness gate uses the primary (lowest-level) interval. Split-
         // conformal widths do not depend on the state, so this is a check on the

@@ -1,0 +1,138 @@
+{
+ "frozen_at": "2026-10-13T11:11:40+00:00",
+ "artifact": "models/world_cpu.osiewm",
+ "sha256": "bd2983798e71bd0d3fb132ad6858abd32171058a1170ee5effe19b186c865332",
+ "model_id": "cpu-world-v0.2-mech-psi_some_res_h8",
+ "residual_targets": [
+  "psi_some"
+ ],
+ "residual_params": 305,
+ "residual_gates": {},
+ "hyperparameters": {
+  "hidden": 8,
+  "lr": 0.003,
+  "wd": 0.0001,
+  "batch": 32,
+  "loss": "quantile",
+  "seed": 1
+ },
+ "safe_throttle_max": 0.25,
+ "ood_score_threshold_calib_q99": 3.267095287988039,
+ "ood_flag_rate_calib": 0.016129032258064516,
+ "conformal_group_aware": {
+  "usage_cores": {
+   "0.8": 0.06690833299999999,
+   "0.95": 0.7817210033333335
+  },
+  "throttled_cores": {
+   "0.8": 0.2404456666666669,
+   "0.95": 1.8427356700000002
+  },
+  "throttled_ratio": {
+   "0.8": 0.0,
+   "0.95": 0.7333333333333334
+  },
+  "psi_some": {
+   "0.8": 0.12235915513247532,
+   "0.95": 0.3219052259003535
+  }
+ },
+ "conformal_naive_episode_level": {
+  "usage_cores": {
+   "0.8": 0.05826334139784956,
+   "0.95": 0.5104831028225842
+  },
+  "throttled_cores": {
+   "0.8": 0.16689017473118278,
+   "0.95": 1.4130173596491962
+  },
+  "throttled_ratio": {
+   "0.8": 0.0,
+   "0.95": 0.6666666666666667
+  },
+  "psi_some": {
+   "0.8": 0.11015739424435866,
+   "0.95": 0.27133595058992394
+  }
+ },
+ "calibration_runs": [
+  "arith-01",
+  "arith-02",
+  "arith-06",
+  "arith-08",
+  "batch-101",
+  "burst-00",
+  "burst-02",
+  "burst-06",
+  "burst-07",
+  "cf-hash-101",
+  "cf-mixed-101",
+  "hash-02",
+  "hash-05",
+  "hash-09",
+  "mixed-02",
+  "mixed-06",
+  "mixed-07",
+  "short-00",
+  "short-02",
+  "short-04",
+  "short-08"
+ ],
+ "fit_runs": [
+  "arith-00",
+  "arith-03",
+  "arith-04",
+  "arith-05",
+  "arith-07",
+  "arith-09",
+  "batch-100",
+  "batch-102",
+  "batch-103",
+  "burst-01",
+  "burst-03",
+  "burst-04",
+  "burst-05",
+  "burst-08",
+  "burst-09",
+  "cf-arith-100",
+  "cf-arith-101",
+  "cf-burst-100",
+  "cf-burst-101",
+  "cf-hash-100",
+  "cf-mixed-100",
+  "cf-short-100",
+  "cf-short-101",
+  "hash-00",
+  "hash-01",
+  "hash-03",
+  "hash-04",
+  "hash-06",
+  "hash-07",
+  "hash-08",
+  "mixed-00",
+  "mixed-01",
+  "mixed-03",
+  "mixed-04",
+  "mixed-05",
+  "mixed-08",
+  "mixed-09",
+  "short-01",
+  "short-03",
+  "short-05",
+  "short-06",
+  "short-07",
+  "short-09"
+ ],
+ "parity_max_abs_diff": 5.000000000032756e-06,
+ "selection_file": "results/v02/dev_selection.json",
+ "selection_summary": {
+  "A_mechanistic": 0.1686458127064336,
+  "B_learned": 0.26634966761372414,
+  "C_residual": 0.23436125662742419,
+  "D_rule_gate": 0.17740813488133844,
+  "E_learned_gate": 0.2130037534839131,
+  "F_abstain_on_disagreement": 0.11499197410267463,
+  "A_on_F_accepted": 0.08881027641988115,
+  "psi_C_residual_D_gated": 0.1686458127064336
+ }
+}

@@ -138,6 +138,43 @@ int run_predict(const std::string& model_path) {
     return 0;
 }
 
+/// predict-json M [ARCH KERNEL]: one JSON object per episode with everything the
+/// deployed predictor returns (intervals, abstention and reasons, throttling
+/// assessment, clamping). With ARCH and KERNEL the environment check is applied.
+int run_predict_json(const std::string& model_path, const std::string& arch, const std::string& kernel) {
+    auto m = WorldModel::load(model_path);
+    if (!m) {
+        std::fprintf(stderr, "%s\n", m.error().describe().c_str());
+        return 1;
+    }
+    for (std::string line; std::getline(std::cin, line);) {
+        auto ep = parse_tsv(line);
+        if (!ep) continue;
+        auto p = arch.empty() ? (*m)->predict(ep->hist, ep->a)
+                              : (*m)->predict_in(ep->hist, ep->a, RuntimeEnvironment{arch, kernel, 2});
+        json::Writer w;
+        w.begin_object().kv("id", ep->id);
+        if (!p) {
+            w.kv("error", p.error().message).end_object();
+            std::puts(w.str().c_str());
+            continue;
+        }
+        w.kv("abstained", p->abstained).kv("ood", p->out_of_distribution).kv("assessment", p->throttling_assessment);
+        w.key("reasons").begin_array();
+        for (const auto& r : p->reasons) w.value(r);
+        w.end_array().key("targets").begin_object();
+        for (const auto& t : p->targets) {
+            w.key(t.name).begin_object().kv("expected", t.expected).kv("clamped", t.clamped)
+                .kv("residual_applied", t.residual_applied).kv("status", t.status).key("intervals").begin_array();
+            for (const auto& iv : t.intervals) w.begin_array().value(iv.level).value(iv.lo).value(iv.hi).end_array();
+            w.end_array().end_object();
+        }
+        w.end_object().end_object();
+        std::puts(w.str().c_str());
+    }
+    return 0;
+}
+
 /// bench: loads model M and times predict() on the episodes given on stdin
 /// (feature encoding + model + bounds + intervals), single thread.
 int run_bench(const std::string& model_path) {
@@ -538,6 +575,8 @@ int main(int argc, char** argv) {
     if (mode == "encode") return run_encode();
     if (mode == "predict" && argc > 2) return run_predict(argv[2]);
     if (mode == "bench" && argc > 2) return run_bench(argv[2]);
+    if (mode == "predict-json" && argc > 2)
+        return run_predict_json(argv[2], argc > 4 ? argv[3] : "", argc > 4 ? argv[4] : "");
     if (mode == "names") {
         for (const auto& n : feature_names()) std::puts(n.c_str());
         return 0;
