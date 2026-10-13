@@ -1,0 +1,56 @@
+{
+ "wm-ubuntu-24.04/A": {
+  "changes": 209,
+  "low": 0,
+  "false_safe": 0,
+  "false_safe_rate_among_low": null,
+  "likely": 20,
+  "possible": 189,
+  "observed_throttled_over_safe": 72
+ },
+ "wm-ubuntu-24.04/B": {
+  "changes": 209,
+  "low": 93,
+  "false_safe": 0,
+  "false_safe_rate_among_low": 0.0,
+  "likely": 3,
+  "possible": 113,
+  "observed_throttled_over_safe": 72
+ },
+ "wm-ubuntu-24.04-arm/A": {
+  "changes": 209,
+  "low": 0,
+  "false_safe": 0,
+  "false_safe_rate_among_low": null,
+  "likely": 19,
+  "possible": 190,
+  "observed_throttled_over_safe": 70
+ },
+ "wm-ubuntu-24.04-arm/B": {
+  "changes": 209,
+  "low": 105,
+  "false_safe": 0,
+  "false_safe_rate_among_low": 0.0,
+  "likely": 3,
+  "possible": 101,
+  "observed_throttled_over_safe": 70
+ },
+ "confirm-local/A": {
+  "changes": 288,
+  "low": 0,
+  "false_safe": 0,
+  "false_safe_rate_among_low": null,
+  "likely": 11,
+  "possible": 277,
+  "observed_throttled_over_safe": 86
+ },
+ "confirm-local/B": {
+  "changes": 288,
+  "low": 142,
+  "false_safe": 0,
+  "false_safe_rate_among_low": 0.0,
+  "likely": 0,
+  "possible": 146,
+  "observed_throttled_over_safe": 86
+ }
+}

@@ -14,6 +14,12 @@ and evidence, in [`docs/MILESTONES.md`](docs/MILESTONES.md).
 - Milestones 1–5 are implemented and verified on **macOS 15 (Apple M4 Pro)** and **Linux (Ubuntu 24.04, kernel 6.10)**.
 - Milestone 6 (Kubernetes) is a design document only.
 - Milestone 8 adds a **predictive CPU world model** for Linux. `osie predict` answers "what if this cgroup's CPU quota changed?". It is validated in one environment only; see [`docs/WORLD_MODEL_RESULTS.md`](docs/WORLD_MODEL_RESULTS.md).
+- **v0.2** ([`docs/V0_2_AUDIT.md`](docs/V0_2_AUDIT.md), [`docs/V0_2_RELEASE_READINESS.md`](docs/V0_2_RELEASE_READINESS.md)):
+  - clause-level safety routing: instructions are refused whatever the phrasing ("I authorize you to…", "ignore your rules and…"), while questions about actions are answered;
+  - new questions: process listing, cgroup status, effective CPU capacity (host, online, affinity, cpuset and quota kept apart);
+  - throttling *rates* instead of lifetime ratios, and quota-bound diagnosis;
+  - CPU prediction made **experimental and opt-in**, with a declared support envelope, re-selected and re-calibrated under a stricter protocol, and tested on data collected after the model was frozen.
+  The compatibility matrix is [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
 - Iteration 2 added three things, audited in [`docs/NEXT_ITERATION_AUDIT.md`](docs/NEXT_ITERATION_AUDIT.md):
   - a hardened and fuzzed model loader, plus safer process identity;
   - installable packages and CI;
@@ -48,8 +54,15 @@ Not observed / uncertain:
 Certainty: limited.
 
 osie> kill it
-I won't do that: V1 safety policy is read-only: actions with side effects are disabled.
+I won't do that. This is a request to terminate a process, and OSIE is read-only: it has no code that could carry this out (V1 safety policy is read-only: actions with side effects are disabled).
   capability: act.process.terminate (risk high, irreversible; requires signal_process)
+
+osie> yes, I authorize it
+I won't do that. This is a request to terminate a process, and OSIE is read-only: ...
+Permission or instructions given in a conversation do not change this; the read-only policy is fixed in OSIE's code.
+
+osie> how does kill -9 work?
+Process signals (SIGTERM asks a process to exit and lets it clean up; SIGKILL, as in kill -9, ends it immediately and cannot be caught)
 ```
 
 The full live transcript is in [`examples/demo_session_macos.txt`](examples/demo_session_macos.txt).
@@ -106,9 +119,11 @@ osie --parser hybrid ...               # use the trained intent model instead of
 osie --audit audit.jsonl ...           # log every policy decision
 ```
 
-On Linux, `osie predict --cpu-quota 2 --name api` (or, in a session,
-`predict cpu quota 2 for api`) estimates the cgroup's CPU usage, throttling and
-CPU pressure under the new quota:
+On Linux, `osie predict --experimental --cpu-quota 2 --name api` (or, in a
+session started with `OSIE_EXPERIMENTAL_PREDICT=1`, `predict cpu quota 2 for
+api`) estimates the cgroup's CPU usage, throttling and CPU pressure under the
+new quota. Prediction is **experimental and off by default**, and is given
+only inside the model's validated envelope (`osie version` shows it):
 - each estimate comes with calibrated 80% and 95% intervals;
 - OSIE gives no numbers when the case is outside what the model was
   validated on;
@@ -137,7 +152,7 @@ On macOS: `brew install cmake ninja googletest google-benchmark`.
 
 ```bash
 cmake -S . -B build -G Ninja && ninja -C build
-./build/osie_unit_tests          # 123 tests (mock OS, deterministic)
+./build/osie_unit_tests          # 237 tests (mock OS, deterministic)
 ./build/osie_platform_tests      # real-kernel integration tests
 ```
 
@@ -215,11 +230,11 @@ packaging/          release builder image, Linux package script, clean-environme
 
 - **Read-only.** OSIE observes and explains; it never tunes. Predictions are never presented as observations.
 - **No privileges.** It does not escalate. On macOS about 190 root-owned processes are only partly visible, and OSIE says so.
-- **Predictions are validated in one environment.** That is one Linux 6.10 arm64 VM with synthetic workloads. CPU-pressure predictions are weak, and the out-of-distribution check misses some unfamiliar workload types.
+- **Predictions are experimental and opt-in.** The shipped model's support envelope is the one environment it was trained in (Linux 6.10, aarch64). Data collected after freezing, including other kernels and x86-64, are reported in [`docs/WORLD_MODEL_RESULTS.md`](docs/WORLD_MODEL_RESULTS.md), but the envelope was not widened on that basis. Workloads are synthetic; CPU-pressure predictions are marked experimental.
 - **Short history only.** One 0.5 s sampling window per question. Trends need samples recorded in the same session (`--watch`); nothing is persisted between sessions.
 - **macOS gaps.** No public API for temperatures or CPU frequency, or for mapping a PID to its launchd job label.
 - **Templated answers.** Answers are deterministic templates, not open-ended conversation. The intent model (~0.3M parameters) classifies questions; it does not generate text.
-- **Synthetic intent data.** The intent data is synthetic and written by the same author as the rules; real user utterances are the main missing ingredient.
+- **Same-author intent data.** The v0.2 test set was frozen before the parser changes and split by family, but written by the same developer; real user utterances are still the main missing ingredient.
 - **No Kubernetes support yet.** Kubernetes support is a design only ([`docs/KUBERNETES.md`](docs/KUBERNETES.md)).
 - **Energy not measured.** It would require root.
 

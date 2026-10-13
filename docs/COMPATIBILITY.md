@@ -44,6 +44,7 @@ it was validated; outside it OSIE answers "Prediction unavailable".
 | Capacity after the change | 0.5–3 cores | training range |
 | Actions | CPU quota 0.5–3 cores; cpuset 1–4 CPUs; offered load ×0.5–2 | training range |
 | Workloads | synthetic request servers (`arith`, `hash`, `short`, `burst`, `mixed`) and batch threads | training data |
+| Host CPUs | 12 (an unintended consequence of the training data: W8) | feature ranges |
 
 How the frozen model did on data collected after it was frozen, including
 other kernels and x86-64, is in
@@ -53,6 +54,12 @@ results"). The envelope was not widened on the basis of those results; see
 
 ## Known prediction failure modes
 
+- **Host CPU count (open defect W8).** Every training host had 12 CPUs, so
+  the out-of-distribution check withholds every prediction on a host with a
+  different CPU count, even with a supported architecture and kernel. In
+  practice predictions are given only on 12-CPU aarch64 Linux 6.10 hosts.
+  Data from 4-CPU x86-64 and arm64 hosts on kernel 6.17 show that the
+  predictor would have transferred (see the results).
 - Real services with application-level backpressure, caches or garbage
   collection are not in the training data.
 - CPU pressure (PSI) predictions are experimental; their interval coverage on
@@ -60,5 +67,7 @@ results"). The envelope was not widened on the basis of those results; see
 - The demand estimate is the *runnable* demand. A request backlog makes it
   overstate the long-run offered load, so after a quota increase the predicted
   usage holds only while the backlog drains.
-- The intervals are calibrated per target, not per regime. Coverage differs
-  between saturated and unsaturated cgroups (reported in the results).
+- The intervals for usage and throttling are regime-conditional (demand /
+  capacity after the change). The regime where demand reaches 1.3× capacity
+  or more has only 17 calibration runs, so its 95% half-widths use a
+  conservative fallback.

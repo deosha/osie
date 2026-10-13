@@ -1,0 +1,3733 @@
+{
+ "model_sha256": "bd2983798e71bd0d3fb132ad6858abd32171058a1170ee5effe19b186c865332",
+ "environments": {
+  "wm-ubuntu-24.04": {
+   "environment": {
+    "kernel": "6.17.0-1022-azure",
+    "architecture": "x86_64",
+    "os": "Ubuntu 24.04.5 LTS",
+    "hypervisor": "Microsoft Corporation Virtual Machine (virtual machine)",
+    "host_machine": "AMD EPYC 7763 64-Core Processor",
+    "vm_cpus": 4,
+    "cgroup_driver": "systemd",
+    "collected_at": "2026-10-13T11:16:15+00:00"
+   },
+   "all": {
+    "episodes": 294,
+    "runs": 30,
+    "usage_cores": {
+     "mae": 0.0912393335600907,
+     "ci95": [
+      0.05538075143535669,
+      0.1335416012118209
+     ],
+     "norm_mae": 0.17575353729317997,
+     "no_change_mae": 0.26971389455782313,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8639455782312925,
+       "mean_width": 0.12034200612244897
+      },
+      "0.95": {
+       "coverage": 0.95578231292517,
+       "mean_width": 1.011190011122449
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.2371149426941043,
+     "ci95": [
+      0.16464619427707866,
+      0.315253934202047
+     ],
+     "norm_mae": 0.2722910004434647,
+     "no_change_mae": 0.5374066644778912,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8027210884353742,
+       "mean_width": 0.33390195190476185
+      },
+      "0.95": {
+       "coverage": 0.9659863945578231,
+       "mean_width": 2.2861141523809523
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.08012093707482994,
+     "ci95": [
+      0.05330103024701999,
+      0.1089161807479759
+     ],
+     "norm_mae": 0.1999279478620896,
+     "no_change_mae": 0.2526643990929705,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8605442176870748,
+       "mean_width": 0.0
+      },
+      "0.95": {
+       "coverage": 0.9319727891156463,
+       "mean_width": 0.733333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.0830683108067687,
+     "ci95": [
+      0.06671920088250823,
+      0.09933546538316823
+     ],
+     "norm_mae": 0.29217900381700596,
+     "no_change_mae": 0.17043142837758501,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.7755102040816326,
+       "mean_width": 0.18365932442176872
+      },
+      "0.95": {
+       "coverage": 0.9523809523809523,
+       "mean_width": 0.4326498938095238
+      }
+     },
+     "clamped_rate": 0.1360544217687075
+    },
+    "deployed_abstention_rate": 1.0,
+    "abstention_reasons": {
+     "feature g_host_cpus": 294,
+     "CPU architecture x86_64 was not validated": 294,
+     "kernel 6.17 is outside the validated range 6.10-6.10": 294,
+     "the observed state is unlike the training data": 81,
+     "feature g_host_busy": 47,
+     "feature g_pids": 26,
+     "feature h_usage_slope": 1
+    },
+    "forced_ood_rate": 1.0,
+    "false_safe_forced": {
+     "changes": 209,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 209,
+     "assessments": {
+      "unknown": 209
+     },
+     "point_estimate_rule_false_safe": "1/127"
+    },
+    "false_safe_deployed": {
+     "changes": 209,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 209,
+     "assessments": {
+      "unknown": 209
+     },
+     "point_estimate_rule_false_safe": "1/127"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 152
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.7419354838709677,
+      "n": 31
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 0.9710144927536232,
+      "n": 69
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 42
+     }
+    }
+   },
+   "held_in": {
+    "episodes": 150,
+    "runs": 15,
+    "usage_cores": {
+     "mae": 0.09533675699999998,
+     "ci95": [
+      0.04887023963888888,
+      0.1564226658555555
+     ],
+     "norm_mae": 0.18364636854536967,
+     "no_change_mae": 0.20073646922222219,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8533333333333334,
+       "mean_width": 0.12300722266666668
+      },
+      "0.95": {
+       "coverage": 0.9533333333333334,
+       "mean_width": 1.0418452566666667
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.2492170327322222,
+     "ci95": [
+      0.1816111279159722,
+      0.3197117184484722
+     ],
+     "norm_mae": 0.286188438396952,
+     "no_change_mae": 0.4686987003088889,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.7666666666666667,
+       "mean_width": 0.31097687239999994
+      },
+      "0.95": {
+       "coverage": 0.9733333333333334,
+       "mean_width": 2.1273769199999992
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.06548148111111111,
+     "ci95": [
+      0.034664814805555555,
+      0.1
+     ],
+     "norm_mae": 0.16339771624597432,
+     "no_change_mae": 0.2599629633333334,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8933333333333333,
+       "mean_width": 0.0
+      },
+      "0.95": {
+       "coverage": 0.9466666666666667,
+       "mean_width": 0.7333330000000001
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.0677921104412222,
+     "ci95": [
+      0.05125132199866389,
+      0.08486982851508332
+     ],
+     "norm_mae": 0.23844750306099607,
+     "no_change_mae": 0.16963629005155556,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8333333333333334,
+       "mean_width": 0.17946952666666668
+      },
+      "0.95": {
+       "coverage": 0.9533333333333334,
+       "mean_width": 0.42418915520000006
+      }
+     },
+     "clamped_rate": 0.13333333333333333
+    },
+    "deployed_abstention_rate": 1.0,
+    "abstention_reasons": {
+     "feature g_host_cpus": 150,
+     "CPU architecture x86_64 was not validated": 150,
+     "kernel 6.17 is outside the validated range 6.10-6.10": 150,
+     "the observed state is unlike the training data": 24,
+     "feature g_host_busy": 19,
+     "feature h_usage_slope": 1
+    },
+    "forced_ood_rate": 1.0,
+    "false_safe_forced": {
+     "changes": 102,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 102,
+     "assessments": {
+      "unknown": 102
+     },
+     "point_estimate_rule_false_safe": "1/72"
+    },
+    "false_safe_deployed": {
+     "changes": 102,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 102,
+     "assessments": {
+      "unknown": 102
+     },
+     "point_estimate_rule_false_safe": "1/72"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 96
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.8421052631578947,
+      "n": 19
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 0.9473684210526315,
+      "n": 19
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 16
+     }
+    }
+   },
+   "new": {
+    "episodes": 120,
+    "runs": 12,
+    "usage_cores": {
+     "mae": 0.10364763208333332,
+     "ci95": [
+      0.048899854749999985,
+      0.17225271621180557
+     ],
+     "norm_mae": 0.19965553517234402,
+     "no_change_mae": 0.2683236884722222,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.85,
+       "mean_width": 0.11891912
+      },
+      "0.95": {
+       "coverage": 0.95,
+       "mean_width": 1.0011926480833333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.26769652147833334,
+     "ci95": [
+      0.13247728332289585,
+      0.4309447475791873
+     ],
+     "norm_mae": 0.30740936366294735,
+     "no_change_mae": 0.5875168710875,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8083333333333333,
+       "mean_width": 0.3471298166666667
+      },
+      "0.95": {
+       "coverage": 0.95,
+       "mean_width": 2.3624307399999998
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.09638888888888889,
+     "ci95": [
+      0.04638194444444445,
+      0.1513958333333333
+     ],
+     "norm_mae": 0.24052180935258272,
+     "no_change_mae": 0.25129629583333335,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8166666666666667,
+       "mean_width": 0.0
+      },
+      "0.95": {
+       "coverage": 0.9166666666666666,
+       "mean_width": 0.733333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.09451581771741667,
+     "ci95": [
+      0.0665618129321875,
+      0.12070562849461454
+     ],
+     "norm_mae": 0.3324437104525101,
+     "no_change_mae": 0.15794888356230555,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.7416666666666667,
+       "mean_width": 0.18380519983333335
+      },
+      "0.95": {
+       "coverage": 0.95,
+       "mean_width": 0.43141104166666666
+      }
+     },
+     "clamped_rate": 0.15
+    },
+    "deployed_abstention_rate": 1.0,
+    "abstention_reasons": {
+     "feature g_host_cpus": 120,
+     "CPU architecture x86_64 was not validated": 120,
+     "kernel 6.17 is outside the validated range 6.10-6.10": 120,
+     "the observed state is unlike the training data": 44,
+     "feature g_pids": 26,
+     "feature g_host_busy": 25
+    },
+    "forced_ood_rate": 1.0,
+    "false_safe_forced": {
+     "changes": 83,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 83,
+     "assessments": {
+      "unknown": 83
+     },
+     "point_estimate_rule_false_safe": "0/48"
+    },
+    "false_safe_deployed": {
+     "changes": 83,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 83,
+     "assessments": {
+      "unknown": 83
+     },
+     "point_estimate_rule_false_safe": "0/48"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/throttled_after": {
+      "coverage": 0.9714285714285714,
+      "n": 35
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 23
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 52
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.5,
+      "n": 10
+     }
+    }
+   },
+   "batch": {
+    "episodes": 24,
+    "runs": 3,
+    "usage_cores": {
+     "mae": 0.0035889444444444133,
+     "ci95": [
+      0.001734020833333294,
+      0.0072233749999999625
+     ],
+     "norm_mae": 0.006913352571173528,
+     "no_change_mae": 0.7077738333333333,
+     "coverage": {
+      "0.8": {
+       "coverage": 1.0,
+       "mean_width": 0.11079883333333335
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.8695815416666667
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.008568986034722247,
+     "ci95": [
+      0.006860249999999984,
+      0.011083478541666714
+     ],
+     "norm_mae": 0.009840197136756042,
+     "no_change_mae": 0.7162804074861112,
+     "coverage": {
+      "0.8": {
+       "coverage": 1.0,
+       "mean_width": 0.41104437499999996
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 2.896638916666667
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.09027777777777779,
+     "ci95": [
+      0.0,
+      0.19166666666666668
+     ],
+     "norm_mae": 0.22527258801034408,
+     "no_change_mae": 0.21388888888888888,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.875,
+       "mean_width": 0.0
+      },
+      "0.95": {
+       "coverage": 0.9166666666666666,
+       "mean_width": 0.733333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.12130702853819446,
+     "ci95": [
+      0.08837154095416667,
+      0.17517624447916666
+     ],
+     "norm_mae": 0.42667735036454746,
+     "no_change_mae": 0.23781376699166665,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.5833333333333334,
+       "mean_width": 0.20911618333333334
+      },
+      "0.95": {
+       "coverage": 0.9583333333333334,
+       "mean_width": 0.49172377083333335
+      }
+     },
+     "clamped_rate": 0.08333333333333333
+    },
+    "deployed_abstention_rate": 1.0,
+    "abstention_reasons": {
+     "feature g_host_cpus": 24,
+     "CPU architecture x86_64 was not validated": 24,
+     "kernel 6.17 is outside the validated range 6.10-6.10": 24,
+     "the observed state is unlike the training data": 13,
+     "feature g_host_busy": 3
+    },
+    "forced_ood_rate": 1.0,
+    "false_safe_forced": {
+     "changes": 24,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 24,
+     "assessments": {
+      "unknown": 24
+     },
+     "point_estimate_rule_false_safe": "0/7"
+    },
+    "false_safe_deployed": {
+     "changes": 24,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 24,
+     "assessments": {
+      "unknown": 24
+     },
+     "point_estimate_rule_false_safe": "0/7"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 15
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 4
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 2
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 3
+     }
+    }
+   },
+   "by_family": {
+    "arith": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.04360678333333333,
+      "ci95": [
+       0.008791316666666604,
+       0.07995035000000004
+      ],
+      "norm_mae": 0.08399936871265107,
+      "no_change_mae": 0.35200491666666667,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.11644009999999999
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.0443985133333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.3469581777777778,
+      "ci95": [
+       0.21915295666666676,
+       0.4247821333333333
+      ],
+      "norm_mae": 0.39842950539405897,
+      "no_change_mae": 0.6603816044888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7,
+        "mean_width": 0.341779792
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 2.3425544666666673
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.061111111111111116,
+      "ci95": [
+       0.006666666666666677,
+       0.09666666666666668
+      ],
+      "norm_mae": 0.15249221342238675,
+      "no_change_mae": 0.29555555555555557,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.08314770205555556,
+      "ci95": [
+       0.039784309,
+       0.12417521606666668
+      ],
+      "norm_mae": 0.2924582493651223,
+      "no_change_mae": 0.2480978621338889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.18413732000000005
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.4386500333333333
+       }
+      },
+      "clamped_rate": 0.06666666666666667
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "CPU architecture x86_64 was not validated": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "the observed state is unlike the training data": 9,
+      "feature g_host_busy": 7
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 24,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 24,
+      "assessments": {
+       "unknown": 24
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "false_safe_deployed": {
+      "changes": 24,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 24,
+      "assessments": {
+       "unknown": 24
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 13
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.75,
+       "n": 4
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 7
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 6
+      }
+     }
+    },
+    "batch_spin": {
+     "episodes": 24,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.0035889444444444133,
+      "ci95": [
+       0.001734020833333294,
+       0.0072233749999999625
+      ],
+      "norm_mae": 0.006913352571173528,
+      "no_change_mae": 0.7077738333333333,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.11079883333333335
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.8695815416666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.008568986034722247,
+      "ci95": [
+       0.006860249999999984,
+       0.011083478541666714
+      ],
+      "norm_mae": 0.009840197136756042,
+      "no_change_mae": 0.7162804074861112,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.41104437499999996
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.896638916666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.09027777777777779,
+      "ci95": [
+       0.0,
+       0.19166666666666668
+      ],
+      "norm_mae": 0.22527258801034408,
+      "no_change_mae": 0.21388888888888888,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.875,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9166666666666666,
+        "mean_width": 0.733333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.12130702853819446,
+      "ci95": [
+       0.08837154095416667,
+       0.17517624447916666
+      ],
+      "norm_mae": 0.42667735036454746,
+      "no_change_mae": 0.23781376699166665,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.5833333333333334,
+        "mean_width": 0.20911618333333334
+       },
+       "0.95": {
+        "coverage": 0.9583333333333334,
+        "mean_width": 0.49172377083333335
+       }
+      },
+      "clamped_rate": 0.08333333333333333
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 24,
+      "CPU architecture x86_64 was not validated": 24,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 24,
+      "the observed state is unlike the training data": 13,
+      "feature g_host_busy": 3
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 24,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 24,
+      "assessments": {
+       "unknown": 24
+      },
+      "point_estimate_rule_false_safe": "0/7"
+     },
+     "false_safe_deployed": {
+      "changes": 24,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 24,
+      "assessments": {
+       "unknown": 24
+      },
+      "point_estimate_rule_false_safe": "0/7"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 15
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "burst": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.24601316222222222,
+      "ci95": [
+       0.17274088666666668,
+       0.38465773333333336
+      ],
+      "norm_mae": 0.47389302172795794,
+      "no_change_mae": 0.1565410066666666,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.5666666666666667,
+        "mean_width": 0.12247636666666667
+       },
+       "0.95": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 1.0282314033333335
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.1384005249388889,
+      "ci95": [
+       0.11968311090000003,
+       0.15810334483333335
+      ],
+      "norm_mae": 0.15893227550035702,
+      "no_change_mae": 0.48356801206111105,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.3103893666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.174442833333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.11962962777777778,
+      "ci95": [
+       0.06333333333333332,
+       0.16999999999999998
+      ],
+      "norm_mae": 0.2985150555937567,
+      "no_change_mae": 0.28648148333333334,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.04721159779166668,
+      "ci95": [
+       0.01973216733166667,
+       0.07322047857166666
+      ],
+      "norm_mae": 0.1660589637300573,
+      "no_change_mae": 0.17950631991611107,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.18651417333333334
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.43401925933333335
+       }
+      },
+      "clamped_rate": 0.16666666666666666
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "CPU architecture x86_64 was not validated": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "the observed state is unlike the training data": 7,
+      "feature g_host_busy": 2,
+      "feature h_usage_slope": 1
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 23,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 23,
+      "assessments": {
+       "unknown": 23
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "false_safe_deployed": {
+      "changes": 23,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 23,
+      "assessments": {
+       "unknown": 23
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 20
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "closed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.03773937277777777,
+      "ci95": [
+       0.008271383333333309,
+       0.05689766666666669
+      ],
+      "norm_mae": 0.07269702662341315,
+      "no_change_mae": 0.21504006499999992,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.12451408
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.054208
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.11406061684111111,
+      "ci95": [
+       0.005445799936666662,
+       0.2906107505866667
+      ],
+      "norm_mae": 0.13098153628778905,
+      "no_change_mae": 0.1979877070222222,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.3171993000000001
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.094982
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.09777777777777778,
+      "ci95": [
+       0.0,
+       0.2733333333333334
+      ],
+      "norm_mae": 0.2439875414758188,
+      "no_change_mae": 0.21888888888888888,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.052667401535222216,
+      "ci95": [
+       0.018337942716666673,
+       0.11020340131833332
+      ],
+      "norm_mae": 0.185248848384402,
+      "no_change_mae": 0.08239836413255557,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.17602774333333335
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.4227258533333334
+       }
+      },
+      "clamped_rate": 0.13333333333333333
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "CPU architecture x86_64 was not validated": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "feature g_pids": 6,
+      "feature g_host_busy": 6,
+      "the observed state is unlike the training data": 3
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 20,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 20,
+      "assessments": {
+       "unknown": 20
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "false_safe_deployed": {
+      "changes": 20,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 20,
+      "assessments": {
+       "unknown": 20
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 18
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "hash": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.015346022222222224,
+      "ci95": [
+       0.012471416666666634,
+       0.019662650000000014
+      ],
+      "norm_mae": 0.02956090957370887,
+      "no_change_mae": 0.22324913888888887,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.12498012666666666
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.0511599
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.31694505094444453,
+      "ci95": [
+       0.1833736666666667,
+       0.3846463895
+      ],
+      "norm_mae": 0.3639639241066418,
+      "no_change_mae": 0.44539266161111113,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.2958988833333333
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.971004
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.013333333333333334,
+      "ci95": [
+       0.0,
+       0.03666666666666667
+      ],
+      "norm_mae": 0.033271028383066205,
+      "no_change_mae": 0.24777777777777776,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.08375544383666668,
+      "ci95": [
+       0.05911293943333333,
+       0.12151189026666666
+      ],
+      "norm_mae": 0.29459588026742967,
+      "no_change_mae": 0.17318349013,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.18199209
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.4257718400000001
+       }
+      },
+      "clamped_rate": 0.06666666666666667
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "CPU architecture x86_64 was not validated": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "feature g_host_busy": 5,
+      "the observed state is unlike the training data": 3
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 17,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 17,
+      "assessments": {
+       "unknown": 17
+      },
+      "point_estimate_rule_false_safe": "0/11"
+     },
+     "false_safe_deployed": {
+      "changes": 17,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 17,
+      "assessments": {
+       "unknown": 17
+      },
+      "point_estimate_rule_false_safe": "0/11"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.7142857142857143,
+       "n": 7
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 22
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      }
+     }
+    },
+    "hashbig": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.07903637777777775,
+      "ci95": [
+       0.008204666666666683,
+       0.15432204999999993
+      ],
+      "norm_mae": 0.15224708935577536,
+      "no_change_mae": 0.2554956222222222,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.1094814
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.8852245333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.1594185515555555,
+      "ci95": [
+       0.018496199999999983,
+       0.3057947979999999
+      ],
+      "norm_mae": 0.18306833132954461,
+      "no_change_mae": 0.4361227919444444,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.4028688000000001
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.707460793333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.09777777777777778,
+      "ci95": [
+       0.0,
+       0.19333333333333333
+      ],
+      "norm_mae": 0.2439875414758188,
+      "no_change_mae": 0.1511111111111111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.11824920577222224,
+      "ci95": [
+       0.11371027653833335,
+       0.126957610445
+      ],
+      "norm_mae": 0.41592196601961956,
+      "no_change_mae": 0.15896098014944446,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6,
+        "mean_width": 0.21239706866666666
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.5016288066666666
+       }
+      },
+      "clamped_rate": 0.06666666666666667
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "CPU architecture x86_64 was not validated": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "the observed state is unlike the training data": 14,
+      "feature g_host_busy": 6
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 18,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 18,
+      "assessments": {
+       "unknown": 18
+      },
+      "point_estimate_rule_false_safe": "0/6"
+     },
+     "false_safe_deployed": {
+      "changes": 18,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 18,
+      "assessments": {
+       "unknown": 18
+      },
+      "point_estimate_rule_false_safe": "0/6"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 18
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 6
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      }
+     }
+    },
+    "mixed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.06045375611111111,
+      "ci95": [
+       0.012059699999999982,
+       0.14682864999999998
+      ],
+      "norm_mae": 0.11645154632995337,
+      "no_change_mae": 0.08521342277777778,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.12616495333333336
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.0154596333333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.08988749444444445,
+      "ci95": [
+       0.019463,
+       0.16188468333333333
+      ],
+      "norm_mae": 0.10322232547448273,
+      "no_change_mae": 0.17323822777777778,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.2763547433333334
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.8895386666666665
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.03333333333333333,
+      "ci95": [
+       0.0,
+       0.1
+      ],
+      "norm_mae": 0.0831775709576655,
+      "no_change_mae": 0.16666666666666666,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.033042750588888885,
+      "ci95": [
+       0.011274124299999999,
+       0.049375133333333335
+      ],
+      "norm_mae": 0.11622239403535177,
+      "no_change_mae": 0.06986655185,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.16043471
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.39693500666666665
+       }
+      },
+      "clamped_rate": 0.23333333333333334
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "CPU architecture x86_64 was not validated": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 21,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 21,
+      "assessments": {
+       "unknown": 21
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "false_safe_deployed": {
+      "changes": 21,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 21,
+      "assessments": {
+       "unknown": 21
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 25
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      }
+     }
+    },
+    "short": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.11126406111111113,
+      "ci95": [
+       0.014533116666666767,
+       0.22576056666666666
+      ],
+      "norm_mae": 0.21432699638257732,
+      "no_change_mae": 0.18667386111111112,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.12497456666666665
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.0699768333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.3538939155555555,
+      "ci95": [
+       0.2511753633333333,
+       0.5006745833333333
+      ],
+      "norm_mae": 0.4063941615092198,
+      "no_change_mae": 0.5809129956055555,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6666666666666666,
+        "mean_width": 0.3304615766666667
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 2.259344633333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.1,
+      "ci95": [
+       0.0,
+       0.2
+      ],
+      "norm_mae": 0.24953271287299653,
+      "no_change_mae": 0.30333333333333334,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.09180305793333333,
+      "ci95": [
+       0.06768919150000001,
+       0.11440497446666667
+      ],
+      "norm_mae": 0.32290202790701983,
+      "no_change_mae": 0.17752722622777778,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.18426934000000003
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.4255696366666667
+       }
+      },
+      "clamped_rate": 0.13333333333333333
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "CPU architecture x86_64 was not validated": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "feature g_host_busy": 5,
+      "the observed state is unlike the training data": 5
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 17,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 17,
+      "assessments": {
+       "unknown": 17
+      },
+      "point_estimate_rule_false_safe": "1/13"
+     },
+     "false_safe_deployed": {
+      "changes": 17,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 17,
+      "assessments": {
+       "unknown": 17
+      },
+      "point_estimate_rule_false_safe": "1/13"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 0.875,
+       "n": 8
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 16
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      }
+     }
+    },
+    "variable": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.21129348333333328,
+      "ci95": [
+       0.034972599999999986,
+       0.39228135000000003
+      ],
+      "norm_mae": 0.4070128052653213,
+      "no_change_mae": 0.1347175611111111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7333333333333333,
+        "mean_width": 0.12420566666666666
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 1.0801151356666665
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.4213221637222222,
+      "ci95": [
+       0.03153947833333333,
+       0.8191307466666667
+      ],
+      "norm_mae": 0.48382540621629755,
+      "no_change_mae": 0.7133954300111113,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.3318267333333334
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 2.136896
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.14666666666666667,
+      "ci95": [
+       0.02666666666666666,
+       0.21
+      ],
+      "norm_mae": 0.3659813122137282,
+      "no_change_mae": 0.3507407388888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.07938208582888888,
+      "ci95": [
+       0.028875141399999995,
+       0.12794666549833333
+      ],
+      "norm_mae": 0.2792133189316149,
+      "no_change_mae": 0.20752374430055556,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.1839290033333333
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.4294641066666666
+       }
+      },
+      "clamped_rate": 0.13333333333333333
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "CPU architecture x86_64 was not validated": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "the observed state is unlike the training data": 8,
+      "feature g_host_busy": 4
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 26,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 26,
+      "assessments": {
+       "unknown": 26
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "false_safe_deployed": {
+      "changes": 26,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 26,
+      "assessments": {
+       "unknown": 26
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 7
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 16
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.25,
+       "n": 4
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "wide": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.08652129444444444,
+      "ci95": [
+       0.02040103333333334,
+       0.20451326666666667
+      ],
+      "norm_mae": 0.16666521944486629,
+      "no_change_mae": 0.4680415055555555,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.1174753333333333
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.9852229233333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.37598475379444446,
+      "ci95": [
+       0.08751081166666665,
+       0.7819103617166667
+      ],
+      "norm_mae": 0.4317621808181581,
+      "no_change_mae": 1.0025615553722222,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.3366244333333334
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 2.510384166666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.043333333333333335,
+      "ci95": [
+       0.01333333333333333,
+       0.1
+      ],
+      "norm_mae": 0.10813084224496515,
+      "no_change_mae": 0.28444444444444444,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.12776457773333333,
+      "ci95": [
+       0.05379617389999999,
+       0.18679234263333339
+      ],
+      "norm_mae": 0.44939070847440377,
+      "no_change_mae": 0.18291244566666667,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.6666666666666666,
+        "mean_width": 0.16286698400000002
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.3718254
+       }
+      },
+      "clamped_rate": 0.26666666666666666
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "CPU architecture x86_64 was not validated": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "feature g_pids": 20,
+      "the observed state is unlike the training data": 19,
+      "feature g_host_busy": 9
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 19,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 19,
+      "assessments": {
+       "unknown": 19
+      },
+      "point_estimate_rule_false_safe": "0/10"
+     },
+     "false_safe_deployed": {
+      "changes": 19,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 19,
+      "assessments": {
+       "unknown": 19
+      },
+      "point_estimate_rule_false_safe": "0/10"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 0.9,
+       "n": 10
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 13
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.0,
+       "n": 2
+      }
+     }
+    }
+   }
+  },
+  "wm-ubuntu-24.04-arm": {
+   "environment": {
+    "kernel": "6.17.0-1022-azure",
+    "architecture": "aarch64",
+    "os": "Ubuntu 24.04.5 LTS",
+    "hypervisor": "Microsoft Corporation Virtual Machine",
+    "host_machine": "aarch64",
+    "vm_cpus": 4,
+    "cgroup_driver": "systemd",
+    "collected_at": "2026-10-13T11:16:00+00:00"
+   },
+   "all": {
+    "episodes": 294,
+    "runs": 30,
+    "usage_cores": {
+     "mae": 0.07927523253968255,
+     "ci95": [
+      0.04586066539079482,
+      0.11783376300096549
+     ],
+     "norm_mae": 0.15270719321302723,
+     "no_change_mae": 0.2569214732993197,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8707482993197279,
+       "mean_width": 0.12053753741496598
+      },
+      "0.95": {
+       "coverage": 0.9693877551020408,
+       "mean_width": 1.017681910102041
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.21859697841967118,
+     "ci95": [
+      0.14941376866760964,
+      0.2954158854257854
+     ],
+     "norm_mae": 0.2510258917954339,
+     "no_change_mae": 0.48726039066887755,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8231292517006803,
+       "mean_width": 0.32720429999999995
+      },
+      "0.95": {
+       "coverage": 0.9659863945578231,
+       "mean_width": 2.26419561122449
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.08499622052154195,
+     "ci95": [
+      0.055366852109751015,
+      0.1165939279978888
+     ],
+     "norm_mae": 0.21209337490691818,
+     "no_change_mae": 0.2328231298185941,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8605442176870748,
+       "mean_width": 0.0
+      },
+      "0.95": {
+       "coverage": 0.9387755102040817,
+       "mean_width": 0.733333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.08087208692522108,
+     "ci95": [
+      0.0642866930461987,
+      0.09738309423711991
+     ],
+     "norm_mae": 0.28445415062524687,
+     "no_change_mae": 0.1622293061160544,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.7687074829931972,
+       "mean_width": 0.18073465384693876
+      },
+      "0.95": {
+       "coverage": 0.935374149659864,
+       "mean_width": 0.4280285504421768
+      }
+     },
+     "clamped_rate": 0.14285714285714285
+    },
+    "deployed_abstention_rate": 1.0,
+    "abstention_reasons": {
+     "feature g_host_cpus": 294,
+     "kernel 6.17 is outside the validated range 6.10-6.10": 294,
+     "the observed state is unlike the training data": 76,
+     "feature g_host_busy": 46,
+     "feature g_pids": 26,
+     "feature h_usage_slope": 1
+    },
+    "forced_ood_rate": 1.0,
+    "false_safe_forced": {
+     "changes": 209,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 209,
+     "assessments": {
+      "unknown": 209
+     },
+     "point_estimate_rule_false_safe": "2/132"
+    },
+    "false_safe_deployed": {
+     "changes": 209,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 209,
+     "assessments": {
+      "unknown": 209
+     },
+     "point_estimate_rule_false_safe": "2/132"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 159
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.7586206896551724,
+      "n": 29
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 0.9696969696969697,
+      "n": 66
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 0.975,
+      "n": 40
+     }
+    }
+   },
+   "held_in": {
+    "episodes": 150,
+    "runs": 15,
+    "usage_cores": {
+     "mae": 0.08585525088888889,
+     "ci95": [
+      0.04251030040833331,
+      0.13804549647499995
+     ],
+     "norm_mae": 0.16538222551765705,
+     "no_change_mae": 0.1758817334444444,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8533333333333334,
+       "mean_width": 0.12337487533333336
+      },
+      "0.95": {
+       "coverage": 0.9666666666666667,
+       "mean_width": 1.0530266273333333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.21288264716666663,
+     "ci95": [
+      0.15021282685,
+      0.2774539051430555
+     ],
+     "norm_mae": 0.24446383815146228,
+     "no_change_mae": 0.39087261159666664,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8066666666666666,
+       "mean_width": 0.29966343799999995
+      },
+      "0.95": {
+       "coverage": 0.9733333333333334,
+       "mean_width": 2.090777053333333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.062222222222222213,
+     "ci95": [
+      0.029100000000000004,
+      0.0971111111111111
+     ],
+     "norm_mae": 0.15526479912097557,
+     "no_change_mae": 0.2357777788888889,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.9,
+       "mean_width": 0.0
+      },
+      "0.95": {
+       "coverage": 0.96,
+       "mean_width": 0.7333330000000001
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.06614255908956666,
+     "ci95": [
+      0.046919376540389995,
+      0.08468405469293858
+     ],
+     "norm_mae": 0.23264547981060346,
+     "no_change_mae": 0.15742211115103333,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8333333333333334,
+       "mean_width": 0.17573249420666667
+      },
+      "0.95": {
+       "coverage": 0.9466666666666667,
+       "mean_width": 0.4158428190666667
+      }
+     },
+     "clamped_rate": 0.17333333333333334
+    },
+    "deployed_abstention_rate": 1.0,
+    "abstention_reasons": {
+     "feature g_host_cpus": 150,
+     "kernel 6.17 is outside the validated range 6.10-6.10": 150,
+     "feature g_host_busy": 19,
+     "the observed state is unlike the training data": 18,
+     "feature h_usage_slope": 1
+    },
+    "forced_ood_rate": 1.0,
+    "false_safe_forced": {
+     "changes": 102,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 102,
+     "assessments": {
+      "unknown": 102
+     },
+     "point_estimate_rule_false_safe": "2/77"
+    },
+    "false_safe_deployed": {
+     "changes": 102,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 102,
+     "assessments": {
+      "unknown": 102
+     },
+     "point_estimate_rule_false_safe": "2/77"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 101
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.8235294117647058,
+      "n": 17
+     },
+     "pre_saturated/throttled_after": {
+      "coverage": 0.9411764705882353,
+      "n": 17
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 15
+     }
+    }
+   },
+   "new": {
+    "episodes": 120,
+    "runs": 12,
+    "usage_cores": {
+     "mae": 0.0863798588888889,
+     "ci95": [
+      0.03579843952777778,
+      0.15750286843749994
+     ],
+     "norm_mae": 0.16639277336028874,
+     "no_change_mae": 0.267779065,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8666666666666667,
+       "mean_width": 0.1189384475
+      },
+      "0.95": {
+       "coverage": 0.9666666666666667,
+       "mean_width": 1.0031083289166667
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.2680283120018056,
+     "ci95": [
+      0.1330502379728924,
+      0.43252501562999995
+     ],
+     "norm_mae": 0.30779037538893744,
+     "no_change_mae": 0.5620441487345834,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8083333333333333,
+       "mean_width": 0.34487070416666665
+      },
+      "0.95": {
+       "coverage": 0.95,
+       "mean_width": 2.3546119724999994
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.1126851847222222,
+     "ci95": [
+      0.06045370322916667,
+      0.16694907270833328
+     ],
+     "norm_mae": 0.28118639844330845,
+     "no_change_mae": 0.23180555555555554,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.8083333333333333,
+       "mean_width": 0.0
+      },
+      "0.95": {
+       "coverage": 0.9083333333333333,
+       "mean_width": 0.733333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.09195132822079165,
+     "ci95": [
+      0.06560836695553264,
+      0.11569556311185765
+     ],
+     "norm_mae": 0.3234235440479463,
+     "no_change_mae": 0.15197308121173608,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.75,
+       "mean_width": 0.18162586583333334
+      },
+      "0.95": {
+       "coverage": 0.9166666666666666,
+       "mean_width": 0.4307963164166667
+      }
+     },
+     "clamped_rate": 0.125
+    },
+    "deployed_abstention_rate": 1.0,
+    "abstention_reasons": {
+     "feature g_host_cpus": 120,
+     "kernel 6.17 is outside the validated range 6.10-6.10": 120,
+     "the observed state is unlike the training data": 45,
+     "feature g_pids": 26,
+     "feature g_host_busy": 24
+    },
+    "forced_ood_rate": 1.0,
+    "false_safe_forced": {
+     "changes": 83,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 83,
+     "assessments": {
+      "unknown": 83
+     },
+     "point_estimate_rule_false_safe": "0/48"
+    },
+    "false_safe_deployed": {
+     "changes": 83,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 83,
+     "assessments": {
+      "unknown": 83
+     },
+     "point_estimate_rule_false_safe": "0/48"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/throttled_after": {
+      "coverage": 0.9705882352941176,
+      "n": 34
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 0.9545454545454546,
+      "n": 22
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 54
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 0.6,
+      "n": 10
+     }
+    }
+   },
+   "batch": {
+    "episodes": 24,
+    "runs": 3,
+    "usage_cores": {
+     "mae": 0.002626986111111125,
+     "ci95": [
+      0.001617375000000018,
+      0.004126083333333329
+     ],
+     "norm_mae": 0.005060340572783289,
+     "no_change_mae": 0.7091318888888889,
+     "coverage": {
+      "0.8": {
+       "coverage": 1.0,
+       "mean_width": 0.11079962500000003
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 0.8696453333333333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_cores": {
+     "mae": 0.007154880840277857,
+     "ci95": [
+      0.0024357499999999865,
+      0.01226804618750021
+     ],
+     "norm_mae": 0.008216309102739124,
+     "no_change_mae": 0.7157652195416667,
+     "coverage": {
+      "0.8": {
+       "coverage": 1.0,
+       "mean_width": 0.4110026666666667
+      },
+      "0.95": {
+       "coverage": 1.0,
+       "mean_width": 2.895979791666667
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "throttled_ratio": {
+     "mae": 0.08888888888888889,
+     "ci95": [
+      0.0,
+      0.16666666666666666
+     ],
+     "norm_mae": 0.221806855887108,
+     "no_change_mae": 0.21944444444444444,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.875,
+       "mean_width": 0.0
+      },
+      "0.95": {
+       "coverage": 0.9583333333333334,
+       "mean_width": 0.733333
+      }
+     },
+     "clamped_rate": 0.0
+    },
+    "psi_some": {
+     "mae": 0.11753542942020832,
+     "ci95": [
+      0.08272607758354167,
+      0.17423015019583332
+     ],
+     "norm_mae": 0.4134113761032712,
+     "no_change_mae": 0.2435553991690278,
+     "coverage": {
+      "0.8": {
+       "coverage": 0.4583333333333333,
+       "mean_width": 0.20754209166666668
+      },
+      "0.95": {
+       "coverage": 0.9583333333333334,
+       "mean_width": 0.4903505416666667
+      }
+     },
+     "clamped_rate": 0.041666666666666664
+    },
+    "deployed_abstention_rate": 1.0,
+    "abstention_reasons": {
+     "feature g_host_cpus": 24,
+     "kernel 6.17 is outside the validated range 6.10-6.10": 24,
+     "the observed state is unlike the training data": 13,
+     "feature g_host_busy": 3
+    },
+    "forced_ood_rate": 1.0,
+    "false_safe_forced": {
+     "changes": 24,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 24,
+     "assessments": {
+      "unknown": 24
+     },
+     "point_estimate_rule_false_safe": "0/7"
+    },
+    "false_safe_deployed": {
+     "changes": 24,
+     "assessed_low": 0,
+     "false_safe": 0,
+     "false_safe_rate_among_low": null,
+     "withheld_or_unknown": 24,
+     "assessments": {
+      "unknown": 24
+     },
+     "point_estimate_rule_false_safe": "0/7"
+    },
+    "throttled_cov95_by_regime": {
+     "pre_saturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 15
+     },
+     "pre_unsaturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 4
+     },
+     "pre_unsaturated/throttled_after": {
+      "coverage": 1.0,
+      "n": 2
+     },
+     "pre_saturated/not_throttled_after": {
+      "coverage": 1.0,
+      "n": 3
+     }
+    }
+   },
+   "by_family": {
+    "arith": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.04070610555555554,
+      "ci95": [
+       0.007849466666666638,
+       0.07896903333333333
+      ],
+      "norm_mae": 0.07841181825497036,
+      "no_change_mae": 0.3454011944444445,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.11708890000000001
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.0385858733333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.31778181083333323,
+      "ci95": [
+       0.2617185083333334,
+       0.38792938916666664
+      ],
+      "norm_mae": 0.36492481752266914,
+      "no_change_mae": 0.6061389454833334,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7,
+        "mean_width": 0.3350822333333333
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.3257567666666668
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.06777777777777778,
+      "ci95": [
+       0.006666666666666677,
+       0.10666666666666667
+      ],
+      "norm_mae": 0.16912772761391986,
+      "no_change_mae": 0.3044444444444444,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.09187284935994446,
+      "ci95": [
+       0.055919951624833326,
+       0.129917554615
+      ],
+      "norm_mae": 0.32314750767306005,
+      "no_change_mae": 0.2517511306871667,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7333333333333333,
+        "mean_width": 0.18159150000000002
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.4368029666666666
+       }
+      },
+      "clamped_rate": 0.1
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "the observed state is unlike the training data": 8,
+      "feature g_host_busy": 7
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 24,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 24,
+      "assessments": {
+       "unknown": 24
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "false_safe_deployed": {
+      "changes": 24,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 24,
+      "assessments": {
+       "unknown": 24
+      },
+      "point_estimate_rule_false_safe": "0/16"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 13
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 6
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 7
+      }
+     }
+    },
+    "batch_spin": {
+     "episodes": 24,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.002626986111111125,
+      "ci95": [
+       0.001617375000000018,
+       0.004126083333333329
+      ],
+      "norm_mae": 0.005060340572783289,
+      "no_change_mae": 0.7091318888888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.11079962500000003
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.8696453333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.007154880840277857,
+      "ci95": [
+       0.0024357499999999865,
+       0.01226804618750021
+      ],
+      "norm_mae": 0.008216309102739124,
+      "no_change_mae": 0.7157652195416667,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.4110026666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.895979791666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.08888888888888889,
+      "ci95": [
+       0.0,
+       0.16666666666666666
+      ],
+      "norm_mae": 0.221806855887108,
+      "no_change_mae": 0.21944444444444444,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.875,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9583333333333334,
+        "mean_width": 0.733333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.11753542942020832,
+      "ci95": [
+       0.08272607758354167,
+       0.17423015019583332
+      ],
+      "norm_mae": 0.4134113761032712,
+      "no_change_mae": 0.2435553991690278,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.4583333333333333,
+        "mean_width": 0.20754209166666668
+       },
+       "0.95": {
+        "coverage": 0.9583333333333334,
+        "mean_width": 0.4903505416666667
+       }
+      },
+      "clamped_rate": 0.041666666666666664
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 24,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 24,
+      "the observed state is unlike the training data": 13,
+      "feature g_host_busy": 3
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 24,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 24,
+      "assessments": {
+       "unknown": 24
+      },
+      "point_estimate_rule_false_safe": "0/7"
+     },
+     "false_safe_deployed": {
+      "changes": 24,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 24,
+      "assessments": {
+       "unknown": 24
+      },
+      "point_estimate_rule_false_safe": "0/7"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 15
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "burst": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.22126529444444448,
+      "ci95": [
+       0.17719551666666666,
+       0.2965530666666666
+      ],
+      "norm_mae": 0.42622141856413465,
+      "no_change_mae": 0.15491990888888893,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.5333333333333333,
+        "mean_width": 0.12151378666666665
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.0664429733333334
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.13865856222222223,
+      "ci95": [
+       0.11428480666666666,
+       0.16959378333333336
+      ],
+      "norm_mae": 0.15922859267561487,
+      "no_change_mae": 0.42817776283333325,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.31014826666666667
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.1689846
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.09555555555555556,
+      "ci95": [
+       0.03333333333333333,
+       0.16999999999999998
+      ],
+      "norm_mae": 0.2384423700786411,
+      "no_change_mae": 0.28888889444444443,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.04550275831694444,
+      "ci95": [
+       0.008383172441666673,
+       0.07076385152166667
+      ],
+      "norm_mae": 0.16004840434154452,
+      "no_change_mae": 0.17630365004983334,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.18894948599999997
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.43701978533333324
+       }
+      },
+      "clamped_rate": 0.13333333333333333
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "the observed state is unlike the training data": 6,
+      "feature g_host_busy": 2,
+      "feature h_usage_slope": 1
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 23,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 23,
+      "assessments": {
+       "unknown": 23
+      },
+      "point_estimate_rule_false_safe": "1/15"
+     },
+     "false_safe_deployed": {
+      "changes": 23,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 23,
+      "assessments": {
+       "unknown": 23
+      },
+      "point_estimate_rule_false_safe": "1/15"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 20
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "closed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.03604419666666667,
+      "ci95": [
+       0.007597200000000043,
+       0.05611626666666662
+      ],
+      "norm_mae": 0.06943162357587276,
+      "no_change_mae": 0.21347996,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.12451405666666665
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.0513578833333335
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.11347115036277779,
+      "ci95": [
+       0.005058062488333343,
+       0.28726772193333333
+      ],
+      "norm_mae": 0.13030462231817758,
+      "no_change_mae": 0.19582082466277778,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.31645130000000005
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.0915556666666664
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.08888888888888888,
+      "ci95": [
+       0.0,
+       0.24666666666666667
+      ],
+      "norm_mae": 0.22180685588710797,
+      "no_change_mae": 0.22240740555555555,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.05245341805533333,
+      "ci95": [
+       0.015858411083333315,
+       0.10967826015116665
+      ],
+      "norm_mae": 0.18449619698966419,
+      "no_change_mae": 0.08164572740888888,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.17426963666666664
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.4218395756666666
+       }
+      },
+      "clamped_rate": 0.13333333333333333
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "feature g_pids": 6,
+      "feature g_host_busy": 5,
+      "the observed state is unlike the training data": 3
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 20,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 20,
+      "assessments": {
+       "unknown": 20
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "false_safe_deployed": {
+      "changes": 20,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 20,
+      "assessments": {
+       "unknown": 20
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 18
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 3
+      }
+     }
+    },
+    "hash": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.011927328333333322,
+      "ci95": [
+       0.007966316666666664,
+       0.01436079999999998
+      ],
+      "norm_mae": 0.022975509171818814,
+      "no_change_mae": 0.12452828555555555,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.12689502000000003
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.0865693166666668
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.2214268288888889,
+      "ci95": [
+       0.0,
+       0.3550193866666667
+      ],
+      "norm_mae": 0.2542755512501008,
+      "no_change_mae": 0.2703753888888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.26676127666666666
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.8916886666666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.0,
+      "ci95": [
+       0.0,
+       0.0
+      ],
+      "norm_mae": 0.0,
+      "no_change_mae": 0.13333333333333333,
+      "coverage": {
+       "0.8": {
+        "coverage": 1.0,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.062414165772222224,
+      "ci95": [
+       0.022122509666666665,
+       0.08469765361666669
+      ],
+      "norm_mae": 0.2195314747860675,
+      "no_change_mae": 0.1256143517461111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.16867631999999994
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.39900566666666665
+       }
+      },
+      "clamped_rate": 0.16666666666666666
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "feature g_host_busy": 2
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 17,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 17,
+      "assessments": {
+       "unknown": 17
+      },
+      "point_estimate_rule_false_safe": "1/14"
+     },
+     "false_safe_deployed": {
+      "changes": 17,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 17,
+      "assessments": {
+       "unknown": 17
+      },
+      "point_estimate_rule_false_safe": "1/14"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 26
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.5,
+       "n": 4
+      }
+     }
+    },
+    "hashbig": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.06141054444444443,
+      "ci95": [
+       0.0011126666666666507,
+       0.10724909999999999
+      ],
+      "norm_mae": 0.11829459940216183,
+      "no_change_mae": 0.2647918722222222,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.1094811
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.8855032333333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.12697462576666668,
+      "ci95": [
+       0.004116550000000063,
+       0.22478193346666675
+      ],
+      "norm_mae": 0.1458113414874206,
+      "no_change_mae": 0.4123633247111111,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.40141623333333337
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 2.7030037900000012
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.11333333333333333,
+      "ci95": [
+       0.0,
+       0.21333333333333335
+      ],
+      "norm_mae": 0.28280374125606267,
+      "no_change_mae": 0.13666666666666666,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.11838877211777774,
+      "ci95": [
+       0.1091222663166666,
+       0.12536737542666665
+      ],
+      "norm_mae": 0.4164128674887206,
+      "no_change_mae": 0.1485533219888889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.5666666666666667,
+        "mean_width": 0.2134813666666666
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.5028867833333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "the observed state is unlike the training data": 15,
+      "feature g_host_busy": 6
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 18,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 18,
+      "assessments": {
+       "unknown": 18
+      },
+      "point_estimate_rule_false_safe": "0/6"
+     },
+     "false_safe_deployed": {
+      "changes": 18,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 18,
+      "assessments": {
+       "unknown": 18
+      },
+      "point_estimate_rule_false_safe": "0/6"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 19
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      }
+     }
+    },
+    "mixed": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.05930987055555554,
+      "ci95": [
+       0.006442133333333317,
+       0.14810164999999997
+      ],
+      "norm_mae": 0.11424808950050319,
+      "no_change_mae": 0.07389327277777775,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.12616517
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 1.0020304
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.0885292,
+      "ci95": [
+       0.014539600000000001,
+       0.16272041666666665
+      ],
+      "norm_mae": 0.10166252772840938,
+      "no_change_mae": 0.16694283333333332,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.2716551566666668
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 1.8829676666666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.03333333333333333,
+      "ci95": [
+       0.0,
+       0.1
+      ],
+      "norm_mae": 0.0831775709576655,
+      "no_change_mae": 0.16666666666666666,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9666666666666667,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.02851475242222223,
+      "ci95": [
+       0.012658589999999999,
+       0.04497661588333334
+      ],
+      "norm_mae": 0.10029591159249354,
+      "no_change_mae": 0.06645307771666666,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.15802428666666668
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.3909988999999999
+       }
+      },
+      "clamped_rate": 0.3333333333333333
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "feature g_host_busy": 2
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 21,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 21,
+      "assessments": {
+       "unknown": 21
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "false_safe_deployed": {
+      "changes": 21,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 21,
+      "assessments": {
+       "unknown": 21
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 25
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 1
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 4
+      }
+     }
+    },
+    "short": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.09606765555555559,
+      "ci95": [
+       0.0066291999999999575,
+       0.23510898333333344
+      ],
+      "norm_mae": 0.18505429209685825,
+      "no_change_mae": 0.18066600555555556,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.9,
+        "mean_width": 0.1252115
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 1.0715045733333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.2980168338888889,
+      "ci95": [
+       0.20495713333333337,
+       0.46139848333333333
+      ],
+      "norm_mae": 0.34222770158051735,
+      "no_change_mae": 0.4827281274444443,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.31467025666666676
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 2.1844875666666668
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.11444444444444445,
+      "ci95": [
+       0.0,
+       0.2
+      ],
+      "norm_mae": 0.28557632695465157,
+      "no_change_mae": 0.28555555555555556,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.1024082695765,
+      "ci95": [
+       0.06713505579166666,
+       0.12407588441116665
+      ],
+      "norm_mae": 0.3602041006598518,
+      "no_change_mae": 0.1669883455553889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.18142087836666665
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.4153867766666667
+       }
+      },
+      "clamped_rate": 0.13333333333333333
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "feature g_host_busy": 6,
+      "the observed state is unlike the training data": 4
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 17,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 17,
+      "assessments": {
+       "unknown": 17
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "false_safe_deployed": {
+      "changes": 17,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 17,
+      "assessments": {
+       "unknown": 17
+      },
+      "point_estimate_rule_false_safe": "0/15"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.5,
+       "n": 2
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 17
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 5
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 0.8333333333333334,
+       "n": 6
+      }
+     }
+    },
+    "variable": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.21253551666666665,
+      "ci95": [
+       0.0302689,
+       0.3997533666666666
+      ],
+      "norm_mae": 0.4094053233082727,
+      "no_change_mae": 0.12809227222222216,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.12420530000000002
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 1.080728866666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.3817109410833333,
+      "ci95": [
+       0.014200508333333329,
+       0.8210092016666667
+      ],
+      "norm_mae": 0.43833784934373754,
+      "no_change_mae": 0.6521282324333334,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7666666666666667,
+        "mean_width": 0.3249913166666667
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 2.1174666666666666
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.17629629444444445,
+      "ci95": [
+       0.04999999999999998,
+       0.27555555
+      ],
+      "norm_mae": 0.439916926221788,
+      "no_change_mae": 0.2948148166666667,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7333333333333333,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.07429012116005555,
+      "ci95": [
+       0.027698657761666665,
+       0.10690358054716667
+      ],
+      "norm_mae": 0.2613031778686539,
+      "no_change_mae": 0.20244144541027778,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8,
+        "mean_width": 0.18047289333333336
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.4261993733333333
+       }
+      },
+      "clamped_rate": 0.13333333333333333
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "the observed state is unlike the training data": 7,
+      "feature g_host_busy": 4
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 26,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 26,
+      "assessments": {
+       "unknown": 26
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "false_safe_deployed": {
+      "changes": 26,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 26,
+      "assessments": {
+       "unknown": 26
+      },
+      "point_estimate_rule_false_safe": "0/17"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 7
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 17
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.5,
+       "n": 4
+      },
+      "pre_saturated/throttled_after": {
+       "coverage": 1.0,
+       "n": 2
+      }
+     }
+    },
+    "wide": {
+     "episodes": 30,
+     "runs": 3,
+     "usage_cores": {
+      "mae": 0.03552917777777777,
+      "ci95": [
+       0.009528866666666663,
+       0.059359483333333324
+      ],
+      "norm_mae": 0.06843954715484747,
+      "no_change_mae": 0.4647521555555556,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 0.11755333333333336
+       },
+       "0.95": {
+        "coverage": 1.0,
+        "mean_width": 0.9948433323333333
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_cores": {
+      "mae": 0.4499565307944444,
+      "ci95": [
+       0.2631341313333333,
+       0.7958159515500001
+      ],
+      "norm_mae": 0.5167076884064138,
+      "no_change_mae": 0.9878642131311113,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7333333333333333,
+        "mean_width": 0.3366239666666668
+       },
+       "0.95": {
+        "coverage": 0.8666666666666667,
+        "mean_width": 2.506421766666667
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "throttled_ratio": {
+      "mae": 0.07222222222222223,
+      "ci95": [
+       0.0033333333333333335,
+       0.11333333333333333
+      ],
+      "norm_mae": 0.18021807040827525,
+      "no_change_mae": 0.2733333333333333,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.8333333333333334,
+        "mean_width": 0.0
+       },
+       "0.95": {
+        "coverage": 0.9333333333333333,
+        "mean_width": 0.7333330000000003
+       }
+      },
+      "clamped_rate": 0.0
+     },
+     "psi_some": {
+      "mae": 0.12267300155,
+      "ci95": [
+       0.0622232314,
+       0.15438079
+      ],
+      "norm_mae": 0.4314819338447467,
+      "no_change_mae": 0.1752518300388889,
+      "coverage": {
+       "0.8": {
+        "coverage": 0.7333333333333333,
+        "mean_width": 0.15827956666666668
+       },
+       "0.95": {
+        "coverage": 0.9,
+        "mean_width": 0.37225953333333334
+       }
+      },
+      "clamped_rate": 0.23333333333333334
+     },
+     "deployed_abstention_rate": 1.0,
+     "abstention_reasons": {
+      "feature g_host_cpus": 30,
+      "kernel 6.17 is outside the validated range 6.10-6.10": 30,
+      "feature g_pids": 20,
+      "the observed state is unlike the training data": 20,
+      "feature g_host_busy": 9
+     },
+     "forced_ood_rate": 1.0,
+     "false_safe_forced": {
+      "changes": 19,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 19,
+      "assessments": {
+       "unknown": 19
+      },
+      "point_estimate_rule_false_safe": "0/10"
+     },
+     "false_safe_deployed": {
+      "changes": 19,
+      "assessed_low": 0,
+      "false_safe": 0,
+      "false_safe_rate_among_low": null,
+      "withheld_or_unknown": 19,
+      "assessments": {
+       "unknown": 19
+      },
+      "point_estimate_rule_false_safe": "0/10"
+     },
+     "throttled_cov95_by_regime": {
+      "pre_saturated/throttled_after": {
+       "coverage": 0.8888888888888888,
+       "n": 9
+      },
+      "pre_saturated/not_throttled_after": {
+       "coverage": 0.8,
+       "n": 5
+      },
+      "pre_unsaturated/not_throttled_after": {
+       "coverage": 1.0,
+       "n": 14
+      },
+      "pre_unsaturated/throttled_after": {
+       "coverage": 0.0,
+       "n": 2
+      }
+     }
+    }
+   }
+  }
+ }
+}

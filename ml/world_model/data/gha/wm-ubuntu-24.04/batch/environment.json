@@ -1,0 +1,16 @@
+{
+ "collected_at": "2026-10-13T11:57:32+00:00",
+ "kernel": "6.17.0-1022-azure",
+ "os": "Ubuntu 24.04.5 LTS",
+ "architecture": "x86_64",
+ "vm_cpus": 4,
+ "vm_memory_bytes": 16766414848,
+ "cgroup_version": "2",
+ "cgroup_driver": "systemd",
+ "container_runtime": "docker 28.0.4",
+ "hypervisor": "Microsoft Corporation Virtual Machine (virtual machine)",
+ "host_machine": "AMD EPYC 7763 64-Core Processor",
+ "host_cpus": 4,
+ "cpu_frequency": "not exposed inside the VM",
+ "image": "sha256:918213ebed19234ba5c8308315f82a3c641be22d004b47c3b3ce3b5d2b6587d1"
+}

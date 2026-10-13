@@ -22,6 +22,14 @@ on data collected after the model was frozen, is in
 | Throttled-period ratio | mechanism: 1 when the quota binds, else 0 | 0 | validated within the envelope |
 | CPU pressure (PSI some) | no-change + learned residual (8 hidden units, quantile loss) | 305 | **experimental**: interval coverage on new workloads not established |
 
+Intervals for the three mechanistic targets are **regime-conditional**:
+separate half-widths when demand/capacity after the change is below 0.7,
+between 0.7 and 1.3, or at least 1.3. Below 0.7 the throttling interval
+is exactly 0, which lets the assessment say "low". The first frozen model
+used one half-width per target. It under-covered the cases where throttling
+appears after a cut, and it never said "low". It was replaced by a
+pre-registered rule (see the results).
+
 The selection between these and every learned alternative is described in
 [`WORLD_MODEL_EXPERIMENTS.md`](WORLD_MODEL_EXPERIMENTS.md) ("v0.2 protocol").
 In short: no learned model, residual or gate beat the mechanism for usage
@@ -165,6 +173,7 @@ Line-based text, `OSIEWM2` (or the legacy `OSIEWM1`) first and `end` last:
 | `workload_coverage F [F...]` | workload classes in the training data |
 | `target_status name validated\|experimental` | shown with each prediction |
 | `residual_gate name max` | optional: apply the residual only in-distribution and when its magnitude is at most `max` |
+| `conformal_regime name level lo hi width` | optional: half-width when lo ≤ demand/capacity after the change < hi (`hi` may be `inf`); overrides `conformal` there |
 | `safe_throttle_max cores` | threshold of the throttling assessment |
 
 Every OSIEWM2 line except `residual_gate` is required. OSIEWM1 files still

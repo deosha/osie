@@ -10,4 +10,7 @@ __pycache__/
 compile_commands.json
 ml/world_model/data/pilot
 ml/world_model/data/*/episodes.jsonl
+ml/world_model/data/**/episodes.jsonl
+ml/world_model/data/**/runner-environment.txt
+ml/world_model/data/**/collect_*.log
 ml/world_model/data/pilot

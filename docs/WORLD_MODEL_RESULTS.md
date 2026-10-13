@@ -408,3 +408,267 @@ law.
    "unchanged" baseline.
 4. Repeat on bare-metal x86-64 and on another kernel version (Experiment 7).
 5. Measure energy where privileged counters are available.
+
+
+---
+
+## v0.2 results
+
+The protocol is in [`WORLD_MODEL_EXPERIMENTS.md`](WORLD_MODEL_EXPERIMENTS.md)
+("v0.2 protocol"). In brief:
+- all selection used only development data, by leave-one-family-out (LOFO)
+  cross-validation;
+- intervals were calibrated on separate runs;
+- the model was frozen and committed before any confirmatory data existed.
+
+Every number below comes from a file in `ml/world_model/results/v02/`.
+
+### 1. Demand estimation (`demand_study*.json`)
+
+The v0.1 mechanism estimates CPU demand as usage + `throttled_usec` per
+second. The lab knows two independent ground truths:
+
+| Ground truth | Definition |
+|---|---|
+| **Offered** demand | arrivals/s × measured CPU per request, capped by parallelism |
+| **Runnable** demand | while a request backlog exists, every worker is runnable |
+
+Under a binding quota:
+
+| Data | Windows | Estimate vs runnable: MAE / bias (cores) | Estimate vs offered: bias | usage + PSI vs offered: bias |
+|---|---|---|---|---|
+| development (6.10, aarch64) | 263 | 0.116 / −0.017 | +1.096 | −0.013 |
+| confirmatory, local (6.10, aarch64) | 146 | 0.135 / −0.089 | +0.697 | −0.357 |
+| confirmatory, runner (6.17, x86-64) | 152 | 0.145 / −0.012 | +0.815 | −0.482 |
+| confirmatory, runner (6.17, arm64) | 146 | 0.133 / −0.084 | +0.691 | −0.519 |
+
+For always-runnable batch threads the estimate is within 0.008 cores. When
+the quota does not bind, usage alone is within 0.012–0.024 cores.
+
+**Finding.** `usage + throttled_usec/s` measures *runnable* demand, and that
+semantics (throttled time summed over CPUs) held on Linux 6.10 and 6.17, on
+arm64 and on x86-64. It is not the offered load of a request server.
+
+For prediction over OSIE's 3 s horizon, the runnable estimate was still the
+better choice on development data: LOFO error 0.169 against 0.271 for
+usage + PSI.
+
+### 2. Why learned corrections fail on batch threads (`failure_analysis.json`)
+
+The table gives the mean usage error of the mechanism (observed − predicted,
+in cores) after a quota change from a throttled state, on development data.
+
+| Family | Quota raised | Quota lowered |
+|---|---|---|
+| arith | −0.357 (16) | +0.000 (8) |
+| burst | −0.646 (30) | +0.003 (15) |
+| short | −0.380 (20) | +0.003 (11) |
+| mixed | −0.288 (7) | — |
+| batch threads | −0.004 (14) | +0.004 (11) |
+
+When a quota is **lowered**, the mechanism is exact in every family. When it
+is **raised**, open-loop servers use less than their runnable demand once the
+backlog drains: offered load is below runnable demand.
+
+A learned correction fitted to request servers learns "shrink after
+increases". That is wrong for batch threads, which really do use their
+runnable demand. This is the v0.1 failure, explained, and it is why no
+learned correction is applied to usage or throttling in v0.2.
+
+### 3. Selection (development data only; `dev_selection.json`)
+
+LOFO over six workload classes on the 43 fit runs. "Core" error = mean of the
+normalised MAE of usage and throttled time; lower is better.
+
+| Candidate | LOFO core | Worst held-out family | Throttled ratio | CPU pressure |
+|---|---|---|---|---|
+| **A: mechanism (0 parameters)** | **0.169** | **0.332** | **0.205** | 0.593 (no change) |
+| B: best direct MLP (h16, 660 params, 5 seeds) | 0.271 ± 0.005 | 0.68 | 0.360 | 0.284 |
+| C: best residual MLP (h16, 5 seeds) | 0.236 ± 0.006 | 0.41 | 0.252 | 0.301 |
+| Best gradient-boosted residual | 0.221 | 0.49 | – | – |
+| D: rule-gated residual | 0.177 | 0.33 | 0.212 | 0.561 |
+| E: learned logistic gate | 0.213 | 0.32 | 0.233 | 0.398 |
+| F: abstain on learned/mechanism disagreement (accepted only) | 0.115 | 0.18 | 0.174 | 0.222 |
+| mechanism on F's accepted episodes | 0.089 | 0.18 | 0.159 | 0.356 |
+| usage + PSI demand estimate | 0.271 | 0.58 | 0.240 | 0.593 |
+| no change | 0.514 | 1.38 | 0.501 | 0.593 |
+| CPU pressure only: separate h8 residual, quantile loss | – | – | – | **0.299** |
+
+Notes:
+- Target-specific losses (MAE, Huber, quantile; under-prediction × 3 for
+  throttling) did not beat the shared residual on usage or throttling. The
+  asymmetric loss made throttling error worse (0.364 against 0.292).
+- Policy F's apparent gain comes from *which episodes it keeps*: the
+  mechanism alone on the same episodes is better still.
+- A larger network never helped: 8–64 hidden units span 0.233–0.26 for the
+  residual form.
+
+**Selected:** the mechanism for usage, throttled time and throttled ratio. For
+CPU pressure, which has no closed form, a 305-parameter residual, ungated (gating
+removed its benefit) and marked *experimental*.
+
+### 4. Confirmatory results
+
+Data collected after the model was frozen (commit 9002fe6):
+
+| Environment | Runs | Episodes |
+|---|---|---|
+| local Docker Desktop VM (6.10, aarch64) | 40 | 392 |
+| GitHub-hosted x86-64 runner (6.17) | 30 | 294 |
+| GitHub-hosted arm64 runner (6.17) | 30 | 294 |
+
+Workload groups:
+- `held_in`: the development families with new seeds;
+- `new`: four families that did not exist when the model was frozen;
+- `batch`: closed-loop batch threads.
+
+The error and coverage numbers are *forced*, i.e. without the environment
+check, to measure transfer. The "deployed" table shows what a user actually
+gets.
+
+#### MAE against the no-change baseline (cores; ratio and pressure as fractions)
+
+| Environment | Group | Episodes / runs | usage | throttled time | throttled ratio | CPU pressure |
+|---|---|---|---|---|---|---|
+| local 6.10 aarch64 | held_in | 200 / 20 | 0.079 [0.049, 0.110] vs 0.155 | 0.164 [0.106, 0.233] vs 0.294 | 0.087 [0.050, 0.130] vs 0.201 | 0.065 [0.050, 0.081] vs 0.125 |
+| local 6.10 aarch64 | new | 160 / 16 | 0.052 [0.035, 0.073] vs 0.205 | 0.231 [0.149, 0.317] vs 0.401 | 0.061 [0.033, 0.097] vs 0.217 | 0.077 [0.055, 0.102] vs 0.133 |
+| local 6.10 aarch64 | batch | 32 / 4 | 0.004 [0.003, 0.005] vs 0.828 | 0.011 [0.006, 0.016] vs 0.833 | 0.065 [0.022, 0.098] vs 0.394 | 0.112 [0.084, 0.145] vs 0.340 |
+| runner 6.17 x86-64 | held_in | 150 / 15 | 0.095 [0.049, 0.156] vs 0.201 | 0.249 [0.182, 0.320] vs 0.469 | 0.065 [0.035, 0.100] vs 0.260 | 0.068 [0.051, 0.085] vs 0.170 |
+| runner 6.17 x86-64 | new | 120 / 12 | 0.104 [0.049, 0.172] vs 0.268 | 0.268 [0.132, 0.431] vs 0.588 | 0.096 [0.046, 0.151] vs 0.251 | 0.095 [0.067, 0.121] vs 0.158 |
+| runner 6.17 x86-64 | batch | 24 / 3 | 0.004 [0.002, 0.007] vs 0.708 | 0.009 [0.007, 0.011] vs 0.716 | 0.090 [0.000, 0.192] vs 0.214 | 0.121 [0.088, 0.175] vs 0.238 |
+| runner 6.17 arm64 | held_in | 150 / 15 | 0.086 [0.043, 0.138] vs 0.176 | 0.213 [0.150, 0.277] vs 0.391 | 0.062 [0.029, 0.097] vs 0.236 | 0.066 [0.047, 0.085] vs 0.157 |
+| runner 6.17 arm64 | new | 120 / 12 | 0.086 [0.036, 0.158] vs 0.268 | 0.268 [0.133, 0.433] vs 0.562 | 0.113 [0.060, 0.167] vs 0.232 | 0.092 [0.066, 0.116] vs 0.152 |
+| runner 6.17 arm64 | batch | 24 / 3 | 0.003 [0.002, 0.004] vs 0.709 | 0.007 [0.002, 0.012] vs 0.716 | 0.089 [0.000, 0.167] vs 0.219 | 0.118 [0.083, 0.174] vs 0.244 |
+
+#### Interval coverage (95% / 80%), model A → model B
+
+| Environment | Group | usage | throttled time | throttled ratio | CPU pressure (same in A and B) |
+|---|---|---|---|---|---|
+| local 6.10 aarch64 | held_in | 0.98/0.81 → 1.00/0.83 | 0.97/0.84 → 0.96/0.88 | 0.95/0.81 → 0.97/0.91 | 0.95/0.84 |
+| local 6.10 aarch64 | new | 0.99/0.84 → 1.00/0.84 | 0.96/0.80 → 0.95/0.91 | 0.97/0.84 → 0.97/0.93 | 0.94/0.78 |
+| local 6.10 aarch64 | batch | 1.00/1.00 → 1.00/1.00 | 1.00/1.00 → 1.00/1.00 | 0.97/0.91 → 1.00/0.94 | 0.97/0.66 |
+| runner 6.17 x86-64 | held_in | 0.95/0.85 → 0.99/0.85 | 0.97/0.77 → 0.99/0.91 | 0.95/0.89 → 1.00/0.94 | 0.95/0.83 |
+| runner 6.17 x86-64 | new | 0.95/0.85 → 0.96/0.84 | 0.95/0.81 → 1.00/0.91 | 0.92/0.82 → 1.00/0.91 | 0.95/0.74 |
+| runner 6.17 x86-64 | batch | 1.00/1.00 → 1.00/1.00 | 1.00/1.00 → 1.00/1.00 | 0.92/0.88 → 1.00/0.88 | 0.96/0.58 |
+| runner 6.17 arm64 | held_in | 0.97/0.85 → 0.99/0.85 | 0.97/0.81 → 0.99/0.94 | 0.96/0.90 → 0.99/0.95 | 0.95/0.83 |
+| runner 6.17 arm64 | new | 0.97/0.87 → 0.97/0.85 | 0.95/0.81 → 1.00/0.92 | 0.91/0.81 → 1.00/0.90 | 0.92/0.75 |
+| runner 6.17 arm64 | batch | 1.00/1.00 → 1.00/1.00 | 1.00/1.00 → 1.00/1.00 | 0.96/0.88 → 1.00/0.88 | 0.96/0.46 |
+
+#### Throttled-time 95% coverage by regime (all groups), A → B
+
+| Environment | pre unsaturated, throttled after | pre saturated, throttled after | not throttled after |
+|---|---|---|---|
+| local 6.10 aarch64 | 0.72 → 0.87 (n=47) | 1.00 → 1.00 (n=61) | 1.00 → 0.97 |
+| runner 6.17 x86-64 | 0.74 → 0.97 (n=31) | 0.97 → 1.00 (n=69) | 1.00 → 1.00 |
+| runner 6.17 arm64 | 0.76 → 0.97 (n=29) | 0.97 → 1.00 (n=66) | 0.99 → 0.99 |
+
+#### Deployed behaviour (what a user gets)
+
+| Environment | Group | Withheld | Main reasons |
+|---|---|---|---|
+| local 6.10 aarch64 | held_in | 2% | feature g_host_busy (3), feature h_usage_std (2), the observed state is unlike the training data (1) |
+| local 6.10 aarch64 | new | 32% | feature g_pids (39), feature g_host_busy (16), the observed state is unlike the training data (8) |
+| local 6.10 aarch64 | batch | 0% |  |
+| runner 6.17 x86-64 | held_in | 100% | feature g_host_cpus (150), CPU architecture x86_64 was not validated (150), kernel 6.17 is outside the validated range 6.10-6.10 (150) |
+| runner 6.17 x86-64 | new | 100% | feature g_host_cpus (120), CPU architecture x86_64 was not validated (120), kernel 6.17 is outside the validated range 6.10-6.10 (120) |
+| runner 6.17 x86-64 | batch | 100% | feature g_host_cpus (24), CPU architecture x86_64 was not validated (24), kernel 6.17 is outside the validated range 6.10-6.10 (24) |
+| runner 6.17 arm64 | held_in | 100% | feature g_host_cpus (150), kernel 6.17 is outside the validated range 6.10-6.10 (150), feature g_host_busy (19) |
+| runner 6.17 arm64 | new | 100% | feature g_host_cpus (120), kernel 6.17 is outside the validated range 6.10-6.10 (120), the observed state is unlike the training data (45) |
+| runner 6.17 arm64 | batch | 100% | feature g_host_cpus (24), kernel 6.17 is outside the validated range 6.10-6.10 (24), the observed state is unlike the training data (13) |
+
+#### Clamping (share of predictions whose raw output was outside physical bounds)
+
+- local 6.10 aarch64: usage 0.0%, throttled time 0.0%, throttled ratio 0.0%, CPU pressure 12.2%
+- runner 6.17 x86-64: usage 0.0%, throttled time 0.0%, throttled ratio 0.0%, CPU pressure 13.6%
+- runner 6.17 arm64: usage 0.0%, throttled time 0.0%, throttled ratio 0.0%, CPU pressure 14.3%
+
+
+**Findings.**
+
+- **Transfer.** The frozen predictor beat no-change on every target, in every
+  workload group and in all three environments: two kernels it never saw,
+  x86-64 it never saw, and four new workload families. It reduced usage error
+  by 49–75% for request servers and 99% for batch threads.
+- **Coverage of model A, the first frozen model.** Coverage was close to
+  nominal overall (95%: 0.91–1.00), but too low where it matters: when an
+  unsaturated cgroup becomes throttled after a cut, 95% coverage was
+  0.72–0.76. Its throttling assessment never said "low": 0 of 288 changes locally,
+  and 0 of 418 on the runners in the secondary analysis below. Its intervals
+  were wide everywhere.
+- **Model B.** B uses regime-conditional intervals, developed on development
+  data after the local results. It was frozen with a pre-registered decision
+  rule before the runner data were read
+  (`results/v02/decision_rule_A_vs_B.md`). On the runners it raised that
+  regime's 95% coverage to 0.97 in both environments, with overall coverage
+  0.96–1.00. B met the rule and replaced A as the shipped model.
+- **Caveat on the decision rule.** Its third criterion (false-safe among "low"
+  assessments) was satisfied only vacuously on the runner data. Every forced
+  prediction there was out of distribution (below), so nothing was assessed.
+- **Secondary analysis, not pre-registered** (`secondary_assessment.json`).
+  Ignoring the out-of-distribution check, B would have assessed 93 (x86-64)
+  and 105 (arm64) quota or cpuset changes as "low" throttling risk. None of
+  the 198 was in fact throttled above 0.25 cores, and B never called any of
+  the 142 actually-throttled changes "low". Zero in 198 does not mean zero
+  risk: the rule-of-three 95% upper bound is about 1.5%. On the local data,
+  which motivated B, the count was 142 with 0 false-safe. A said "low" 0 times.
+- **The deployed system did what it promises, and that exposed a defect.**
+  - Inside the envelope (local) it withheld 2% of predictions for held-in
+    workloads, 32% for new families and 0% for batch threads. The new-family
+    withholds came mostly from `wide` (65%; its task count `g_pids` is outside
+    the training range) and `closed` (42%).
+  - On the runners it withheld 100%, as designed: the architecture and kernel
+    are outside the envelope. But the feature-range check also fired on
+    **every** runner episode because of the host CPU count (`g_host_cpus`:
+    4 there, 12 in all training data).
+  - That feature is constant in the training data, so the current model
+    effectively refuses on any host without exactly 12 CPUs, even inside the
+    envelope. The mechanistic targets do not depend on it. This is a real
+    portability defect (audit item W8).
+- **CPU pressure stays experimental.**
+  - It beat no-change everywhere: MAE 0.065–0.121 against 0.125–0.340.
+  - 95% coverage was 0.92–0.97, but 80% coverage was only 0.46–0.66 for batch
+    threads and 0.74–0.78 for new families.
+  - 12–14% of its raw outputs were clamped at 0: the residual over-corrects
+    when the current pressure is near zero.
+- **No other clamping.** Usage, throttled time and ratio were never clamped:
+  they are bounded by construction.
+
+### 5. Hypotheses, revisited
+
+The long-run hypothesis was that explicit OS mechanisms plus selective
+lightweight learning give more reliable prediction under shift than learned
+world models.
+
+- **Mechanisms beat learning under shift: supported.** Zero parameters beat
+  every learned and hybrid model under family shift in development. On
+  confirmatory data from new families, two new kernels and a new
+  architecture, the mechanism's error stayed within 0.003–0.104 cores for
+  usage.
+- **Selective learning adds value: supported only where no mechanism exists**
+  (CPU pressure). Every form of selective residual tested (rule gate, learned
+  gate, disagreement-based abstention) was no better than the mechanism alone
+  for usage and throttling. The failure analysis shows why: the residual
+  encodes a property of the training workloads (open-loop backlog), not of
+  the kernel.
+- **What learning *calibration* adds: supported.** Regime-conditional
+  intervals turned an uninformative safety assessment into one that, in the
+  secondary analysis, separated 198 safe changes from 142 throttled ones
+  without a single false "low".
+
+### 6. Not done
+
+- **Hardware and hosts.**
+  - No bare-metal host and no kernel older than 6.10 was tested.
+  - Both runner VMs had 4 vCPUs. With `g_host_cpus` constant in training, the
+    model cannot be evaluated *as deployed* on them, only forced.
+- **Workloads.** Real services with application-level backpressure, garbage
+  collection or caches were not tested. Neither was I/O-bound blocking beyond
+  sleep-based blocking.
+- **Envelope.** It was not widened, although the runner data support 6.17 on
+  x86-64 and arm64. Widening it on the strength of the confirmatory data
+  would make them training evidence. A future model should declare the wider
+  envelope and be confirmed on new runs. The same model should drop or
+  re-range host-CPU-count features (W8).
+- **Calibration sample.** The rho ≥ 1.3 regime has only 17 calibration runs,
+  below the 19 needed for a finite-sample 95% guarantee. Its three 95%
+  half-widths use a flagged conservative fallback (the largest residual).

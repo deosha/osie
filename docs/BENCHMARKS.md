@@ -167,3 +167,79 @@ setup of run 3 for 5 minutes on every push.
 cmake -S . -B build-asan -DOSIE_SANITIZE=address,undefined -DCMAKE_BUILD_TYPE=Debug -G Ninja && ninja -C build-asan
 cmake -S . -B build-tsan -DOSIE_SANITIZE=thread -DCMAKE_BUILD_TYPE=Debug -G Ninja && ninja -C build-tsan
 ```
+
+## v0.2 latency budget (`osie_perf`)
+
+Measured 2026-10-13 with `./build/osie_perf --iterations 2000 --watch-seconds 5
+--world-model models/world_cpu.osiewm`. The builds are RelWithDebInfo:
+- macOS 15 on the M4 Pro;
+- Linux in a 1-container Docker session on the same machine (kernel 6.10,
+  aarch64), seeing only its own processes.
+
+The host was not idle; treat the numbers as ±20%. Raw JSON:
+`ml/experiments/results/perf_v02_{macos,linux}.json`.
+
+p50 / p99 in µs:
+
+| Stage | macOS | Linux |
+|---|---|---|
+| Rule parse | 1.2 / 1.9 | 1.6 / 3.6 |
+| Understanding pipeline (normalise, safety, parse, frame, validate) | 2.1 / 3.9 | 3.0 / 11.4 |
+| Observe: system info | 9.5 / 11.9 | 24.5 / 50.8 |
+| Observe: CPU topology | 13.0 / 18.3 | 91.4 / 345.1 |
+| Observe: CPU ticks | 4.6 / 12.6 | 9.0 / 32.5 |
+| Observe: memory | 2.8 / 4.5 | 8.0 / 27.5 |
+| Observe: process list | 1 982 / 4 093 (≈ 720 processes) | 7.9 / 198 (3 processes) |
+| Observe: filesystems | 3.4 / 29.3 | 50.6 / 235 |
+| Observe: network interfaces | 266 / 345 | 42.3 / 183 |
+| Observe: CPU capacity | 13.3 / 14.9 | 13.3 / 34.4 |
+| Observe: PSI | n/a | 10.7 / 30.6 |
+| Observe: one cgroup | n/a | 34.2 / 258 |
+| Diagnose CPU | 10.0 / 13.6 | 3.2 / 17.8 |
+| Diagnose memory | 13.6 / 20.3 | 3.5 / 7.4 |
+| Diagnose slowness | 25.3 / 35.1 | 10.7 / 29.8 |
+| Knowledge-graph instance update | 3 583 / 11 847 (≈ 720 processes) | 4.5 / 37.9 |
+| World-model load | 109 / 186 | 153 / 598 |
+| World-model prediction | 1.3 / 1.5 | 1.0 / 1.2 |
+
+End to end, with `ask()` and no cache reuse:
+
+| | macOS | Linux |
+|---|---|---|
+| Sampling window (configured) | 500 ms | 500 ms |
+| Total, p50 | 535 ms | 507 ms |
+| Computation beyond the window, p50 / max | 35 / 42 ms | 7 / 25 ms |
+| Peak RSS | 12.3 MB | 10.5 MB |
+| `--watch` sampling every 1 s | 1.6% of one core | 0.1% of one core |
+
+Cgroup questions on Linux (`cgroup_status`, `container_throttle`) read each
+inspected cgroup twice, a window apart, to report throttling *rates*. That
+adds one sampling window (+0.5 s) to those questions only.
+
+Against the provisional v0.2 targets:
+- world-model inference p99 is 1.5 µs (target < 100 µs);
+- rule parsing p99 is 3.6 µs (target < 1 ms);
+- there is no mandatory daemon and no network use.
+
+### v0.1 → v0.2 regression check (macOS, release builds)
+
+The installed v0.1.0 binary (Homebrew) and a v0.2.0 release build, on the same
+5 questions × 3 repetitions (`ml/experiments/results/overhead_v01_vs_v02_macos.json`):
+
+| | v0.1.0 | v0.2.0 |
+|---|---|---|
+| Wall time per question, median | 0.52 s | 0.53 s |
+| Peak RSS, median / max | 7.3 / 8.0 MB | 7.5 / 8.5 MB |
+
+Per question, the two versions were within 10 ms of each other. One v0.2 run
+took 1.1 s; it did not reproduce on re-measurement and was a cold start.
+
+### Sanitizers and fuzzing (v0.2)
+
+- **ASan + UBSan, TSan and `-Werror`:** 237 unit tests pass on macOS.
+- **Linux (Docker):** 242 unit and platform tests pass.
+- **`.osiewm` loader fuzzing:** `osie_fuzz_world_model`, Linux, clang 18,
+  ASan + UBSan, 4 minutes, 9.1M executions, no findings. It also runs in CI
+  for 3 minutes.
+- **Utterance size:** a 1 MiB utterance cost 0.4 s, linear and dominated by
+  typo correction. Utterances are now cut at 4 KiB.

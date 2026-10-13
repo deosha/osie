@@ -1,0 +1,155 @@
+{
+ "frozen_at": "2026-10-13T12:08:11+00:00",
+ "artifact": "results/v02/world_cpu_v02c.osiewm",
+ "sha256": "568aaaa7bf0d18eef150fdd9f148ee0f3ba34474f8d9930e022aab13ff0906aa",
+ "fit_runs": 113,
+ "calib_runs": 51,
+ "environments": [
+  "aarch64/6.10",
+  "aarch64/6.17",
+  "x86_64/6.17"
+ ],
+ "dropped_features": [
+  "g_host_cpus"
+ ],
+ "conformal": {
+  "usage_cores": {
+   "0.8": 0.053223275000000014,
+   "0.95": 0.9632393300000001
+  },
+  "throttled_cores": {
+   "0.8": 0.1452566666666666,
+   "0.95": 1.64418167
+  },
+  "throttled_ratio": {
+   "0.8": 0.0,
+   "0.95": 0.8666666666666667
+  },
+  "psi_some": {
+   "0.8": 0.09785582962374845,
+   "0.95": 0.38975858293567145
+  }
+ },
+ "conformal_regime": {
+  "usage_cores/0.8/0.0-0.7": {
+   "width": 0.05000516333333316,
+   "runs": 49,
+   "episodes": 269,
+   "finite_sample_valid": true
+  },
+  "usage_cores/0.8/0.7-1.3": {
+   "width": 0.17679983333333332,
+   "runs": 46,
+   "episodes": 131,
+   "finite_sample_valid": true
+  },
+  "usage_cores/0.8/1.3-inf": {
+   "width": 0.017862333333333424,
+   "runs": 41,
+   "episodes": 144,
+   "finite_sample_valid": true
+  },
+  "usage_cores/0.95/0.0-0.7": {
+   "width": 0.7163903366666666,
+   "runs": 49,
+   "episodes": 269,
+   "finite_sample_valid": true
+  },
+  "usage_cores/0.95/0.7-1.3": {
+   "width": 1.323035,
+   "runs": 46,
+   "episodes": 131,
+   "finite_sample_valid": true
+  },
+  "usage_cores/0.95/1.3-inf": {
+   "width": 1.3795399999999998,
+   "runs": 41,
+   "episodes": 144,
+   "finite_sample_valid": true
+  },
+  "throttled_cores/0.8/0.0-0.7": {
+   "width": 0.0,
+   "runs": 49,
+   "episodes": 269,
+   "finite_sample_valid": true
+  },
+  "throttled_cores/0.8/0.7-1.3": {
+   "width": 0.07820463333333334,
+   "runs": 46,
+   "episodes": 131,
+   "finite_sample_valid": true
+  },
+  "throttled_cores/0.8/1.3-inf": {
+   "width": 1.1591064,
+   "runs": 41,
+   "episodes": 144,
+   "finite_sample_valid": true
+  },
+  "throttled_cores/0.95/0.0-0.7": {
+   "width": 0.0,
+   "runs": 49,
+   "episodes": 269,
+   "finite_sample_valid": true
+  },
+  "throttled_cores/0.95/0.7-1.3": {
+   "width": 2.040376333,
+   "runs": 46,
+   "episodes": 131,
+   "finite_sample_valid": true
+  },
+  "throttled_cores/0.95/1.3-inf": {
+   "width": 1.976831666666667,
+   "runs": 41,
+   "episodes": 144,
+   "finite_sample_valid": true
+  },
+  "throttled_ratio/0.8/0.0-0.7": {
+   "width": 0.0,
+   "runs": 49,
+   "episodes": 269,
+   "finite_sample_valid": true
+  },
+  "throttled_ratio/0.8/0.7-1.3": {
+   "width": 0.6,
+   "runs": 46,
+   "episodes": 131,
+   "finite_sample_valid": true
+  },
+  "throttled_ratio/0.8/1.3-inf": {
+   "width": 0.2666666666666666,
+   "runs": 41,
+   "episodes": 144,
+   "finite_sample_valid": true
+  },
+  "throttled_ratio/0.95/0.0-0.7": {
+   "width": 0.0,
+   "runs": 49,
+   "episodes": 269,
+   "finite_sample_valid": true
+  },
+  "throttled_ratio/0.95/0.7-1.3": {
+   "width": 1.0,
+   "runs": 46,
+   "episodes": 131,
+   "finite_sample_valid": true
+  },
+  "throttled_ratio/0.95/1.3-inf": {
+   "width": 1.0,
+   "runs": 41,
+   "episodes": 144,
+   "finite_sample_valid": true
+  }
+ },
+ "ood_score_threshold": 3.158840656693287,
+ "parity_max_abs_diff": 5.000000000254801e-06,
+ "support": {
+  "arch": [
+   "aarch64",
+   "x86_64"
+  ],
+  "kernels": [
+   "6.10",
+   "6.17"
+  ]
+ }
+}

@@ -1,6 +1,7 @@
 # Confirmatory data collection for the CPU world model on GitHub-hosted
 # runners (independent hardware and kernels; docs/WORLD_MODEL_EXPERIMENTS.md).
-# Runs only on pushes to research/wm-collect-* branches, never on main. Each
+# Runs only on pushes to research/wm-collect-* branches, never on main.
+# Round 1 used seeds 4242/4343; round 2 (this version) 5151/5252. Each
 # run uses disposable, unprivileged containers on the runner VM; limits are
 # changed only on those containers, with `docker update`.
 name: wm-collect
@@ -34,12 +35,12 @@ jobs:
       - name: Request-server families (held-in and confirmatory)
         run: |
           python3 ml/world_model/collect.py --out out/main --lanes 1 --lane-cpus 0-3 \
-            --run-prefix "${{ matrix.runner }}-" --runs-per-family 3 --episodes 10 --seed 4242 \
+            --run-prefix "${{ matrix.runner }}-r2-" --runs-per-family 3 --episodes 10 --seed 5151 \
             --families arith,hash,short,burst,mixed,variable,closed,wide,hashbig
       - name: Closed-loop batch class
         run: |
           python3 ml/world_model/collect.py --out out/batch --lanes 1 --lane-cpus 0-3 \
-            --run-prefix "${{ matrix.runner }}-" --batch --families batch --runs-per-family 3 --episodes 8 --seed 4343
+            --run-prefix "${{ matrix.runner }}-r2-" --batch --families batch --runs-per-family 3 --episodes 8 --seed 5252
       - name: Compress
         run: gzip -9 out/*/episodes.jsonl
       - uses: actions/upload-artifact@v4

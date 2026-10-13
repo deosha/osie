@@ -27,7 +27,9 @@ import numpy as np
 
 import wm
 
-FAM_SHAPE = {"arith": (2.0, 0.0), "hash": (2.0, 0.0), "short": (0.3, 0.0), "burst": (1.0, 0.0), "mixed": (1.0, 2.0)}
+FAM_SHAPE = {"arith": (2.0, 0.0), "hash": (2.0, 0.0), "short": (0.3, 0.0), "burst": (1.0, 0.0), "mixed": (1.0, 2.0),
+             "variable": (1.5, 0.0), "wide": (1.0, 0.0), "hashbig": (2.0, 0.0)}
+# "closed" (closed loop) has no offered demand independent of throughput, so it is skipped.
 
 
 def mean(ws, k):
@@ -87,7 +89,7 @@ def main():
     rows = []
     for d in a.data:
         for e in wm.load_episodes(os.path.join(d, "episodes.jsonl")):
-            if not e["valid"]:
+            if not e["valid"] or e["family"] == "closed":
                 continue
             for phase in ("pre", "post"):
                 ws = e[phase]
