@@ -7,6 +7,10 @@ namespace osie::intent {
 
 IntentFrame understand(std::string_view text, const IIntentParser& parser, Platform platform,
                        const ObservationSet& supported, const CapabilityRegistry& reg, std::vector<Token>* toks_out) {
+    // A question is never megabytes long: longer input is cut, and the frame
+    // records that it was.
+    const bool truncated = text.size() > kMaxUtteranceBytes;
+    if (truncated) text = text.substr(0, kMaxUtteranceBytes);
     auto toks = tokenize(text);
     normalize(toks);
     // Safety is assessed before, and independently of, the parser.
@@ -23,6 +27,7 @@ IntentFrame understand(std::string_view text, const IIntentParser& parser, Platf
         p.parser += "+sanitized";
     }
     p.safety = safety;
+    if (truncated) p.parser += "+truncated";
     auto f = build_frame(p, toks, platform, supported, reg);
     f.validation_errors = validate(f);
     if (toks_out) *toks_out = std::move(toks);

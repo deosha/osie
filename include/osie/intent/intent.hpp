@@ -171,6 +171,9 @@ std::optional<int> parse_ordinal(std::string_view word);
 IntentFrame build_frame(const ParseOutput& p, const std::vector<Token>& toks, Platform platform,
                         const ObservationSet& supported, const CapabilityRegistry& reg);
 
+/// Utterances longer than this are truncated before parsing.
+inline constexpr std::size_t kMaxUtteranceBytes = 4096;
+
 /// The staged pipeline used by the engine and the evaluators:
 /// normalise -> safety assessment -> parser -> frame -> safety routing.
 /// `toks_out` receives the normalised tokens.

@@ -62,7 +62,9 @@ bool alpha(std::string_view s) {
 std::size_t osa_distance(std::string_view a, std::string_view b, std::size_t limit) {
     const std::size_t n = a.size(), m = b.size();
     if ((n > m ? n - m : m - n) > limit) return limit + 1;
-    std::vector<std::size_t> d((n + 1) * (m + 1));
+    constexpr std::size_t kMax = 32;  // callers pass words of at most 24 characters
+    if (n >= kMax || m >= kMax) return limit + 1;
+    std::array<std::size_t, kMax * kMax> d{};
     auto at = [&](std::size_t i, std::size_t j) -> std::size_t& { return d[i * (m + 1) + j]; };
     for (std::size_t i = 0; i <= n; ++i) at(i, 0) = i;
     for (std::size_t j = 0; j <= m; ++j) at(0, j) = j;
@@ -101,7 +103,7 @@ void normalize(std::vector<Token>& toks) {
             t.lower = std::string(it->second);
             continue;
         }
-        if (t.lower.size() < 5 || !alpha(t.lower) || kKeep.count(t.lower)) continue;
+        if (t.lower.size() < 5 || t.lower.size() > 24 || !alpha(t.lower) || kKeep.count(t.lower)) continue;
         if (std::find(vocab.begin(), vocab.end(), t.lower) != vocab.end()) continue;
         // An inflected cue word ("restarted", "throttles") is not a typo.
         if (std::any_of(vocab.begin(), vocab.end(), [&](std::string_view w) {
@@ -253,6 +255,7 @@ bool is_number(std::string_view s) {
 /// True when token i is used as an action verb in this position (not a noun
 /// or adjective: "the limit", "free memory?", "give me", "set of").
 bool verb_use(const std::vector<Token>& t, std::size_t i, std::size_t e, bool question) {
+    (void)question;  // kept for callers; no rule currently depends on it
     const auto& w = t[i].lower;
     if (!kActionVerbs.count(w) && !kCommandWords.count(w)) return false;
     const std::string_view next = i + 1 < e ? std::string_view(t[i + 1].lower) : std::string_view{};
