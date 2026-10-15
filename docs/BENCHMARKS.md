@@ -260,6 +260,7 @@ VM. The first run sees only its own container (a handful of processes).
 | Host-wide, defaults | 5 s / 0.5 s | 300 s | **0.35%** | 3.4 MB | 1.4 / 10.4 / 10.4 ms | 2.51 / 4.96 / 5.01 s | 60, 0, 0 | 0.7 ms |
 | Host-wide, fast | 1 s / 0.5 s | 300 s | 1.7% | 3.9 MB (peak 4.2) | 2.5 / 10.8 / 11.1 ms | 0.50 / 0.99 / 1.02 s | 300, 0, 0 | 0.7 ms |
 | Host-wide, full history | 250 ms / 100 ms, capacity 720 | 420 s | 3.9% | **5.4 MB** (peak 5.6) | – | – | 1680, –, 0 | – |
+| GitHub-hosted VM (x86-64 AMD EPYC, 4 vCPU, Linux 6.17), defaults, host-wide | 5 s / 0.5 s | 300 s | **0.25%** | 4.1 MB | 0.09 / 0.41 / 0.41 ms | 2.50 / 4.93 / 4.98 s | 60, 0, 0 | 0.1 ms |
 
 **Against the targets:**
 - RSS < 20 MB: met. The history holds 2.2 MB at its default capacity of 720
@@ -276,4 +277,5 @@ VM. The first run sees only its own container (a handful of processes).
 - Under systemd, `systemctl stop` returned in 142 ms
   (`agent_systemd_test.sh`); the agent itself logs stops of 0.7–3 ms.
 - The CI `agent-systemd` job repeats the default-configuration measurement
-  on a GitHub-hosted x86-64 VM.
+  on a GitHub-hosted x86-64 VM (last row). Jitter is lower there than on
+  Docker Desktop, whose VM shares a laptop CPU with a desktop session.
