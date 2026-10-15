@@ -1,0 +1,11 @@
+#!/bin/sh
+# Make the unit known to systemd. The agent is opt-in: never enabled or started here.
+set -e
+if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  # On upgrade, restart the agent only if it was already running.
+  if [ "$1" = "configure" ] && [ -n "$2" ]; then
+    systemctl try-restart osie-agent.service >/dev/null 2>&1 || true
+  fi
+fi
+exit 0

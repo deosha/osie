@@ -60,6 +60,11 @@ public:
     /// Approximate heap + inline bytes held (for overhead reporting).
     [[nodiscard]] std::size_t approx_bytes() const;
     void clear() { points_.clear(); }
+    /// Replaces the points (oldest first), keeping at most `capacity` of the newest.
+    void restore(std::deque<HistoryPoint> pts) {
+        points_ = std::move(pts);
+        while (points_.size() > cfg_.capacity) points_.pop_front();
+    }
 
 private:
     HistoryConfig cfg_;

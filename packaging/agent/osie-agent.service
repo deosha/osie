@@ -1,0 +1,70 @@
+# OSIE agent: opt-in, read-only background observation (docs/AGENT.md).
+# Installed but not enabled. To use it:  sudo systemctl enable --now osie-agent
+[Unit]
+Description=OSIE agent (read-only, in-memory OS observation)
+Documentation=https://github.com/deosha/osie/blob/main/docs/AGENT.md
+After=local-fs.target
+# Restart policy: on failure after 5 s; at most 10 starts per minute, so a
+# crash loop stops instead of spinning.
+StartLimitIntervalSec=60s
+StartLimitBurst=10
+
+[Service]
+Type=notify
+NotifyAccess=main
+ExecStart=/usr/bin/osie-agent --config-if-exists /etc/osie/agent.conf
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+# Exit code 2 is a configuration error: restarting would not help.
+RestartPreventExitStatus=2
+TimeoutStartSec=30s
+TimeoutStopSec=10s
+
+# Identity: a transient unprivileged user, no capabilities, no way to gain any.
+DynamicUser=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+SecureBits=noroot-locked
+
+# Filesystem: everything read-only, nothing persisted. /proc stays fully
+# visible because observing other processes is the agent's purpose.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+UMask=0077
+
+# Network: no IP sockets at all. AF_NETLINK is for read-only interface
+# counters (rtnetlink dump); AF_UNIX is for the systemd notification socket.
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+IPAddressDeny=any
+PrivateIPC=yes
+
+# Kernel attack surface.
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @mount @debug @reboot @swap @obsolete @raw-io @module @cpu-emulation @clock
+SystemCallErrorNumber=EPERM
+
+# Resource bounds: well above the measured footprint (docs/AGENT.md).
+MemoryMax=64M
+TasksMax=16
+Nice=10
+CPUWeight=20
+IOWeight=20
+
+[Install]
+WantedBy=multi-user.target

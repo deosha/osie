@@ -47,7 +47,7 @@ jobs:
       - name: Install and smoke-test the package
         run: |
           cmake -S . -B build-rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF -DOSIE_PORTABLE=ON
-          ninja -C build-rel osie
+          ninja -C build-rel osie osie_agent
           (cd build-rel && cpack -G TGZ)
           packaging/smoke_test.sh build-rel/osie-*.tar.gz
 
@@ -87,6 +87,24 @@ jobs:
           sha256sum -c SHA256SUMS --ignore-missing
       - name: Install, upgrade, uninstall
         run: packaging/upgrade_test.sh pkg old
+
+  agent-systemd:
+    # The opt-in background agent as a real systemd service on a GitHub-hosted
+    # VM: installed disabled, unprivileged, no IP sockets, reload, restarts,
+    # bad config, removal; then a resource measurement at the default settings.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release packages
+        run: mkdir -p pkg && packaging/build_linux_release.sh pkg
+      - name: systemd integration test
+        run: sudo packaging/agent/agent_systemd_test.sh pkg/osie_*_amd64.deb
+      - name: Resource use (5 min, default configuration, unprivileged)
+        run: |
+          sudo dpkg -i pkg/osie_*_amd64.deb >/dev/null
+          nproc; uname -r
+          osie-agent --duration 300 --report --measure-freshness | tee agent-report.json
+          python3 -c "import json; d=json.load(open('agent-report.json')); print('rss_mb', d['rss_mb'], 'cpu_share', d['cpu_share_of_one_core'], 'shutdown_ms', d['shutdown_ms'], 'jitter', d['health']['start_jitter'])"
 
   python-parity:
     runs-on: ubuntu-24.04

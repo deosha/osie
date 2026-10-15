@@ -51,7 +51,7 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF \
                 -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
-          ninja -C build osie
+          ninja -C build osie osie_agent
           (cd build && cpack -G TGZ)
           mkdir -p dist && cp build/osie-*.tar.gz dist/
       - name: Smoke test (empty environment, cwd=/)

@@ -43,7 +43,7 @@ class Osie < Formula
 
   def install
     # Same layout as the archive: the binary finds its model at ../share/osie/models.
-    bin.install "bin/osie"
+    bin.install Dir["bin/*"]
     (pkgshare/"models").install Dir["share/osie/models/*"]
     doc.install Dir["share/doc/osie/*"]
   end

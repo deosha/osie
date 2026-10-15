@@ -53,6 +53,7 @@ the first step.
 | inference | `include/osie/inference`, `src/inference` | hardened `.osiem` loader ([MODEL_FORMAT.md](MODEL_FORMAT.md)), embedding-bag/BiGRU/CNN forward pass, hybrid parser, model locator |
 | prediction | `include/osie/prediction`, `src/prediction` | CPU world model: cgroup windows, the shared feature encoder, the mechanistic prior, the `.osiewm` loader, bounded and conformal predictions, abstention ([WORLD_MODEL.md](WORLD_MODEL.md)) |
 | engine | `include/osie/engine`, `src/engine` | orchestration, session context, rendering |
+| agent | `include/osie/agent`, `src/agent` | opt-in background runtime: config, scheduler, snapshots, health ([AGENT.md](AGENT.md)); `osie-agent` executable |
 | cli | `src/cli` | `osie` REPL / `ask` / `parse` / `snapshot` / `caps` / `graph` / `version`; opt-in `--watch` sampler |
 | tools | `tools/` | `osie_eval` (E2E evaluation), `osie_ort_bench`, `osie_cpu_lab` and `osie_wm_lab` (Linux experiments, world-model encoding, parity and benchmarks) |
 

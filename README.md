@@ -141,6 +141,11 @@ one it describes. For CPU and memory questions it also reports their
 combined total. An earlier answer that is too old, or a PID now held by a
 different process, makes OSIE ask again instead of assuming.
 
+**Background agent (opt-in, Linux packages):** `sudo systemctl enable --now
+osie-agent` keeps a bounded in-memory history of CPU, memory, processes, PSI
+and cgroups. It runs unprivileged, with no network and no disk writes, and is
+off by default. See [`docs/AGENT.md`](docs/AGENT.md).
+
 ## Develop and test
 
 Requirements:

@@ -17,6 +17,23 @@ Releases: <https://github.com/deosha/osie/releases>. The Homebrew formula
 lives in the tap [`deosha/homebrew-osie`](https://github.com/deosha/homebrew-osie).
 It installs the same prebuilt, checksum-pinned archives.
 
+## Optional background agent (Linux)
+
+Packages also install `osie-agent`, an opt-in background observer that keeps
+a bounded in-memory history. The systemd unit is installed **disabled** and is
+never started by the package:
+
+```bash
+sudo systemctl enable --now osie-agent    # opt in
+sudo systemctl disable --now osie-agent   # opt out
+```
+
+It runs as a transient unprivileged user, with no capabilities, no IP sockets
+and no writes to disk. Configuration (optional): `/etc/osie/agent.conf`; an
+example is in `share/osie/agent.conf.example`. Removing the package stops it.
+The details are in [`AGENT.md`](AGENT.md). On macOS, `osie-agent` can be run
+by hand; no launchd job is installed.
+
 ## Upgrading
 
 Installing a newer `.deb` or `.rpm` over an older one replaces the binary and
