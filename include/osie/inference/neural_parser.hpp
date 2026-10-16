@@ -139,4 +139,16 @@ private:
     float threshold_;
 };
 
+enum class ParserChoice : std::uint8_t { rules, neural, hybrid };
+
+/// The parser the CLI and the agent API answer with. `rules` needs no model.
+/// Otherwise the intent model is located (an explicit path, $OSIE_MODEL, then
+/// the installed and build locations); if none is found, or a model that was
+/// not explicitly requested fails to load, the rules are used and `note` says
+/// why. A model the caller asked for that fails to load is an error: returns
+/// nullptr with `error` set, since answering with another parser would
+/// misreport what ran.
+std::unique_ptr<intent::IIntentParser> make_parser(ParserChoice choice, const std::optional<std::string>& model_path,
+                                                   std::string& note, std::string& error);
+
 }  // namespace osie::inference

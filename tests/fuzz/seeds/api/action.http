@@ -1,0 +1,8 @@
+POST /v1/diagnose HTTP/1.1
+Host: l
+Content-Type: application/json
+Content-Length: 26
+Expect: 100-continue
+X-Request-Id: a-1
+
+{"question":"kill it é 😀"}

@@ -1,0 +1,6 @@
+POST /v1/diagnose HTTP/1.1
+Host: l
+Content-Type: application/json
+Content-Length: 134
+
+{"request_id":"r1","question":"why is nginx using so much CPU?","session_id":"s1","max_evidence_age_ms":10000,"include_evidence":true}

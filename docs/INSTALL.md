@@ -34,6 +34,33 @@ example is in `share/osie/agent.conf.example`. Removing the package stops it.
 The details are in [`AGENT.md`](AGENT.md). On macOS, `osie-agent` can be run
 by hand; no launchd job is installed.
 
+### Optional local diagnostic API
+
+The agent can answer questions from local programs over HTTP/JSON on a Unix
+domain socket. It is off unless enabled, and never listens on an IP port.
+
+```bash
+sudo tee -a /etc/osie/agent.conf <<'CONF'
+api_enabled = true
+api_group = osie
+CONF
+sudo usermod -aG osie "$USER"             # then log in again
+sudo systemctl restart osie-agent
+curl --unix-socket /run/osie/agent.sock http://localhost/v1/health/ready
+```
+
+What the packages and the unit do for it:
+- The packages create the system group `osie`, with no members.
+- The unit creates `/run/osie` (mode 0750, group `osie`) at start and
+  removes it at stop.
+- Without `api_group`, only root can use the socket.
+
+Upgrading from 0.2.x keeps the configuration and whether the service is
+enabled. It adds the empty `osie` group, the empty `/run/osie` directory, and
+a task limit of 32 instead of 16; nothing listens until you enable the API.
+From a tarball, create the group yourself (`groupadd --system osie`) if you
+use the unit. See [`API.md`](API.md).
+
 ## Upgrading
 
 Installing a newer `.deb` or `.rpm` over an older one replaces the binary and

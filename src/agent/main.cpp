@@ -20,6 +20,9 @@
 #if defined(__linux__)
 #include <sys/prctl.h>
 #endif
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
 
 #include <algorithm>
 #include <atomic>
@@ -35,6 +38,7 @@
 #include <vector>
 
 #include "osie/agent/runtime.hpp"
+#include "osie/api/server.hpp"
 #include "osie/util/json.hpp"
 
 #ifndef OSIE_VERSION
@@ -48,6 +52,29 @@ using Clock = std::chrono::steady_clock;
 namespace {
 
 LogLevel g_level = LogLevel::info;
+
+std::string api_stats_json(const api::ApiServer& srv) {
+    const auto st = srv.stats();
+    json::Writer w;
+    w.begin_object().kv("accepted", st.accepted).kv("handled", st.handled)
+        .kv("rejected_unauthorized", st.rejected_unauthorized).kv("rejected_rate_limited", st.rejected_rate_limited)
+        .kv("rejected_busy", st.rejected_busy).kv("rejected_stopping", st.rejected_stopping).kv("timeouts", st.timeouts)
+        .kv("client_gone", st.client_gone).kv("responses_2xx", st.responses_2xx).kv("responses_4xx", st.responses_4xx)
+        .kv("responses_5xx", st.responses_5xx).kv("max_in_flight", st.max_in_flight).kv("max_queued", st.max_queued)
+        .kv("rejected_per_user", st.rejected_per_user).kv("rejected_deadline", st.rejected_deadline)
+        .kv("sessions", static_cast<std::uint64_t>(srv.api().sessions().size()))
+        .kv("refused_os_calls", srv.api().os().refused_calls());
+    auto t = [&](const char* name, const api::TimingSummary& s) {
+        w.key(name).begin_object().kv("n", static_cast<std::uint64_t>(s.n)).kv("p50", s.p50).kv("p95", s.p95)
+            .kv("p99", s.p99).kv("max", s.max).end_object();
+    };
+    t("queue_wait_ms", st.queue_wait_ms);
+    t("engine_wait_ms", st.engine_wait_ms);
+    t("engine_ms", st.engine_ms);
+    t("total_ms", st.total_ms);
+    w.end_object();
+    return w.take();
+}
 
 void log(LogLevel l, const std::string& m) {
     if (static_cast<int>(l) > static_cast<int>(g_level)) return;
@@ -173,6 +200,12 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+#if defined(__GLIBC__)
+    // glibc gives every thread that allocates its own arena and keeps freed
+    // memory in it, so 16 API workers would hold ~25 MB after a burst of
+    // requests (measured: docs/BENCHMARKS.md). Two arenas are plenty here.
+    (void)::mallopt(M_ARENA_MAX, 2);
+#endif
 #if defined(__linux__)
     // Never gain privileges through execve (setuid helpers); the agent needs none.
     (void)::prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
@@ -201,11 +234,13 @@ int main(int argc, char** argv) {
     for (int s : {SIGTERM, SIGINT, SIGHUP, SIGUSR1}) sigaddset(&set, s);
     pthread_sigmask(SIG_BLOCK, &set, nullptr);
 
-    // Lifetime (runtime.hpp): `rt` is used by this thread and the freshness
-    // probe. The probe is joined after rt.stop() and before main returns, and
-    // the signal thread never touches `rt`, so no call can be in progress
-    // when `rt` is destroyed.
-    AgentRuntime rt(make_native_os(), cfg);
+    // Lifetime (runtime.hpp): the runtime is shared by this thread, the
+    // freshness probe and the API server, which holds its own reference and
+    // whose handlers run only while it is alive. Shutdown order: the API
+    // server is stopped (its threads joined), then the runtime, then the probe
+    // is joined; the signal thread never touches the runtime.
+    const auto rt_owner = std::make_shared<AgentRuntime>(make_native_os(), cfg);
+    AgentRuntime& rt = *rt_owner;
     if (o.once) {
         rt.collect_now();
         auto s = rt.snapshot();
@@ -245,9 +280,21 @@ int main(int argc, char** argv) {
         }
     });
 
+    std::unique_ptr<api::ApiServer> api_server;
+    if (cfg.api_enabled) {
+        api_server = std::make_unique<api::ApiServer>(rt_owner, cfg, [](LogLevel l, const std::string& m) { log(l, m); });
+        if (auto r = api_server->start(); !r) {
+            log(LogLevel::error, r.error().describe());
+            rt.stop();
+            kill(getpid(), SIGTERM);  // wake the signal thread so it can be joined
+            sig_thread.join();
+            return 2;
+        }
+    }
     log(LogLevel::info, "started (interval " + std::to_string(cfg.interval.count()) + " ms, window " +
                             std::to_string(cfg.sample_window.count()) + " ms, history " +
-                            std::to_string(cfg.history_capacity) + " points); read-only, in memory only, no network");
+                            std::to_string(cfg.history_capacity) + " points); read-only, in memory only, no network" +
+                            (cfg.api_enabled ? "; local API on " + cfg.api_socket : std::string("; local API disabled")));
 
     // Optional freshness probe: a reader that samples snapshot age the way an API client would.
     std::atomic<bool> probe_stop{false};
@@ -292,6 +339,13 @@ int main(int argc, char** argv) {
             if (o.config_path.empty()) {
                 log(LogLevel::warn, "SIGHUP: no configuration file to reload");
             } else if (auto c = load_agent_config(o.config_path)) {
+                const auto cur = rt.config();
+                if (c->api_enabled != cur.api_enabled || c->api_socket != cur.api_socket || c->api_group != cur.api_group ||
+                    c->api_max_clients != cur.api_max_clients || c->api_max_request_bytes != cur.api_max_request_bytes ||
+                    c->api_request_timeout != cur.api_request_timeout || c->api_max_sessions != cur.api_max_sessions ||
+                    c->api_session_ttl != cur.api_session_ttl || c->api_max_evidence_age != cur.api_max_evidence_age ||
+                    c->api_rate_limit != cur.api_rate_limit)
+                    log(LogLevel::warn, "SIGHUP: api_* settings take effect on restart; the running API keeps its settings");
                 rt.reconfigure(*c);
                 g_level = c->log_level;
                 log(LogLevel::info, "configuration reloaded from " + o.config_path);
@@ -299,7 +353,10 @@ int main(int argc, char** argv) {
                 log(LogLevel::error, "SIGHUP: keeping the current configuration: " + c.error().describe());
             }
         }
-        if (dump) std::fprintf(stderr, "%s\n", to_json(rt.health()).c_str());
+        if (dump) {
+            std::fprintf(stderr, "%s\n", to_json(rt.health()).c_str());
+            if (api_server) std::fprintf(stderr, "{\"api\":%s}\n", api_stats_json(*api_server).c_str());
+        }
         const auto hl = rt.config().health_log_interval;
         if (hl.count() > 0 && Clock::now() - last_health_log >= hl) {
             last_health_log = Clock::now();
@@ -314,6 +371,7 @@ int main(int argc, char** argv) {
 
     notify("STOPPING=1");
     log(LogLevel::info, "stopping");
+    if (api_server) api_server->stop();  // answers or refuses every accepted request, joins its threads
     rt.stop();
     const double shutdown_ms = std::chrono::duration<double, std::milli>(Clock::now() - stop_at).count();
     probe_stop = true;
@@ -329,7 +387,7 @@ int main(int argc, char** argv) {
         const double wall = std::chrono::duration<double>(Clock::now() - t_start).count();
         const auto h = rt.health();
         json::Writer w;
-        w.begin_object().kv("version", OSIE_VERSION).kv("wall_s", wall).kv("cpu_s", u1.cpu_s - u0.cpu_s)
+        w.begin_object().kv("version", OSIE_VERSION).kv("api_enabled", cfg.api_enabled).kv("wall_s", wall).kv("cpu_s", u1.cpu_s - u0.cpu_s)
             .kv("cpu_share_of_one_core", (u1.cpu_s - u0.cpu_s) / std::max(1e-9, wall))
             .kv("rss_mb", u1.rss_mb).kv("peak_rss_mb", u1.peak_rss_mb).kv("shutdown_ms", shutdown_ms)
             .kv("interval_ms", static_cast<std::int64_t>(rt.config().interval.count()))
@@ -343,7 +401,8 @@ int main(int argc, char** argv) {
         w.end_object();
         std::string s = w.take();
         s.pop_back();
-        std::printf("%s,\"health\":%s}\n", s.c_str(), to_json(h).c_str());
+        std::printf("%s,\"health\":%s%s}\n", s.c_str(), to_json(h).c_str(),
+                    api_server ? (",\"api\":" + api_stats_json(*api_server)).c_str() : "");
     }
     return 0;
 }

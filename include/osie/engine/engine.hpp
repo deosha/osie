@@ -3,6 +3,8 @@
 // architecture graph -> reasoning -> grounded answer, with session context.
 #pragma once
 
+#include <chrono>
+#include <condition_variable>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -36,6 +38,10 @@ struct Resolution {
     /// Processes whose name merely contains the query, when exact matches exist
     /// (reported, not included in `group`).
     std::size_t partial_matches{0};
+    /// The target is a specific process that is not running (any more): a PID
+    /// with no process, or an earlier subject that exited or whose PID was
+    /// reused. A definite answer, not an ambiguity.
+    bool target_not_running{false};
 };
 
 struct EngineConfig {
@@ -52,6 +58,12 @@ struct EngineConfig {
     /// Predictions are experimental and off unless explicitly enabled
     /// (`osie predict --experimental` or OSIE_EXPERIMENTAL_PREDICT=1).
     bool experimental_prediction{false};
+    /// Keep the architecture graph's instance nodes (host, CPUs, processes,
+    /// users) in step with each state answered from. Only `osie graph` reads
+    /// them; reasoning uses the ontology's concept nodes. The agent API turns
+    /// this off: rebuilding instances for every redacted state would cost
+    /// more than the answer itself.
+    bool track_instances{true};
 };
 
 struct Answer {
@@ -64,6 +76,8 @@ struct Answer {
     double parse_ms{0};
     /// Temporal questions: the series that were analysed (label, result).
     std::vector<std::pair<std::string, TrendResult>> trends;
+    /// See Resolution::target_not_running.
+    bool target_not_running{false};
 };
 
 /// Conversational state. Deterministic; no learned components.
@@ -106,6 +120,63 @@ struct PredictionAnswer {
     bool answered{false};  // false: unsupported, insufficient evidence, or abstained
 };
 
+/// A mutex whose lock can be awaited until a deadline. Built on std::mutex
+/// and a condition variable rather than std::timed_mutex: libstdc++'s
+/// timed_mutex uses pthread_mutex_clocklock, which ThreadSanitizer does not
+/// model, and a sanitizer that cannot see the lock is no use.
+class DeadlineMutex {
+public:
+    void lock() {
+        std::unique_lock lk(m_);
+        cv_.wait(lk, [this] { return !held_; });
+        held_ = true;
+    }
+    bool try_lock() {
+        std::lock_guard lk(m_);
+        if (held_) return false;
+        held_ = true;
+        return true;
+    }
+    template <class Clock, class Duration>
+    bool try_lock_until(const std::chrono::time_point<Clock, Duration>& t) {
+        std::unique_lock lk(m_);
+        if (!cv_.wait_until(lk, t, [this] { return !held_; })) return false;
+        held_ = true;
+        return true;
+    }
+    void unlock() {
+        {
+            std::lock_guard lk(m_);
+            held_ = false;
+        }
+        cv_.notify_one();
+    }
+
+private:
+    std::mutex m_;
+    std::condition_variable cv_;
+    bool held_{false};
+};
+
+/// Where an answer's evidence comes from.
+///
+/// The CLI samples on demand: Engine::ask(utterance) uses an internal live
+/// source (the sampler, the answer cache and the engine's own history). The
+/// agent API answers from the agent's published snapshot and bounded history
+/// instead, through its own EvidenceSource, and never samples (src/api).
+class EvidenceSource {
+public:
+    virtual ~EvidenceSource() = default;
+    /// The state to answer from for an intent that needs `kinds`; nullptr if
+    /// there is none. `cgroup_focus`: cgroup questions, which need throttling
+    /// rates. `reused`: set when the state was not taken for this question.
+    virtual std::shared_ptr<const SystemState> state(const std::vector<ObservationKind>& kinds, bool cgroup_focus,
+                                                     const CancellationToken& cancel, bool& reused) = 0;
+    /// The history temporal questions are answered from. Valid until the next
+    /// call on this source.
+    virtual const StateHistory& history() = 0;
+};
+
 class Engine {
 public:
     Engine(std::unique_ptr<IOperatingSystem> os, std::unique_ptr<intent::IIntentParser> parser, EngineConfig cfg = {});
@@ -113,7 +184,18 @@ public:
     Engine(const Engine&) = delete;
     Engine& operator=(const Engine&) = delete;
 
+    /// CLI: answers with the engine's own session and on-demand observation.
     Answer ask(std::string_view utterance, const CancellationToken& cancel = {});
+    /// Answers with the caller's session and evidence. The same pipeline as
+    /// ask(): safety routing, validation, context, reasoning and rendering.
+    /// Serialised with every other call on this engine.
+    Answer ask(std::string_view utterance, SessionContext& session, EvidenceSource& evidence,
+               const CancellationToken& cancel = {});
+    /// As above, but gives up if the engine is not free by `deadline`
+    /// (returns nullopt, having done nothing): a caller with a deadline never
+    /// waits past it behind other questions.
+    std::optional<Answer> ask_until(std::string_view utterance, SessionContext& session, EvidenceSource& evidence,
+                                    SteadyTime deadline, const CancellationToken& cancel = {});
 
     /// Snapshot of everything (used by `osie snapshot`).
     std::shared_ptr<const SystemState> observe_all(const CancellationToken& cancel = {});
@@ -145,6 +227,9 @@ public:
     intent::IntentFrame interpret(std::string_view utterance) const;
 
 private:
+    class LiveEvidence;
+    Answer answer(std::string_view utterance, SessionContext& session, EvidenceSource& evidence,
+                  const CancellationToken& cancel);
     std::shared_ptr<const SystemState> state_for(const std::vector<ObservationKind>& kinds, const CancellationToken& c,
                                                  bool& reused, bool cgroup_focus = false);
     std::string render_capacity(const intent::IntentFrame& f, const std::optional<ProcessRef>& subject);
@@ -167,7 +252,13 @@ private:
     SessionContext session_;
     StateHistory history_;
     std::shared_ptr<const predict::IWorldModel> world_model_;
-    mutable std::mutex mu_;  // serialises ask(), observe_all() and record_sample()
+    std::unique_ptr<LiveEvidence> live_;
+    // Set for the duration of answer() (under mu_): the session and evidence
+    // the current question is answered with.
+    SessionContext* sess_{nullptr};
+    EvidenceSource* ev_{nullptr};
+    std::shared_ptr<const SystemState> graph_state_;  // the state graph_ instances were last built from
+    mutable DeadlineMutex mu_;  // serialises ask(), observe_all() and record_sample()
 };
 
 /// Renders a diagnosis as plain text (shared by CLI and tests).

@@ -90,6 +90,15 @@ bool any_of(const std::vector<Token>& t, const WordSet& s) {
 bool has(const std::vector<Token>& t, std::string_view w) {
     return std::any_of(t.begin(), t.end(), [&](const Token& x) { return x.lower == w; });
 }
+/// A throttle word, alone or as the last part of a hyphenated word ("CPU-throttled").
+/// Tokens keep hyphens because process names contain them (kube-proxy).
+bool any_throttle(const std::vector<Token>& t) {
+    return std::any_of(t.begin(), t.end(), [](const Token& x) {
+        if (kThrottle.count(x.lower) > 0) return true;
+        const auto dash = x.lower.rfind('-');
+        return dash != std::string::npos && kThrottle.count(x.lower.substr(dash + 1)) > 0;
+    });
+}
 bool has_seq(const std::vector<Token>& t, std::initializer_list<std::string_view> seq) {
     const std::size_t n = seq.size();
     for (std::size_t i = 0; i + n <= t.size(); ++i) {
@@ -308,13 +317,13 @@ ParseOutput RuleParser::parse(const std::vector<Token>& t) const {
         return set(Intent::cpu_capacity, 0.6F);
     // Cgroup overview: "which cgroup is constrained?", "show cgroup limits".
     if (!proc_target && !why && (any_of(t, kContainer) || (has(t, "limits") && !mem)) && any_of(t, kCgroupCue) &&
-        !(any_of(t, kThrottle) && has(t, "my")))
+        !(any_throttle(t) && has(t, "my")))
         return set(Intent::cgroup_status, 0.8F);
-    if (!named_target && any_of(t, kThrottle) && (has(t, "anything") || has(t, "any")) && !why)
+    if (!named_target && any_throttle(t) && (has(t, "anything") || has(t, "any")) && !why)
         return set(Intent::cgroup_status, 0.6F);
-    if (any_of(t, kContainer) && (any_of(t, kThrottle) || slow || cpu || why)) return set(Intent::container_throttle, 0.85F);
-    if (proc_target && any_of(t, kThrottle) && !mem) return set(Intent::container_throttle, 0.8F);
-    if (any_of(t, kThrottle) && (has(t, "my") || has(t, "being")) && !cpu) return set(Intent::container_throttle, 0.6F);
+    if (any_of(t, kContainer) && (any_throttle(t) || slow || cpu || why)) return set(Intent::container_throttle, 0.85F);
+    if (proc_target && any_throttle(t) && !mem) return set(Intent::container_throttle, 0.8F);
+    if (any_throttle(t) && (has(t, "my") || has(t, "being")) && !cpu) return set(Intent::container_throttle, 0.6F);
 
     // Process enumeration: "what processes are running?", "show all processes",
     // "what's currently running?", "how many processes do I have", "ps".

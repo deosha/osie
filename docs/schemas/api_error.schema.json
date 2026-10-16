@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/api_error.schema.json",
+  "title": "OSIE API error (v1)",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_request",
+            "unauthorized",
+            "forbidden",
+            "unsupported",
+            "insufficient_evidence",
+            "stale_evidence",
+            "rate_limited",
+            "busy",
+            "internal_error"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "reason",
+        "message",
+        "retryable"
+      ],
+      "additionalProperties": false
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "enum": [
+              "observation_not_collected",
+              "unsupported_on_platform",
+              "on_demand_observation_unavailable",
+              "cgroup_rates",
+              "permission_limited",
+              "redacted",
+              "no_event_history",
+              "prediction_not_available",
+              "missing_evidence",
+              "inconsistent_evidence",
+              "insufficient_history"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "detail"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "action_executed": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "error",
+    "action_executed"
+  ],
+  "additionalProperties": false
+}

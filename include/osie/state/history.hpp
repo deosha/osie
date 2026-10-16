@@ -48,6 +48,10 @@ struct HistoryConfig {
 class StateHistory {
 public:
     explicit StateHistory(HistoryConfig cfg = {}) : cfg_(cfg) {}
+    /// A history holding `pts` (oldest first), trimmed to the newest `capacity`.
+    StateHistory(HistoryConfig cfg, std::deque<HistoryPoint> pts) : cfg_(cfg), points_(std::move(pts)) {
+        while (points_.size() > cfg_.capacity) points_.pop_front();
+    }
 
     /// Records the parts of `s` that history tracks. States without CPU or
     /// memory data are ignored. `pinned` processes (e.g. the conversation's

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "osie/inference/neural_parser.hpp"
 
+#include "osie/inference/model_locator.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -564,6 +566,33 @@ intent::ParseOutput HybridParser::parse(const std::vector<intent::Token>& toks) 
         n.parser = "hybrid:neural+rule_slots";
     }
     return n;
+}
+
+std::unique_ptr<intent::IIntentParser> make_parser(ParserChoice choice, const std::optional<std::string>& model_path,
+                                                   std::string& note, std::string& error) {
+    if (choice == ParserChoice::rules) return std::make_unique<intent::RuleParser>();
+    const auto loc = locate_model(default_model_search(model_path));
+    if (loc.source == ModelSource::none) {
+        note = "no model file found; using rules (searched:";
+        for (const auto& c : loc.searched) note += " " + c;
+        note += ")";
+        return std::make_unique<intent::RuleParser>();
+    }
+    auto model = IntentModel::load(loc.path);
+    if (!model) {
+        const std::string why =
+            "model " + loc.path + " (" + std::string(to_string(loc.source)) + ") failed to load: " + model.error().describe();
+        if (loc.user_requested()) {
+            error = why;
+            return nullptr;
+        }
+        note = why + "; using rules";
+        return std::make_unique<intent::RuleParser>();
+    }
+    note = "model: " + loc.path;
+    auto shared = std::make_shared<IntentModel>(std::move(model).value());
+    if (choice == ParserChoice::neural) return std::make_unique<NeuralParser>(shared);
+    return std::make_unique<HybridParser>(shared);
 }
 
 }  // namespace osie::inference

@@ -736,6 +736,11 @@ std::vector<std::string> validate(const IntentFrame& f) {
 
 std::string to_json(const IntentFrame& f) {
     json::Writer w;
+    write_json(w, f);
+    return w.take();
+}
+
+void write_json(json::Writer& w, const IntentFrame& f) {
     w.begin_object();
     w.kv("intent", to_string(f.intent)).kv("confidence", static_cast<double>(f.confidence)).kv("parser", f.parser);
     w.key("target").begin_object().kv("kind", to_string(f.target.kind));
@@ -780,7 +785,6 @@ std::string to_json(const IntentFrame& f) {
         w.kv("rank_processes", f.temporal->rank_processes).end_object();
     }
     w.end_object();
-    return w.take();
 }
 
 }  // namespace osie::intent

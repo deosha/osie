@@ -1,6 +1,12 @@
 #!/bin/sh
 # Make the unit known to systemd. The agent is opt-in: never enabled or started here.
 set -e
+# The group whose members may use the local diagnostic API (when the
+# administrator sets api_enabled = true and api_group = osie). It has no
+# members until the administrator adds some; it is kept on removal.
+if [ "$1" = "configure" ] && ! getent group osie >/dev/null 2>&1; then
+  groupadd --system osie >/dev/null 2>&1 || addgroup --system osie >/dev/null 2>&1 || true
+fi
 if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload >/dev/null 2>&1 || true
   # On upgrade, restart the agent only if it was already running.

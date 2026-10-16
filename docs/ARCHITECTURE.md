@@ -54,6 +54,7 @@ the first step.
 | prediction | `include/osie/prediction`, `src/prediction` | CPU world model: cgroup windows, the shared feature encoder, the mechanistic prior, the `.osiewm` loader, bounded and conformal predictions, abstention ([WORLD_MODEL.md](WORLD_MODEL.md)) |
 | engine | `include/osie/engine`, `src/engine` | orchestration, session context, rendering |
 | agent | `include/osie/agent`, `src/agent` | opt-in background runtime: config, scheduler, snapshots, health ([AGENT.md](AGENT.md)); `osie-agent` executable |
+| api | `include/osie/api`, `src/api`, `third_party/picohttpparser` | opt-in local diagnostic API ([API.md](API.md)): HTTP framing on picohttpparser, strict JSON input, peer credentials and access tiers, redaction, sessions, `AgentEvidence` and `RefusingOs`, the socket server |
 | cli | `src/cli` | `osie` REPL / `ask` / `parse` / `snapshot` / `caps` / `graph` / `version`; opt-in `--watch` sampler |
 | tools | `tools/` | `osie_eval` (E2E evaluation), `osie_ort_bench`, `osie_cpu_lab` and `osie_wm_lab` (Linux experiments, world-model encoding, parity and benchmarks) |
 
@@ -176,6 +177,37 @@ and throttled in most periods is reported as quota-bound even when the host's
 CPUs are mostly idle. Throttling evidence is a rate over the sampling window
 (OSIE's own cgroup is read at both ends of the window; for cgroup questions
 every inspected cgroup is), and a lifetime ratio is labelled as one.
+
+## Evidence sources: the CLI and the agent API (v0.3)
+
+`Engine::ask()` is one pipeline whatever the evidence: normalise, assess
+safety, parse, build and validate the frame, apply session context, resolve
+targets, then reason and render. Two things are parameters of a call:
+- **The session** (`SessionContext&`). The CLI uses the engine's own session.
+  The agent API passes the session of the asking peer (uid, session id).
+- **The evidence** (`EvidenceSource&`), which supplies the state an intent
+  needs and the history temporal questions read.
+
+| Source | Used by | Where states come from | History |
+|---|---|---|---|
+| `Engine::LiveEvidence` (internal) | `osie ask`, the REPL | the sampler, a 500 ms window, reusing a cached state younger than the freshness budget | the engine's own `StateHistory` |
+| `api::AgentEvidence` | the local API (`/v1/diagnose`) | the agent's newest published snapshot, refused if older than the evidence-age limit; cgroup throttling rates from the agent's last two snapshots | a copy of the agent's history |
+
+The API's engine is built on `api::RefusingOs`:
+- It reports the agent's platform and supported observation kinds, and
+  refuses every observation call.
+- Any path that would observe on demand, such as the capacity read, fails
+  with an explicit reason, which the API reports as a limitation.
+- Tests assert that answers covered by the snapshot make no such call. So
+  there is one sampler, one scheduler and one history: the agent's.
+
+What the API adds around the pipeline:
+- authorisation from the peer's kernel credentials;
+- redaction of the state for non-full peers, before reasoning;
+- request validation and limits;
+- a versioned JSON envelope. Its evidence items, the diagnosis object and the
+  trends are written by the same serialisers as `osie ask --json`
+  (`include/osie/engine/serialize.hpp`).
 
 ## Temporal state
 

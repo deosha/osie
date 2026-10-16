@@ -307,3 +307,175 @@ Measured 2026-10-16 (raw output in `ml/experiments/results/agent/`):
   2,500 processes, peaking at 25–27 MB, while live memory stays near 2 MB.
   This is allocator page retention, not data the agent holds. On Linux the
   same workload peaks at 8.2 MB.
+
+## Local API (`osie-agent`, Feature 2)
+
+Measured 2026-10-16 with `packaging/agent/api_bench.sh` (raw output in
+`ml/experiments/results/api/`). The agent ran unprivileged with its default
+interval (5 s, 500 ms window), with `api_rate_limit = 10000` so that the load
+phases measure the server rather than the default limit of 50 requests a
+second.
+
+How each phase was run:
+- **Idle phases** compare the same agent with the API off and on, for
+  120 s each.
+- **Latency** is per request from the client's side: connect, send,
+  receive, close. Each figure is over 200 requests.
+- **"Concurrent"**: 16 clients in a loop for 10 s.
+- **"Burst"**: 200 connections opened at once.
+- **"Shutdown"**: SIGTERM while 16 clients are active.
+
+The Linux (aarch64) column is the installed `.deb` in a Docker Desktop VM
+with `--pid=host` (kernel 6.10, 12 vCPUs, 482 processes). The macOS column is
+a development build in a user session. CI repeats the run on GitHub-hosted
+Linux x86-64 and arm64 VMs (`api-bench.jsonl` in the job log).
+
+| Measurement | Target | Linux aarch64 | macOS arm64 |
+|---|---|---|---|
+| Idle CPU, API off → on | negligible | 0.366% → 0.355% (no difference) | 0.36% → 0.37% |
+| Idle RSS, API off → on | < 10 MB more | 3.88 → 4.13 MB (+0.25 MB) | 6.95 → 7.28 MB (+0.33 MB) |
+| Startup to first `ready` | – | 569 ms (the first collection: 500 ms window) | 556 ms |
+| `/health/live` p50 / p99 | – | 0.09 / 0.15 ms | 0.04 / 0.18 ms |
+| Cached `/system/snapshot` p50 / p99 | p99 < 20 ms | 0.08 / 0.15 ms | 0.07 / 0.24 ms |
+| `/system/history` (120 points) p50 / p99 | – | 0.07 / 0.12 ms | 0.11 / 0.26 ms |
+| Diagnose "what is using the most CPU?" p50 / p99 | p99 < 100 ms | 0.10 / 0.22 ms | 0.10 / 0.34 ms |
+| Diagnose "why is my machine slow?" p50 / p99 | p99 < 100 ms | 0.14 / 0.20 ms | 0.19 / 0.28 ms |
+| Diagnose "which process uses the most memory?" p50 / p99 | p99 < 100 ms | 0.10 / 0.12 ms | 0.11 / 0.14 ms |
+| 16 concurrent clients: answered/s, p50 / p99 | – | 11,980/s; 1.0 / 3.3 ms | 11,992/s; 0.35 / 1.4 ms |
+| Burst of 200 connections | 16 admitted; excess refused | 38 answered, 162 `503 busy` (16 in flight, 16 queued at most) | 62 answered, 103 `503 busy`, 35 `429` |
+| Peak RSS under that load | – | 8.3 MB | 11.7 MB |
+| Collections during the load | no regression | 3, 0 failures, 0 skipped; start jitter p99 1.0 ms | 3, 0 failures, 0 skipped; start jitter p99 5.1 ms |
+| Shutdown with 16 active clients | < `TimeoutStopSec` (10 s) | 28 ms | 40 ms |
+
+GitHub-hosted VMs (CI `test` jobs, 2026-10-16): 4 vCPUs, Linux 6.17, the
+RelWithDebInfo build, idle phases of 60 s. These runners stayed below the
+rate limit, so the concurrent figure is the server's own throughput.
+
+| Measurement | linux-x86_64 VM | linux-arm64 VM |
+|---|---|---|
+| Idle CPU, API off → on | 0.259% → 0.265% | 0.164% → 0.163% |
+| Idle RSS, API off → on | 5.34 → 5.68 MB (+0.34 MB) | 4.38 → 4.67 MB (+0.29 MB) |
+| Startup to first `ready` | 540 ms | 541 ms |
+| `/health/live` p50 / p99 | 0.05 / 0.06 ms | 0.04 / 0.08 ms |
+| Cached `/system/snapshot` p50 / p99 | 0.07 / 0.13 ms | 0.06 / 0.10 ms |
+| `/system/history` (120 points) p50 / p99 | 0.05 / 0.07 ms | 0.04 / 0.06 ms |
+| Diagnoses (top CPU, slow, top memory, trend), p99 | 0.18, 0.22, 0.15, 0.10 ms | 0.15, 0.20, 0.16, 0.08 ms |
+| 16 concurrent clients: answered/s, p50 / p99 | 11,031/s; 1.5 / 3.8 ms; no refusals | 11,364/s; 1.4 / 4.1 ms; no refusals |
+| Burst of 200 connections | 42 answered, 158 `503 busy` | 52 answered, 148 `503 busy` |
+| Peak RSS under load | 8.1 MB | 7.0 MB |
+| Collections during the load | 3, 0 failures; jitter p99 0.07 ms | 3, 0 failures; jitter p99 0.06 ms |
+| Shutdown with 16 active clients | 81 ms | 62 ms |
+
+**Reading the numbers.**
+- **Diagnosis is cheap.** The evidence is already in memory, so a diagnosis
+  is parsing, reasoning and rendering over one snapshot: tenths of a
+  millisecond. Diagnoses are serialised on one engine.
+- **On the Docker and macOS hosts, throughput was set by the rate limit,**
+  not the server: the clients sent more than 10,000 requests a second, and
+  every refusal there was a 429. The 4-vCPU CI runners stayed under the limit
+  at about 11,000 a second. Under the
+  default `api_rate_limit = 50`, one user gets 50 a second (bursts of 100).
+- **Burst refusals are immediate.** A burst beyond 16 in flight plus 16
+  queued gets an immediate `503 busy` with `Retry-After`. The kernel's
+  listen backlog only absorbs the burst; admission is decided after
+  `accept()`.
+- **Memory under pressure is bounded** by the workers and the queue. Each
+  in-flight diagnosis for a redacted peer holds one copy of the snapshot.
+- **The systemd stop** in the integration test, with a client stalled
+  mid-request, took 146 ms. The stalled client got `503 stopping`.
+
+### Local API: concurrency, Feature 1 baseline and OS access
+
+Measured 2026-10-16, with the hardening changes.
+
+**Setup.**
+- The installed `.deb`, run unprivileged in a Docker Desktop VM (kernel
+  6.10, aarch64, 12 vCPUs) with `--pid=host`. Release build (`-O2`, the
+  release-builder image).
+- 2,000 extra sleeping processes: about 2,490 visible.
+- Default interval (5 s, 500 ms window), and a configuration reload every
+  2 s throughout.
+- One user plays every client, so `api_max_clients_per_user` was set to 16
+  and `api_rate_limit` to 10,000.
+
+**Commands.**
+- `packaging/agent/api_sweep.sh /usr/bin/osie-agent osie_api_bench 2000 10`;
+- `ml/experiments/results/api/compare.sh`.
+
+**Workload, per level.** 10 s of mixed questions: CPU, memory, a process,
+a trend, slowness, a container, an unsupported question and a 1.9 KB
+question. Every 20th request disconnects right after sending.
+
+**Measurements.**
+- *Client* columns are from the clients: connect, request, response.
+- *Server* columns come from the agent's own timings (SIGUSR1): time in
+  the queue, waiting for the engine lock, and inside the engine.
+- *Agent* columns are from `/proc/<pid>`.
+
+| Clients | Answers/s | p50 / p95 / p99 (client) | Queue wait p99 | Engine-lock wait p99 | Engine p99 | Agent CPU (cores) | RSS / peak | Threads, fds | 429s |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 6,461 | 0.12 / 0.39 / 0.42 ms | 0.031 ms | 0.00 ms | 0.33 ms | 0.77 | 7.8 / 9.1 MB | 20, 7 | 0 |
+| 4 | 11,397 | 0.27 / 0.76 / 0.97 ms | 0.058 ms | 0.78 ms | 0.35 ms | 1.64 | 11.7 / 11.7 MB | 20, 7 | 236 |
+| 8 | 9,834 | 0.48 / 1.39 / 1.96 ms | 0.060 ms | 1.70 ms | 0.35 ms | 1.48 | 9.2 / 11.7 MB | 20, 7 | 4,067 |
+| 16 | 9,775 | 0.47 / 2.26 / 3.46 ms | 0.055 ms | 2.68 ms | 0.34 ms | 1.42 | 11.2 / 11.7 MB | 20, 7 | 14,655 |
+| 32 | 9,285 | 0.46 / 2.41 / 4.09 ms | 0.064 ms | 2.42 ms | 0.34 ms | 1.54 | 12.5 / 12.5 MB | 20, 7 | 42,171 |
+| 100 | 9,215 | 0.42 / 1.84 / 3.50 ms | 0.085 ms | 2.06 ms | 0.35 ms | 1.60 | 12.2 / 12.5 MB | 20, 7 | 156,961 |
+
+- **Latency and contention.** Every level stays below 4.1 ms at p99. No
+  request hit its deadline, and no client was refused for lack of a worker.
+  Zero `503 busy` at any level. The 429s are the rate limit (10,000/s, which
+  the clients exceed from 4 upward) and, from 16 clients upward, the
+  per-user cap of 16: one user plays every client, and disconnecting clients
+  briefly hold extra slots.
+  - Diagnoses are serialised on one engine. The engine-lock wait is the cost
+    of that: at most 2.7 ms at p99, while the work inside the engine is
+    0.35 ms. A finer-grained engine is not justified by these numbers.
+- **Memory.** Before this change, peak RSS under load was
+  **31.0 MB**: glibc gave each of the 16 worker threads an arena
+  and kept their freed memory. Capping arenas at 2 (`mallopt(M_ARENA_MAX, 2)`
+  in `osie-agent`, glibc only) brings the peak to **12.5 MB**, with
+  the same throughput.
+- **Shutdown** with 100 active clients took 52 ms.
+- **Before the hardening,** a request from a diagnostics-tier peer cost
+  about 13.5 ms at 5,000 processes, against 0.06–0.4 ms for most full-tier
+  requests. Every redacted state was a new object, which made the engine
+  rebuild its knowledge graph's instance nodes inside the lock, although no
+  API answer reads them. The API's engine no longer builds them
+  (`EngineConfig::track_instances`). Now every request costs 0.01–0.6 ms,
+  whatever the tier: 2.7 ms at most with 20,000 processes. This is measured
+  single-threaded, through `DiagnosticApi::handle`.
+
+**Against Feature 1** (`main` at `c3851d7`): same host, about 2,000 extra
+processes, 120 s idle each.
+
+| Variant | CPU (one core) | RSS / peak | Threads | Open fds | Snapshot age p99 |
+|---|---|---|---|---|---|
+| feature1 | 1.12% | 6.3 / 6.3 MB | 4 | 4 | 4.95 s |
+| feature2 api off | 1.20% | 7.3 / 7.8 MB | 4 | 4 | 4.94 s |
+| feature2 api on | 1.15% | 7.8 / 7.8 MB | 21 | 9 | 4.95 s |
+
+- **CPU** is unchanged within noise.
+- **RSS** is about 1 MB more with the API off, and 1.5 MB more with it on.
+  Most of that is the larger binary: the API code, the HTTP parser and the
+  engine's evidence plumbing are linked in either way.
+- **With the API on,** the extra 17 threads are the acceptor and 16 idle
+  workers, and the 5 extra descriptors are the socket, the directory lock
+  and the wake pipe.
+
+**No additional OS observation per request.** `strace -f -e trace=openat`
+counted the agent's opens of `/proc` files for 40 s, idle and then with 100
+concurrent API clients (Feature 2, API on, ~2,000 extra processes):
+
+| Run | Collections | `/proc` opens | Opens per collection | API answers |
+|---|---|---|---|---|
+| idle | 8 | 96,386 | 12,048 | 0 |
+| load 100 clients | 8 | 96,428 | 12,054 | 60,532 |
+
+Answering tens of thousands of requests added no `/proc` reads: opens per
+collection are within six (process churn). Snapshot freshness was the same
+in both runs (p99 about 5.0 s, the interval). In the unit tests the same
+property is asserted with an instrumented OS
+(`ApiTruth.ConcurrentDiagnosesNeverObserveTheOs`):
+- the OS calls equal two per collection;
+- the API engine's refusing backend records zero attempted observations
+  during 100 concurrent diagnoses.

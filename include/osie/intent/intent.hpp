@@ -17,6 +17,10 @@
 
 #include "osie/capabilities/capability.hpp"
 
+namespace osie::json {
+class Writer;
+}
+
 namespace osie::intent {
 
 class IIntentParser;
@@ -185,6 +189,8 @@ IntentFrame understand(std::string_view text, const IIntentParser& parser, Platf
 std::vector<std::string> validate(const IntentFrame& f);
 
 std::string to_json(const IntentFrame& f);
+/// Writes the same object into `w` (for composing larger documents).
+void write_json(json::Writer& w, const IntentFrame& f);
 
 class IIntentParser {
 public:

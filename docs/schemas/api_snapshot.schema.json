@@ -1,0 +1,478 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/api_snapshot.schema.json",
+  "title": "GET /v1/system/snapshot",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "snapshot_seq": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "collected_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "age_ms": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "sample_window_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "host": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "os": {
+              "type": "string"
+            },
+            "os_version": {
+              "type": "string"
+            },
+            "kernel": {
+              "type": "string"
+            },
+            "arch": {
+              "type": "string"
+            },
+            "logical_cpus": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "logical_cpus"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "cpu": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "busy_pct": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "user_pct": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "system_pct": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "iowait_pct": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "steal_pct": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "busy_pct",
+            "user_pct",
+            "system_pct",
+            "iowait_pct",
+            "steal_pct"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "load": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "one": {
+              "type": "number"
+            },
+            "five": {
+              "type": "number"
+            },
+            "fifteen": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "one",
+            "five",
+            "fifteen"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "memory": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "total_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "available_bytes": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "swap_total_bytes": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "swap_used_bytes": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "pressure_level": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "total_bytes",
+            "available_bytes",
+            "swap_total_bytes",
+            "swap_used_bytes",
+            "pressure_level"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "pressure_stall": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string"
+          },
+          "some_avg10": {
+            "type": "number"
+          },
+          "some_avg60": {
+            "type": "number"
+          },
+          "full_avg10": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "resource",
+          "some_avg10",
+          "some_avg60"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "processes": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unreadable": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "exited_during_sampling": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "top_cpu": {
+              "type": "array",
+              "maxItems": 10,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "pid": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "start_time_us": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "uid": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "cpu_pct": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "memory_bytes": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "threads": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pid",
+                  "start_time_us",
+                  "name",
+                  "uid",
+                  "cpu_pct",
+                  "memory_bytes",
+                  "threads"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "top_memory": {
+              "type": "array",
+              "maxItems": 10,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "pid": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "start_time_us": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "uid": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "cpu_pct": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "memory_bytes": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "threads": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pid",
+                  "start_time_us",
+                  "name",
+                  "uid",
+                  "cpu_pct",
+                  "memory_bytes",
+                  "threads"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "count",
+            "unreadable",
+            "exited_during_sampling",
+            "top_cpu",
+            "top_memory"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "cgroups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "cpu_quota_us": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cpu_period_us": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "lifetime_throttled_ratio": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "memory_current_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "memory_max_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        },
+        "required": [
+          "path",
+          "cpu_quota_us",
+          "cpu_period_us",
+          "lifetime_throttled_ratio",
+          "memory_current_bytes",
+          "memory_max_bytes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "observations": {
+      "type": "object",
+      "properties": {
+        "present": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unavailable": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "code"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "present",
+        "unavailable"
+      ],
+      "additionalProperties": false
+    },
+    "redacted": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "snapshot_seq",
+    "collected_at",
+    "age_ms",
+    "sample_window_ms",
+    "host",
+    "cpu",
+    "load",
+    "memory",
+    "pressure_stall",
+    "processes",
+    "cgroups",
+    "observations"
+  ],
+  "additionalProperties": false
+}

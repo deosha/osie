@@ -20,6 +20,7 @@
 #include "osie/inference/neural_parser.hpp"
 #include "osie/prediction/world_model.hpp"
 #include "osie/util/format.hpp"
+#include "osie/engine/serialize.hpp"
 #include "osie/util/json.hpp"
 
 namespace {
@@ -140,63 +141,17 @@ bool parse_args(int argc, char** argv, Options& o) {
     return true;
 }
 
-std::string answer_json(const Answer& a) {
-    json::Writer w;
-    w.begin_object();
-    w.key("frame");
-    std::string frame = intent::to_json(a.frame);
-    std::string diag = a.diagnosis ? reason::to_json(*a.diagnosis) : "null";
-    w.null();  // placeholder replaced below (Writer has no raw-insert by design)
-    w.kv("text", a.text).kv("latency_ms", a.latency_ms).kv("parse_ms", a.parse_ms)
-        .kv("observation_age_ms", static_cast<std::int64_t>(a.observation_age.count()))
-        .kv("reused_observations", a.reused_observations);
-    if (!a.trends.empty()) {
-        w.key("trends").begin_array();
-        for (const auto& [label, t] : a.trends) {
-            w.begin_object().kv("series", label).kv("direction", to_string(t.direction)).kv("samples", static_cast<std::uint64_t>(t.n))
-                .kv("span_s", t.span_s);
-            if (t.direction == TrendDirection::insufficient_data) w.kv("why", t.why);
-            else w.kv("first", t.first).kv("last", t.last).kv("early_mean", t.early_mean).kv("late_mean", t.late_mean)
-                     .kv("slope_per_min", t.slope_per_min).kv("mann_kendall_z", t.mann_kendall_z);
-            w.end_object();
-        }
-        w.end_array();
-    }
-    w.end_object();
-    std::string s = w.take();
-    const std::string ph = "\"frame\":null";
-    s.replace(s.find(ph), ph.size(), "\"frame\":" + frame + ",\"diagnosis\":" + diag);
-    return s;
-}
+using serialize::answer_json;
 
 /// Builds the parser. Returns nullptr (with `error` set) when the user asked
 /// for a specific model (--model or $OSIE_MODEL) that cannot be loaded:
 /// silently answering with a different parser would misreport what ran.
 std::unique_ptr<intent::IIntentParser> make_parser(const Options& o, std::string& note, std::string& error) {
-    if (o.parser == "rules") return std::make_unique<intent::RuleParser>();
-    const auto loc = inference::locate_model(inference::default_model_search(
-        o.model_path.empty() ? std::nullopt : std::optional<std::string>(o.model_path)));
-    if (loc.source == inference::ModelSource::none) {
-        note = "no model file found; using rules (searched:";
-        for (const auto& c : loc.searched) note += " " + c;
-        note += ")";
-        return std::make_unique<intent::RuleParser>();
-    }
-    auto model = inference::IntentModel::load(loc.path);
-    if (!model) {
-        const std::string why = "model " + loc.path + " (" + std::string(inference::to_string(loc.source)) +
-                                ") failed to load: " + model.error().describe();
-        if (loc.user_requested()) {
-            error = why;
-            return nullptr;
-        }
-        note = why + "; using rules";
-        return std::make_unique<intent::RuleParser>();
-    }
-    note = "model: " + loc.path;
-    auto shared = std::make_shared<inference::IntentModel>(std::move(model).value());
-    if (o.parser == "neural") return std::make_unique<inference::NeuralParser>(shared);
-    return std::make_unique<inference::HybridParser>(shared);
+    const auto choice = o.parser == "rules"    ? inference::ParserChoice::rules
+                        : o.parser == "neural" ? inference::ParserChoice::neural
+                                               : inference::ParserChoice::hybrid;
+    return inference::make_parser(choice, o.model_path.empty() ? std::nullopt : std::optional<std::string>(o.model_path),
+                                  note, error);
 }
 
 /// Loads the CPU world model if one is found. A model the user named
@@ -344,23 +299,7 @@ void print_graph(Engine& e, const Options& o) {
 void print_snapshot(Engine& e, bool as_json) {
     auto s = e.observe_all();
     if (as_json) {
-        json::Writer w;
-        w.begin_object();
-        if (s->system) w.kv("os", s->system->value.os_name + " " + s->system->value.os_version);
-        if (s->cpu) w.kv("cpu_busy_pct", s->cpu->value.busy_pct());
-        if (s->load) w.kv("load_1m", s->load->value.one);
-        if (s->memory) {
-            w.kv("mem_total", s->memory->value.total_bytes).kv("mem_available", s->memory->value.available_bytes);
-            if (s->memory->value.pressure_level) w.kv("pressure_level", to_string(*s->memory->value.pressure_level));
-        }
-        if (s->processes) w.kv("processes", static_cast<std::uint64_t>(s->processes->value.size()))
-                              .kv("processes_partial", static_cast<std::uint64_t>(s->processes_partial));
-        w.key("unavailable").begin_array();
-        for (const auto& u : s->unavailable)
-            w.begin_object().kv("kind", to_string(u.kind)).kv("reason", u.why.describe()).end_object();
-        w.end_array();
-        w.end_object();
-        std::puts(w.str().c_str());
+        std::puts(serialize::snapshot_summary_json(*s).c_str());
         return;
     }
     if (s->system) {

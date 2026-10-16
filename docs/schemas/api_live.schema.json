@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/api_live.schema.json",
+  "title": "GET /v1/health/live",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "status": {
+      "enum": [
+        "alive",
+        "runtime_stopped"
+      ]
+    },
+    "runtime_state": {
+      "enum": [
+        "stopped",
+        "starting",
+        "running",
+        "degraded",
+        "stopping"
+      ]
+    },
+    "uptime_s": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "schema_version",
+    "status",
+    "runtime_state",
+    "uptime_s"
+  ],
+  "additionalProperties": false
+}

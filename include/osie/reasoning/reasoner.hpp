@@ -14,6 +14,10 @@
 #include "osie/architecture/graph.hpp"
 #include "osie/state/state.hpp"
 
+namespace osie::json {
+class Writer;
+}
+
 namespace osie::reason {
 
 enum class FindingKind : std::uint8_t {
@@ -125,5 +129,7 @@ private:
 };
 
 std::string to_json(const Diagnosis& d);
+/// Writes the same object into `w` (for composing larger documents).
+void write_json(json::Writer& w, const Diagnosis& d);
 
 }  // namespace osie::reason

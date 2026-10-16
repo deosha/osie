@@ -23,6 +23,9 @@ TimeoutStopSec=10s
 
 # Identity: a transient unprivileged user, no capabilities, no way to gain any.
 DynamicUser=yes
+# Primary group: the static "osie" group the packages create (members may use
+# the local API when api_group = osie), else a dynamic group with no members.
+Group=osie
 CapabilityBoundingSet=
 AmbientCapabilities=
 NoNewPrivileges=yes
@@ -41,9 +44,15 @@ ProtectControlGroups=yes
 ProtectClock=yes
 ProtectHostname=yes
 UMask=0077
+# The local API's socket directory (/run/osie, api_socket). Created at start,
+# removed at stop; owned by the agent, group osie, not writable by others.
+# Empty unless api_enabled = true.
+RuntimeDirectory=osie
+RuntimeDirectoryMode=0750
 
 # Network: no IP sockets at all. AF_NETLINK is for read-only interface
-# counters (rtnetlink dump); AF_UNIX is for the systemd notification socket.
+# counters (rtnetlink dump); AF_UNIX is for the systemd notification socket
+# and the opt-in local API socket in /run/osie.
 RestrictAddressFamilies=AF_UNIX AF_NETLINK
 IPAddressDeny=any
 PrivateIPC=yes
@@ -61,7 +70,8 @@ SystemCallErrorNumber=EPERM
 
 # Resource bounds: well above the measured footprint (docs/AGENT.md).
 MemoryMax=64M
-TasksMax=16
+# 16 API workers (api_max_clients) + acceptor, scheduler, signal and main threads.
+TasksMax=32
 Nice=10
 CPUWeight=20
 IOWeight=20
