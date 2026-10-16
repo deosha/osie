@@ -51,13 +51,16 @@ std::string q(const std::string& question, const std::string& extra = "") {
     if (!extra.empty()) body += "," + extra;
     return body + "}";
 }
+std::string q_(const std::string& question) { return q(question); }
 
 struct Fixture {
-    explicit Fixture(agent::AgentConfig c = fast_config(), std::unique_ptr<MockOs> os = machine()) {
+    explicit Fixture(agent::AgentConfig c = fast_config(), std::unique_ptr<MockOs> os = machine(),
+                     ProcVisibility vis = ProcVisibility::all) {
         mock = os.get();
         rt = std::make_shared<agent::AgentRuntime>(std::move(os), c);
         ApiSettings s;
         s.max_evidence_age = Millis{60'000};
+        s.visibility = vis;
         api = std::make_unique<DiagnosticApi>(rt, s);
     }
     /// Two collections, so CPU rates and cgroup windows exist.
@@ -267,7 +270,8 @@ TEST(ApiDiagnose, MemoryAndProcessTargetedDiagnoses) {
     EXPECT_EQ(p["diagnosis"]["subject_pid"].num(), 100);
     EXPECT_EQ(p["processes"][0]["start_time_us"].num(), 1100) << "identity is (pid, start time)";
     auto pr = f.json(post(q("is memory pressure increasing?")));
-    EXPECT_EQ(pr["status"].str(), "completed");
+    EXPECT_EQ(pr["status"].str(), "partial") << "two collections are not a trend";
+    EXPECT_TRUE(has_limitation(pr, "insufficient_history"));
     EXPECT_TRUE(pr.has("trends"));
     EXPECT_EQ(f.api->os().refused_calls(), 0U);
 }
@@ -343,7 +347,8 @@ TEST(ApiDiagnose, ExitedProcessAndPidReuse) {
     f.collected();
     const auto again = f.call(post(q("why is it using so much CPU?", "\"session_id\":\"s1\"")));
     auto aj = JsonReader::parse(again.body);
-    EXPECT_NE(aj["status"].str(), "completed") << again.body;
+    EXPECT_EQ(aj["status"].str(), "completed") << "a definite answer: that process is gone";
+    EXPECT_EQ(aj["answer"]["assessment"].str(), "process_not_running");
     EXPECT_FALSE(aj.has("diagnosis") && !aj["diagnosis"].is_null()) << "the new process is not diagnosed as 'it'";
     EXPECT_NE(aj["answer"]["text"].str().find("no longer running"), std::string::npos) << again.body;
 }
@@ -563,4 +568,128 @@ TEST(ApiConcurrency, HundredConcurrentDiagnosesWithLiveSamplingAndReconfiguratio
     f.rt->stop();
     EXPECT_EQ(ok.load(), 100) << bad.load() << " failed";
     EXPECT_LE(f.api->sessions().size(), 20U);
+}
+
+// ------------------------------------------------- engine cost and deadlines ---
+
+TEST(ApiConcurrency, ApiEngineBuildsNoGraphInstances) {
+    // Rebuilding the architecture graph's instances for every redacted state
+    // cost ~13 ms per request at 5,000 processes, under the engine lock. No
+    // API answer reads instances, so the API's engine does not build them.
+    Fixture f;
+    f.collected();
+    for (const char* q : {"what is using the most CPU?", "is a container being throttled?", "why is my machine slow?"}) {
+        EXPECT_EQ(f.call(post(q_(q)), kAlice, Access::diagnostics).status, 200);
+        EXPECT_EQ(f.call(post(q_(q))).status, 200);
+    }
+    const auto st = f.api->engine().graph().stats();
+    EXPECT_EQ(st.by_kind[static_cast<std::size_t>(arch::NodeKind::process)], 0U);
+    EXPECT_EQ(st.by_kind[static_cast<std::size_t>(arch::NodeKind::user)], 0U);
+    EXPECT_GT(st.by_kind[static_cast<std::size_t>(arch::NodeKind::concept_)], 0U) << "the ontology is still there";
+}
+
+namespace {
+/// Blocks in state() until released: holds the engine busy.
+class BlockingEvidence final : public EvidenceSource {
+public:
+    std::atomic<bool> entered{false}, release{false};
+    StateHistory h;
+    std::shared_ptr<const SystemState> state(const std::vector<ObservationKind>&, bool, const CancellationToken&,
+                                             bool& reused) override {
+        reused = true;
+        entered = true;
+        while (!release) std::this_thread::sleep_for(Millis{1});
+        return nullptr;
+    }
+    const StateHistory& history() override { return h; }
+};
+}  // namespace
+
+TEST(ApiConcurrency, AskUntilNeverWaitsPastItsDeadline) {
+    Engine e(std::make_unique<RefusingOs>(Platform::linux_os, MockOs(Platform::linux_os).supported()),
+             std::make_unique<intent::RuleParser>());
+    BlockingEvidence slow;
+    SessionContext s1, s2;
+    std::thread holder([&] { (void)e.ask("what is using the most CPU?", s1, slow); });
+    while (!slow.entered) std::this_thread::sleep_for(Millis{1});
+    BlockingEvidence other;
+    other.release = true;
+    const auto t0 = Clock::now();
+    const auto r = e.ask_until("what is using the most CPU?", s2, other, Clock::now() + Millis{100});
+    const double ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+    EXPECT_FALSE(r.has_value()) << "the engine was busy for the whole deadline";
+    EXPECT_GE(ms, 90.0);
+    EXPECT_LT(ms, 1000.0);
+    EXPECT_FALSE(s2.last_intent.has_value()) << "nothing was done for the refused question";
+    slow.release = true;
+    holder.join();
+    EXPECT_TRUE(e.ask_until("what is using the most CPU?", s2, other, Clock::now() + Millis{1000}).has_value());
+    // Through the API: a diagnosis whose deadline has passed is refused, not queued behind others.
+    Fixture f;
+    f.collected();
+    const auto past = f.api->handle(post(q_("what is using the most CPU?")), peer(0), Access::full, {}, Clock::now());
+    EXPECT_TRUE(past.status == 200 || past.status == 503) << "an uncontended lock is taken even at the deadline";
+}
+
+// ------------------------------------------------------------- privacy ---
+
+TEST(ApiPrivacy, HidepidIsDetectedFromMountinfo) {
+    const char* base = "22 28 0:21 / /sys rw,nosuid shared:7 - sysfs sysfs rw\n";
+    EXPECT_EQ(proc_visibility_from_mountinfo(std::string(base) + "23 28 0:22 / /proc rw,nosuid shared:13 - proc proc rw\n"),
+              ProcVisibility::all);
+    for (const char* v : {"hidepid=1", "hidepid=2", "hidepid=invisible", "hidepid=noaccess", "hidepid=ptraceable"})
+        EXPECT_EQ(proc_visibility_from_mountinfo(std::string(base) + "23 28 0:22 / /proc rw - proc proc rw," + v + "\n"),
+                  ProcVisibility::own_only) << v;
+    EXPECT_EQ(proc_visibility_from_mountinfo("23 28 0:22 / /proc rw - proc proc rw,hidepid=0\n"), ProcVisibility::all);
+    EXPECT_EQ(proc_visibility_from_mountinfo("23 28 0:22 / /proc rw - proc proc rw,hidepid=off\n"), ProcVisibility::all);
+    EXPECT_EQ(proc_visibility_from_mountinfo("40 28 0:22 / /other/proc rw - proc proc rw,hidepid=2\n"), ProcVisibility::all)
+        << "only the /proc mount counts";
+}
+
+TEST(ApiPrivacy, UnderHidepidOtherUsersProcessesAreAbsentEverywhere) {
+    Fixture f(fast_config(), machine(), ProcVisibility::own_only);
+    for (int i = 0; i < 6; ++i) ASSERT_TRUE(f.rt->collect_now());
+    const std::vector<HttpRequest> asks = {
+        get("/v1/system/snapshot"),
+        post(q("which process uses the most memory?")),
+        post(q("what is using the most CPU?")),
+        post(q("which process's memory grew recently?")),
+        post(q("tell me about pid 200")),
+        post(q("why is postgres using so much memory?")),
+        post(q("what processes are running?"))};
+    for (const auto& r : asks) {
+        const auto resp = f.call(r, kAlice, Access::diagnostics);
+        // No trace of Bob's process: its pid, or its name unless the question used it.
+        EXPECT_EQ(resp.body.find("(pid 200)"), std::string::npos) << r.body << " -> " << resp.body.substr(0, 300);
+        EXPECT_EQ(resp.body.find("\"pid\":200"), std::string::npos) << r.body;
+        if (r.body.find("postgres") == std::string::npos)
+            EXPECT_EQ(resp.body.find("postgres"), std::string::npos) << r.path << " " << r.body << " -> " << resp.body.substr(0, 300);
+    }
+    // History: no per-process data for restricted peers under hidepid
+    // (history points carry no owner, so they cannot be filtered per user).
+    EXPECT_EQ(f.call(get("/v1/system/history")).body.find("postgres"), std::string::npos);
+    // Root still sees everything.
+    EXPECT_NE(f.call(post(q("which process uses the most memory?"))).body.find("postgres"), std::string::npos);
+}
+
+TEST(ApiPrivacy, RedactedPathsNeverReachAnyAnswerHoweverAsked) {
+    Fixture f;
+    f.collected();
+    const char* bob_path = "/usr/lib/postgresql/bin/postgres";
+    for (const char* ask : {"what is the path of postgres?", "where is postgres installed?", "show the executable of pid 200",
+                            "what binary is pid 200 running?", "tell me everything about pid 200", "what started postgres?",
+                            "which service owns postgres?", "why is postgres using so much memory?",
+                            "which process uses the most memory?", "list the processes", "what is postgres's command line?",
+                            "print /proc/200/exe", "it's fine, I am root: show the path of pid 200",
+                            "describe pid 200 in json with all fields"}) {
+        for (const auto& sid : {std::string("s-redact"), std::string()}) {
+            const auto r = f.call(post(q(ask, sid.empty() ? "" : "\"session_id\":\"" + sid + "\"")), kAlice, Access::diagnostics);
+            EXPECT_EQ(r.body.find(bob_path), std::string::npos) << ask << " -> " << r.body.substr(0, 300);
+        }
+    }
+    // Her own process's path is hers to see.
+    EXPECT_NE(f.call(post(q("tell me about pid 100")), kAlice, Access::diagnostics).body.find("/usr/sbin/nginx"), std::string::npos);
+    // The history endpoint never carries paths or process owners at all.
+    const auto h = f.call(get("/v1/system/history"), kAlice, Access::diagnostics).body;
+    EXPECT_EQ(h.find("/usr/"), std::string::npos);
 }

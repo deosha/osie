@@ -4,6 +4,7 @@
 // times, PSI, and one CPU-limited cgroup.
 #pragma once
 
+#include <chrono>
 #include <memory>
 
 #include "osie/agent/runtime.hpp"
@@ -21,14 +22,19 @@ inline ProcessInfo owned(Pid pid, const char* name, Uid uid, std::uint64_t cpu_n
 }
 
 /// Processes at call `n` of processes(): nginx (alice) is the busiest,
-/// postgres (bob) uses the most memory.
-inline ProcessSnapshot machine_processes(int n) {
-    const auto k = static_cast<std::uint64_t>(n);
+/// postgres (bob) uses the most memory. CPU times grow with real time at a
+/// fixed share of one CPU each (nginx 50%, postgres 15%, worker 5%), so
+/// per-process rates are consistent with the host's 30% of 4 CPUs whatever
+/// the sampling window is.
+inline ProcessSnapshot machine_processes(int /*n*/) {
+    static const auto t0 = std::chrono::steady_clock::now();
+    const auto ns = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count());
     ProcessSnapshot s;
     s.processes = {owned(1, "init", 0, 0, 8ULL << 20, "/sbin/init"),
-                   owned(100, "nginx", kAlice, k * 40'000'000, 300ULL << 20, "/usr/sbin/nginx"),
-                   owned(101, "worker", kAlice, k * 5'000'000, 50ULL << 20, "/opt/app/worker"),
-                   owned(200, "postgres", kBob, k * 10'000'000, 3000ULL << 20, "/usr/lib/postgresql/bin/postgres")};
+                   owned(100, "nginx", kAlice, ns / 2, 300ULL << 20, "/usr/sbin/nginx"),
+                   owned(101, "worker", kAlice, ns / 20, 50ULL << 20, "/opt/app/worker"),
+                   owned(200, "postgres", kBob, ns * 3 / 20, 3000ULL << 20, "/usr/lib/postgresql/bin/postgres")};
     s.processes[1].cgroup = "/system.slice/nginx.service";
     return s;
 }

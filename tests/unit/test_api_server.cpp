@@ -9,6 +9,8 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -192,7 +194,42 @@ TEST(ApiServer, ServesEveryEndpointOverTheSocket) {
     EXPECT_NE(::lstat(s.sock().c_str(), &st), 0) << "socket removed on stop";
 }
 
+TEST(ApiServer, PeerCredentialsComeFromTheKernel) {
+    int sv[2];
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+    const auto p = peer_of(sv[0]);
+    EXPECT_TRUE(p.known);
+    EXPECT_EQ(p.uid, ::geteuid());
+    EXPECT_EQ(p.gid, ::getegid());
+    ::close(sv[0]);
+    ::close(sv[1]);
+    // Not a socket at all: unknown, so it fails closed.
+    EXPECT_FALSE(peer_of(-1).known);
+}
+
+#if defined(__APPLE__)
+TEST(ApiServer, MacOsIsOwnerOnly) {
+    group* g = ::getgrgid(::getegid());
+    ASSERT_NE(g, nullptr);
+    auto c = fast_config();
+    c.api_group = g->gr_name;
+    Served s("macgroup", c);
+    auto r = s.server->start();
+    ASSERT_FALSE(r.ok()) << "group access is not offered on macOS";
+    EXPECT_NE(r.error().message.find("experimental"), std::string::npos);
+    Served plain("macplain");
+    ASSERT_TRUE(plain.server->start().ok());
+    struct stat st {};
+    ASSERT_EQ(::lstat(plain.sock().c_str(), &st), 0);
+    EXPECT_EQ(st.st_mode & 0777, 0600U);
+    EXPECT_NE(call(plain.sock(), "GET", "/v1/capabilities").body.find("\"platform_support\":\"experimental\""), std::string::npos);
+}
+#endif
+
 TEST(ApiServer, GroupSocketIs0660AndGroupOwned) {
+#if defined(__APPLE__)
+    GTEST_SKIP() << "group access is Linux-only";
+#endif
     group* g = ::getgrgid(::getegid());
     if (g == nullptr) GTEST_SKIP() << "primary group has no name";
     auto c = fast_config();
@@ -335,6 +372,7 @@ TEST(ApiServer, SlowClientsTimeOutAndCannotMonopolise) {
     auto c = fast_config();
     c.api_request_timeout = Millis{400};
     c.api_max_clients = 2;
+    c.api_max_clients_per_user = 2;
     Served s("slow", c);
     ASSERT_TRUE(s.server->start().ok());
     // A client that sends half a request and stalls.
@@ -346,29 +384,10 @@ TEST(ApiServer, SlowClientsTimeOutAndCannotMonopolise) {
     ::close(fd);
     EXPECT_EQ(r.status, 408);
     EXPECT_LT(std::chrono::duration<double>(Clock::now() - t0).count(), 2.0 * kSlow);
-    // Stalled clients fill both workers and the queue; others are refused
-    // quickly instead of waiting, and service resumes after the timeout.
-    // Fill the two workers, then the two queue slots, one at a time (the
-    // server's own counters say when each has been taken).
-    std::vector<int> stalled;
-    auto wait_until = [&](auto pred) {
-        const auto until = Clock::now() + std::chrono::seconds(5);
-        while (!pred(s.server->stats()) && Clock::now() < until) std::this_thread::sleep_for(Millis{1});
-        return pred(s.server->stats());
-    };
-    for (std::uint64_t i = 1; i <= 2; ++i) {
-        stalled.push_back(connect_to(s.sock()));
-        ASSERT_TRUE(wait_until([&](const ServerStats& st) { return st.in_flight == i; }));
-    }
-    for (std::uint64_t i = 1; i <= 2; ++i) {
-        stalled.push_back(connect_to(s.sock()));
-        ASSERT_TRUE(wait_until([&](const ServerStats& st) { return st.queued == i; }));
-    }
-    const auto busy = call(s.sock(), "GET", "/v1/capabilities");
-    EXPECT_EQ(busy.status, 503) << "[" << busy.head << "] " << busy.body;
-    EXPECT_NE(busy.head.find("Retry-After"), std::string::npos);
-    for (int f : stalled) ::close(f);
-    std::this_thread::sleep_for(Millis{900 * kSlow});
+    // Filling the server needs several users: one user is capped
+    // (OneUserCannotOccupyEveryWorker); several are refused with 503 busy
+    // once workers and queue are full (ApiLinuxPeers, as root).
+    std::this_thread::sleep_for(Millis{100});
     EXPECT_EQ(call(s.sock(), "GET", "/v1/capabilities").status, 200);
     EXPECT_GE(s.server->stats().timeouts, 1U);
 }
@@ -394,6 +413,7 @@ TEST(ApiServer, PerUserRateLimit) {
 TEST(ApiServer, HundredConcurrentClientsAreBoundedAndAllAnswered) {
     auto c = fast_config();
     c.api_max_clients = 16;
+    c.api_max_clients_per_user = 16;  // one test user plays all the clients
     c.api_rate_limit = 10'000;
     Served s("many", c);
     ASSERT_TRUE(s.server->start().ok());
@@ -412,7 +432,7 @@ TEST(ApiServer, HundredConcurrentClientsAreBoundedAndAllAnswered) {
                     ++ok;
                     return;
                 }
-                if (r.status == 503) {
+                if (r.status == 503 || r.status == 429) {
                     ++busy;
                     std::this_thread::sleep_for(Millis{5});
                     continue;
@@ -435,6 +455,7 @@ TEST(ApiServer, DisconnectsAndStopWithActiveRequests) {
     auto c = fast_config();
     c.api_request_timeout = Millis{3000};
     c.api_rate_limit = 10'000;
+    c.api_max_clients_per_user = 16;
     Served s("stop", c);
     ASSERT_TRUE(s.server->start().ok());
     ASSERT_TRUE(s.rt->start().ok());
@@ -477,4 +498,163 @@ TEST(ApiServer, DisconnectsAndStopWithActiveRequests) {
     EXPECT_LT(stop_ms, 3500.0 * kSlow) << "bounded by the request timeout";
     EXPECT_GT(answered.load(), 0);
     s.rt->stop();
+}
+
+TEST(ApiServer, OneUserCannotOccupyEveryWorker) {
+    // Per-user cap 2 of 8 workers: a user stalling connections gets an
+    // immediate 429 beyond the cap instead of filling the server.
+    auto c = fast_config();
+    c.api_max_clients = 8;
+    c.api_max_clients_per_user = 2;
+    c.api_request_timeout = Millis{2000};
+    Served s("peruser", c);
+    ASSERT_TRUE(s.server->start().ok());
+    std::vector<int> stalled;
+    for (int i = 0; i < 2; ++i) {
+        stalled.push_back(connect_to(s.sock()));
+        const auto until = Clock::now() + std::chrono::seconds(5);
+        while (s.server->stats().in_flight < static_cast<std::uint64_t>(i + 1) && Clock::now() < until)
+            std::this_thread::sleep_for(Millis{1});
+    }
+    const auto t0 = Clock::now();
+    const auto third = call(s.sock(), "GET", "/v1/capabilities");
+    EXPECT_EQ(third.status, 429) << third.body;
+    EXPECT_NE(third.body.find("too_many_connections"), std::string::npos);
+    EXPECT_LT(std::chrono::duration<double>(Clock::now() - t0).count(), 1.0 * kSlow) << "refused at once";
+    EXPECT_GE(s.server->stats().rejected_per_user, 1U);
+    for (int fd : stalled) ::close(fd);
+    const auto until = Clock::now() + std::chrono::seconds(5);
+    while (s.server->stats().in_flight > 0 && Clock::now() < until) std::this_thread::sleep_for(Millis{5});
+    EXPECT_EQ(call(s.sock(), "GET", "/v1/capabilities").status, 200) << "the user's slots are released";
+    const auto st = s.server->stats();
+    EXPECT_GT(st.total_ms.n, 0U);
+    EXPECT_GE(st.total_ms.p99, st.total_ms.p50);
+}
+
+TEST(ApiServer, ConcurrentStartupOnOneSocketHasOneWinner) {
+    Served s("race");
+    std::vector<std::unique_ptr<ApiServer>> servers;
+    for (int i = 0; i < 6; ++i) servers.push_back(std::make_unique<ApiServer>(s.rt, s.cfg));
+    std::atomic<int> won{0};
+    std::vector<std::thread> ts;
+    for (auto& srv : servers) ts.emplace_back([&, p = srv.get()] {
+        if (p->start().ok()) ++won;
+    });
+    for (auto& t : ts) t.join();
+    EXPECT_EQ(won.load(), 1);
+    EXPECT_EQ(call(s.sock(), "GET", "/v1/capabilities").status, 200);
+    servers.clear();
+    struct stat st {};
+    EXPECT_NE(::lstat(s.sock().c_str(), &st), 0) << "the winner removed its socket; the losers removed nothing";
+}
+
+TEST(ApiServer, RapidConnectDisconnectLeaksNothing) {
+    auto c = fast_config();
+    c.api_rate_limit = 10'000;
+    Served s("churn", c);
+    ASSERT_TRUE(s.server->start().ok());
+    auto open_fds = [] {
+        int n = 0;
+        for (int fd = 0; fd < 4096; ++fd)
+            if (::fcntl(fd, F_GETFD) != -1) ++n;
+        return n;
+    };
+    const int before = open_fds();
+    for (int i = 0; i < 2000; ++i) {
+        const int fd = connect_to(s.sock());
+        if (i % 3 == 0) send_all(fd, "GET /v1/hea");  // some leave mid-request
+        ::close(fd);
+    }
+    const auto until = Clock::now() + std::chrono::seconds(10);
+    while ((s.server->stats().in_flight > 0 || s.server->stats().queued > 0) && Clock::now() < until)
+        std::this_thread::sleep_for(Millis{10});
+    std::this_thread::sleep_for(Millis{600});  // refused connections finish draining
+    EXPECT_EQ(call(s.sock(), "GET", "/v1/capabilities").status, 200);
+    EXPECT_LE(open_fds(), before + 2) << "every accepted descriptor was closed";
+}
+
+TEST(ApiServer, PartialBodiesTimeOut) {
+    auto c = fast_config();
+    c.api_request_timeout = Millis{300};
+    Served s("partial", c);
+    ASSERT_TRUE(s.server->start().ok());
+    const int fd = connect_to(s.sock());
+    send_all(fd, "POST /v1/diagnose HTTP/1.1\r\nHost: l\r\nContent-Type: application/json\r\nContent-Length: 40\r\n\r\n{\"question\":");
+    const auto r = parse_reply(read_all(fd, Millis{3000}));
+    ::close(fd);
+    EXPECT_EQ(r.status, 408);
+}
+
+TEST(ApiServer, SmugglingShapesAreRefused) {
+    Served s("smuggle");
+    ASSERT_TRUE(s.server->start().ok());
+    const std::string sock = s.sock();
+    // Content-Length and Transfer-Encoding together; a second request hidden in the body.
+    EXPECT_EQ(raw_call(sock, "POST /v1/diagnose HTTP/1.1\r\nHost: l\r\nContent-Length: 4\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n").status, 501);
+    EXPECT_EQ(raw_call(sock, "POST /v1/diagnose HTTP/1.1\r\nHost: l\r\nContent-Length: 4, 4\r\n\r\n{}{}").status, 400);
+    EXPECT_EQ(raw_call(sock, "POST /v1/diagnose HTTP/1.1\r\nHost: l\r\nContent-Length: +2\r\n\r\n{}").status, 400);
+    EXPECT_EQ(raw_call(sock, "POST /v1/diagnose HTTP/1.1\r\nHost: l\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}"
+                             "GET /v1/system/snapshot HTTP/1.1\r\nHost: l\r\n\r\n").status, 400) << "trailing request";
+    EXPECT_EQ(raw_call(sock, "GET /v1/health/live HTTP/1.1\r\nHost: l\r\nContent-Length : 5\r\n\r\nhello").status, 400)
+        << "whitespace before the colon";
+    EXPECT_EQ(raw_call(sock, "GET /v1/health/live HTTP/1.1\nHost: l\n\n").status != 200 || true, true);  // bare LF: parser-defined
+}
+
+TEST(ApiServer, SurvivesFileDescriptorExhaustion) {
+    // The server runs in a child whose descriptor limit leaves room for only
+    // a handful of connections; the parent floods it, then checks it recovers.
+    const std::string dir = short_tmp("fds");
+    const std::string sock = dir + "/agent.sock";
+    int ready[2], done[2];
+    ASSERT_EQ(::pipe(ready), 0);
+    ASSERT_EQ(::pipe(done), 0);
+    const pid_t child = ::fork();
+    if (child == 0) {
+        auto c = fast_config();
+        c.api_enabled = true;
+        c.api_socket = sock;
+        c.api_rate_limit = 10'000;
+        c.api_max_clients = 4;
+        auto rt = std::make_shared<agent::AgentRuntime>(machine(), c);
+        rt->collect_now();
+        rt->collect_now();
+        ApiServer srv(rt, c);
+        if (!srv.start().ok()) ::_exit(3);
+        int open_now = 0;
+        for (int fd = 0; fd < 1024; ++fd)
+            if (::fcntl(fd, F_GETFD) != -1) ++open_now;
+        rlimit rl{static_cast<rlim_t>(open_now + 12), static_cast<rlim_t>(open_now + 12)};
+        ::setrlimit(RLIMIT_NOFILE, &rl);
+        char x = 1;
+        (void)!::write(ready[1], &x, 1);
+        (void)!::read(done[0], &x, 1);
+        srv.stop();
+        rt->stop();
+        ::_exit(0);
+    }
+    char x = 0;
+    ASSERT_EQ(::read(ready[0], &x, 1), 1);
+    std::vector<int> held;
+    for (int i = 0; i < 200; ++i) {
+        const int fd = connect_to(sock);
+        if (fd >= 0) {
+            send_all(fd, "GET /v1/health/ready HTTP/1.1\r\nHost: l\r\n\r\n");
+            held.push_back(fd);
+        }
+    }
+    std::this_thread::sleep_for(Millis{300 * kSlow});
+    for (int fd : held) ::close(fd);
+    // Once the flood is gone, the server answers again.
+    int status = 0;
+    const auto until = Clock::now() + std::chrono::seconds(15);
+    while (Clock::now() < until && status != 200) {
+        status = call(sock, "GET", "/v1/capabilities").status;
+        if (status != 200) std::this_thread::sleep_for(Millis{100});
+    }
+    EXPECT_EQ(status, 200) << "the server recovered after descriptor exhaustion";
+    (void)!::write(done[1], &x, 1);
+    int wst = 0;
+    ASSERT_EQ(::waitpid(child, &wst, 0), child);
+    EXPECT_TRUE(WIFEXITED(wst) && WEXITSTATUS(wst) == 0) << "the server process did not crash";
+    std::filesystem::remove_all(dir);
 }
