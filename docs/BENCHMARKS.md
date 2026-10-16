@@ -347,12 +347,33 @@ Linux x86-64 and arm64 VMs (`api-bench.jsonl` in the job log).
 | Collections during the load | no regression | 3, 0 failures, 0 skipped; start jitter p99 1.0 ms | 3, 0 failures, 0 skipped; start jitter p99 5.1 ms |
 | Shutdown with 16 active clients | < `TimeoutStopSec` (10 s) | 28 ms | 40 ms |
 
+GitHub-hosted VMs (CI `test` jobs, 2026-10-16): 4 vCPUs, Linux 6.17, the
+RelWithDebInfo build, idle phases of 60 s. These runners stayed below the
+rate limit, so the concurrent figure is the server's own throughput.
+
+| Measurement | linux-x86_64 VM | linux-arm64 VM |
+|---|---|---|
+| Idle CPU, API off → on | 0.259% → 0.265% | 0.164% → 0.163% |
+| Idle RSS, API off → on | 5.34 → 5.68 MB (+0.34 MB) | 4.38 → 4.67 MB (+0.29 MB) |
+| Startup to first `ready` | 540 ms | 541 ms |
+| `/health/live` p50 / p99 | 0.05 / 0.06 ms | 0.04 / 0.08 ms |
+| Cached `/system/snapshot` p50 / p99 | 0.07 / 0.13 ms | 0.06 / 0.10 ms |
+| `/system/history` (120 points) p50 / p99 | 0.05 / 0.07 ms | 0.04 / 0.06 ms |
+| Diagnoses (top CPU, slow, top memory, trend), p99 | 0.18, 0.22, 0.15, 0.10 ms | 0.15, 0.20, 0.16, 0.08 ms |
+| 16 concurrent clients: answered/s, p50 / p99 | 11,031/s; 1.5 / 3.8 ms; no refusals | 11,364/s; 1.4 / 4.1 ms; no refusals |
+| Burst of 200 connections | 42 answered, 158 `503 busy` | 52 answered, 148 `503 busy` |
+| Peak RSS under load | 8.1 MB | 7.0 MB |
+| Collections during the load | 3, 0 failures; jitter p99 0.07 ms | 3, 0 failures; jitter p99 0.06 ms |
+| Shutdown with 16 active clients | 81 ms | 62 ms |
+
 **Reading the numbers.**
 - **Diagnosis is cheap.** The evidence is already in memory, so a diagnosis
   is parsing, reasoning and rendering over one snapshot: tenths of a
   millisecond. Diagnoses are serialised on one engine.
-- **Throughput was set by the rate limit,** not the server: the clients sent
-  more than 10,000 requests a second, and every refusal was a 429. Under the
+- **On the Docker and macOS hosts, throughput was set by the rate limit,**
+  not the server: the clients sent more than 10,000 requests a second, and
+  every refusal there was a 429. The 4-vCPU CI runners stayed under the limit
+  at about 11,000 a second. Under the
   default `api_rate_limit = 50`, one user gets 50 a second (bursts of 100).
 - **Burst refusals are immediate.** A burst beyond 16 in flight plus 16
   queued gets an immediate `503 busy` with `Retry-After`. The kernel's
