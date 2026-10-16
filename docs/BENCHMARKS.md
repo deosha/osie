@@ -243,3 +243,67 @@ took 1.1 s; it did not reproduce on re-measurement and was a cold start.
   for 3 minutes.
 - **Utterance size:** a 1 MiB utterance cost 0.4 s, linear and dominated by
   typo correction. Utterances are now cut at 4 KiB.
+
+## Agent (`osie-agent`, Feature 1)
+
+Measured 2026-10-15 with the release `.deb`, run as an unprivileged user
+(`osie-agent --duration S --report --measure-freshness`). The host was a
+Docker Desktop Linux VM: kernel 6.10, aarch64, 12 vCPUs, on an M4 Pro.
+Raw output: `ml/experiments/results/agent/`.
+
+"Host-wide" runs use `--pid=host`, so the agent sees all 466 processes of the
+VM. The first run sees only its own container (a handful of processes).
+
+| Run | Interval / window | Duration | CPU (share of one core) | RSS | Start jitter p50 / p99 / max | Snapshot age p50 / p99 / max | Collections, failures, skipped ticks | Shutdown |
+|---|---|---|---|---|---|---|---|---|
+| Container view, defaults | 5 s / 0.5 s | 600 s | **0.11%** | 2.7 MB | 2.1 / 6.3 / 8.3 ms | 2.50 / 4.96 / 5.01 s | 120, 0, 0 | 1.9 ms |
+| Host-wide, defaults | 5 s / 0.5 s | 300 s | **0.35%** | 3.4 MB | 1.4 / 10.4 / 10.4 ms | 2.51 / 4.96 / 5.01 s | 60, 0, 0 | 0.7 ms |
+| Host-wide, fast | 1 s / 0.5 s | 300 s | 1.7% | 3.9 MB (peak 4.2) | 2.5 / 10.8 / 11.1 ms | 0.50 / 0.99 / 1.02 s | 300, 0, 0 | 0.7 ms |
+| Host-wide, full history | 250 ms / 100 ms, capacity 720 | 420 s | 3.9% | **5.4 MB** (peak 5.6) | – | – | 1680, –, 0 | – |
+| GitHub-hosted VM (x86-64 AMD EPYC, 4 vCPU, Linux 6.17), defaults, host-wide | 5 s / 0.5 s | 300 s | **0.25%** | 4.1 MB | 0.09 / 0.41 / 0.41 ms | 2.50 / 4.93 / 4.98 s | 60, 0, 0 | 0.1 ms |
+
+**Against the targets:**
+- RSS < 20 MB: met. The history holds 2.2 MB at its default capacity of 720
+  points and 466 processes.
+- < 0.5% of one core at idle: met at the default 5 s interval (0.35%
+  host-wide). Faster intervals cost proportionally more; most of the cost is
+  reading `/proc/<pid>/*` for every process twice per collection.
+
+**Other numbers:**
+- Snapshot age is uniform between 0 and the interval, as expected for a
+  reader at a random moment.
+- The newest collection took about 0.5 s, almost all of it the configured
+  sampling window.
+- Under systemd, `systemctl stop` returned in 142 ms
+  (`agent_systemd_test.sh`); the agent itself logs stops of 0.7–3 ms.
+- The CI `agent-systemd` job repeats the default-configuration measurement
+  on a GitHub-hosted x86-64 VM (last row). Jitter is lower there than on
+  Docker Desktop, whose VM shares a laptop CPU with a desktop session.
+
+### Agent under load: high process counts, churn, prolonged runs
+
+Measured 2026-10-16 (raw output in `ml/experiments/results/agent/`):
+- `soak_*.txt` and `heap_macos_2000p.txt`: from
+  `packaging/agent/agent_soak.sh <agent> 600 2000 50 1s`, which runs
+  2,000 sleeping processes, replaces 50 short-lived ones every second, and
+  sets a 1 s interval with a 120-point history;
+- the in-process rows: from the `AgentScale.*` and
+  `AgentLinuxLive.ThousandsOfRealProcessesWithChurn` tests.
+
+| Run | Collections, failures, skipped | CPU (one core) | Memory | Notes |
+|---|---|---|---|---|
+| Linux soak, 10 min (Docker Desktop VM, 6.10, aarch64), unprivileged, installed `.deb` | 600, 0, 0 | 5.2% | RSS 4.3 MB at the end, peak 8.2 MB; median 6.9 MB (middle third) → 6.4 MB (last third) | collection 236 ms (200 ms window); jitter p99 10.6 ms; stop 0.8 ms |
+| macOS soak, 10 min (arm64) | 433, 0, – | 1.0% | live heap median 1,283 kB → 1,286 kB; RSS 12–25 MB | the `heap` tool suspends the agent while it samples, so the tick counts and CPU here are not timing results |
+| macOS live heap, 11 min, sampled every 60 s | – | – | live heap 1.31 MB between collections, 2.09 MB mid-collection, flat from minute 2; RSS 12–23 MB | RSS swings by about 10 MB with no growth in live memory: macOS keeps freed malloc pages resident lazily |
+| Live Linux test: 1,000 child processes, 20 replaced every 25 ms (Release) | 20 in 5 s, 0 | – | history ≤ 16 points × 16 processes | 139.5 ms per collection (100 ms window); stop 1 ms |
+| Mock, 20,000 processes (Release, macOS) | 40, 0 | – | history 108,616 bytes, against 105,352 bytes for 200 processes | worst collection 8.7 ms (1 ms window), against 1.4 ms for 200 processes |
+
+**What this shows.**
+- **No growth with uptime.** Memory stays flat over 10 minutes with
+  thousands of processes and constant churn: RSS on Linux, live heap on
+  macOS.
+- **History size does not depend on the process count.**
+- **On macOS RSS can exceed the 20 MB target transiently** with about
+  2,500 processes, peaking at 25–27 MB, while live memory stays near 2 MB.
+  This is allocator page retention, not data the agent holds. On Linux the
+  same workload peaks at 8.2 MB.

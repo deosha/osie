@@ -1,0 +1,8 @@
+#!/bin/sh
+# Stop and disable the agent before its binary is removed (no-op if it was never used).
+set -e
+if [ "$1" = "remove" ] && [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+  systemctl stop osie-agent.service >/dev/null 2>&1 || true
+  systemctl disable osie-agent.service >/dev/null 2>&1 || true
+fi
+exit 0

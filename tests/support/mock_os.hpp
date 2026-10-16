@@ -2,6 +2,7 @@
 // Deterministic, scriptable IOperatingSystem for unit tests.
 #pragma once
 
+#include <atomic>
 #include <deque>
 #include <functional>
 #include <mutex>
@@ -74,6 +75,15 @@ public:
     int fail_memory_with_eperm{0};
     mutable std::mutex mu;
     int process_calls{0};
+    // If set, cpu_sample() returns cpu_gen(call number) instead of popping cpu_script.
+    std::function<CpuSample(int)> cpu_gen;
+    int cpu_calls{0};
+    // If set, processes() returns proc_gen(call number) instead of popping proc_script.
+    std::function<ProcessSnapshot(int)> proc_gen;
+    // If set, called on entry to processes(), outside `mu` (blocking hooks, gates).
+    std::function<void(const CancellationToken&)> on_processes;
+    // Concurrent processes() calls: current and the maximum ever seen.
+    std::atomic<int> in_processes{0}, max_in_processes{0};
 
     static CpuSample cpu(std::uint64_t busy_per_cpu, std::uint64_t idle_per_cpu, std::size_t n = 4,
                          std::optional<LoadAverage> load = LoadAverage{1, 1, 1}) {
@@ -103,6 +113,7 @@ public:
     }
     Result<Observation<CpuSample>> cpu_sample() override {
         std::lock_guard lk(mu);
+        if (cpu_gen) return Observation<CpuSample>{cpu_gen(++cpu_calls), Provenance::now("mock.cpu")};
         if (cpu_script.empty()) return make_error(Errc::unavailable, "no cpu script");
         auto v = pop(cpu_script);
         return Observation<CpuSample>{v, Provenance::now("mock.cpu")};
@@ -114,10 +125,19 @@ public:
         return Observation<MemoryMetrics>{pop(mem_script), Provenance::now("mock.memory")};
     }
     Result<Observation<ProcessSnapshot>> processes(const ProcessQuery&, const CancellationToken& c) override {
+        const int inside = ++in_processes;
+        for (int m = max_in_processes.load(); inside > m && !max_in_processes.compare_exchange_weak(m, inside);) {
+        }
+        struct Leave {
+            std::atomic<int>& n;
+            ~Leave() { --n; }
+        } leave{in_processes};
+        if (on_processes) on_processes(c);
         std::lock_guard lk(mu);
         ++process_calls;
         if (c.cancelled()) return make_error(Errc::cancelled, "cancelled");
         if (process_list_error) return make_error(*process_list_error, "injected process-list failure");
+        if (proc_gen) return Observation<ProcessSnapshot>{proc_gen(process_calls), Provenance::now("mock.processes")};
         if (proc_script.empty()) return make_error(Errc::unavailable, "no process script");
         auto v = pop(proc_script);
         Provenance pv = Provenance::now("mock.processes");

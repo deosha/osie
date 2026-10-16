@@ -83,4 +83,19 @@ if [[ "$(uname -s)" == "Linux" && -r /sys/fs/cgroup/cpu.max ]]; then
   echo "$pout" | grep -q "No changes were applied\|Nothing was predicted\|Prediction unavailable" || fail "predict output: $pout"
 fi
 
+# 9. The background agent: installed next to osie, opt-in, strict config, one-shot collection.
+agent="$(dirname "$osie")/osie-agent"
+if [[ -x "$agent" ]]; then
+  run_agent() { (cd / && env -i HOME="$work/home" PATH=/usr/bin:/bin "$agent" "$@"); }
+  run_agent --version | grep -q "osie-agent" || fail "osie-agent --version"
+  run_agent --print-default-config > "$work/agent.conf" && chmod 600 "$work/agent.conf"
+  run_agent --check-config "$work/agent.conf" >/dev/null || fail "default agent config does not validate"
+  printf 'listen = 0.0.0.0:80\n' > "$work/bad.conf" && chmod 600 "$work/bad.conf"
+  set +e; run_agent --check-config "$work/bad.conf" >/dev/null 2>&1; rc=$?; set -e
+  [[ $rc -eq 2 ]] || fail "network key accepted by the agent config (rc $rc)"
+  if [[ "$(id -u)" != "0" ]]; then
+    run_agent --once | grep -q '"collections":1' || fail "osie-agent --once"
+  fi
+fi
+
 echo "SMOKE OK"

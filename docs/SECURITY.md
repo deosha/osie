@@ -139,6 +139,49 @@ harness (`osie_fuzz_world_model`, run in CI under ASan and UBSan). OSIEWM2
 files must also carry the complete support envelope and a feature-schema
 version this build supports; v2-only keys are rejected in v1 files.
 
+## Background agent (`osie-agent`, opt-in)
+
+The agent adds no capability. It uses the same broker, policy and audit as
+the CLI, and has no action path. Additional properties, each tested
+([`AGENT.md`](AGENT.md)):
+- **Off by default.** Packages install the systemd unit disabled. Removing
+  the package stops it.
+- **No privileges.**
+  - It refuses to run as root without `--allow-root`, and sets
+    `PR_SET_NO_NEW_PRIVS`.
+  - Under systemd it runs as a `DynamicUser` with empty capability sets
+    (`CapEff`, `CapPrm` = 0, checked by `agent_systemd_test.sh`).
+- **No network.**
+  - It has no listener and no network code.
+  - The unit restricts it to `AF_UNIX` (systemd notification) and
+    `AF_NETLINK` (interface counters), with `IPAddressDeny=any`.
+  - An `strace` of a 12 s run shows no `socket`, `connect`, `bind` or
+    `listen` calls at all.
+- **No persistence or writes.**
+  - It writes nothing (`ProtectSystem=strict`).
+  - The `strace` shows no file opened for writing, and no unlink, rename or
+    mkdir.
+  - Configuration keys that would enable a listener, persistence or remote
+    access are rejected.
+- **Configuration is untrusted input.** Parsing is strict, size-capped and
+  range-checked. An invalid reload keeps the running configuration.
+- **The configuration file cannot be swapped.**
+  - The file must be controlled by root or the agent's user. So must every
+    directory and symbolic link on its path: anything owned by another user,
+    or writable by group or others (except sticky directories), is refused.
+  - The loader walks the path one component at a time with `O_NOFOLLOW` on
+    file descriptors.
+  - It validates the file with `fstat()` on the descriptor it then reads.
+    So a rename or link swap during the load cannot substitute an unchecked
+    file. A test races exactly that.
+- **Shutdown is complete.** `stop()` cancels and awaits any in-flight
+  collection, so none is running once it returns. Destroying the runtime
+  must be ordered after other threads' calls by its owner, as the lifetime
+  contract in `AGENT.md` sets out. `osie-agent` stops it, joins its threads,
+  and then destroys it.
+- **Bounded resources.** All buffers are bounded by the configuration. The
+  unit adds `MemoryMax=64M` and `TasksMax=16`.
+
 ## Privacy
 
 Everything runs locally:
@@ -150,7 +193,8 @@ History of process names and resource use is held **in memory only**:
 - It is bounded (default 720 samples of at most 32 processes).
 - It is discarded when the process exits.
 - Beyond the sample taken to answer each question, periodic recording happens
-  only with the explicit `--watch` option.
+  only with the explicit `--watch` option, or in the opt-in `osie-agent`. The
+  agent also keeps its history in memory only, bounded by `history_capacity`.
 
 ## Reporting a vulnerability
 

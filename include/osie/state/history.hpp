@@ -60,6 +60,12 @@ public:
     /// Approximate heap + inline bytes held (for overhead reporting).
     [[nodiscard]] std::size_t approx_bytes() const;
     void clear() { points_.clear(); }
+    /// Applies new bounds to the points already held: keeps the newest
+    /// `capacity` points and, if `top_k` shrank, cuts each point to its top_k
+    /// processes by CPU and by memory (pinned extras are dropped). Afterwards
+    /// every point respects the new bounds and the memory of what was dropped
+    /// is released.
+    void reconfigure(HistoryConfig cfg);
 
 private:
     HistoryConfig cfg_;

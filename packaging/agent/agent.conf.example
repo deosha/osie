@@ -1,0 +1,28 @@
+# OSIE agent configuration (docs/AGENT.md). Copy to /etc/osie/agent.conf,
+# keep it writable only by its owner (the agent refuses group/world-writable
+# files), and reload with: sudo systemctl reload osie-agent
+#
+# Everything stays in memory. There is no network listener, no persistence
+# and no remote access; keys that would enable them are rejected.
+
+# Time between collections (250ms .. 1h) and the window rates are measured
+# over (50ms .. 5s, at most half the interval).
+interval = 5s
+sample_window = 500ms
+
+# In-memory history: points kept, and processes kept per point.
+history_capacity = 720
+history_top_k = 16
+
+# Linux: cgroups inspected per collection (of the busiest processes).
+cgroup_top_n = 8
+
+# Consecutive failed collections of a kind before the agent reports "degraded".
+failure_threshold = 3
+
+# What to observe (ObservationKind names).
+observe = cpu_times,load_average,memory,swap,memory_pressure_level,process_list,pressure_stall,cgroup
+
+log_level = info
+# One health line in the journal at this interval (0 = never).
+health_log_interval = 10m

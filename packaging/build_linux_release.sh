@@ -11,7 +11,7 @@ docker build -q -t osie-linux-release -f "$root/packaging/linux-release.Dockerfi
 docker run --rm -v "$root":/src:ro -v "$out":/out osie-linux-release bash -euo pipefail -c '
   cmake -S /src -B /tmp/r -G Ninja -DCMAKE_BUILD_TYPE=Release -DOSIE_BUILD_TESTS=OFF \
         -DOSIE_BUILD_BENCHMARKS=OFF -DOSIE_PORTABLE=ON >/dev/null
-  ninja -C /tmp/r osie >/dev/null
+  ninja -C /tmp/r osie osie_agent >/dev/null
   cd /tmp/r && cpack -G "TGZ;DEB;RPM" >/dev/null
   cp /tmp/r/*.tar.gz /tmp/r/*.deb /tmp/r/*.rpm /out/
   objdump -T /tmp/r/osie | grep -o "GLIBC_[0-9.]*" | sort -Vu | tail -1 > /out/glibc-min.txt

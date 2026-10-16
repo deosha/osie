@@ -55,6 +55,8 @@ set(OSIE_CORE_SOURCES
   src/intent/rule_parser.cpp
   src/intent/safety.cpp
   src/intent/understand.cpp
+  src/agent/config.cpp
+  src/agent/runtime.cpp
   src/inference/neural_parser.cpp
   src/inference/model_locator.cpp
   src/prediction/features.cpp
@@ -91,6 +93,13 @@ endif()
 find_package(Threads REQUIRED)
 target_link_libraries(osie_core PUBLIC Threads::Threads)
 
+add_executable(osie_agent src/agent/main.cpp)
+set_target_properties(osie_agent PROPERTIES OUTPUT_NAME osie-agent)
+target_link_libraries(osie_agent PRIVATE osie_core)
+target_compile_definitions(osie_agent PRIVATE OSIE_VERSION="${PROJECT_VERSION}")
+find_package(Threads REQUIRED)
+target_link_libraries(osie_agent PRIVATE Threads::Threads)
+
 add_executable(osie src/cli/main.cpp)
 target_link_libraries(osie PRIVATE osie_core)
 target_compile_options(osie PRIVATE ${OSIE_WARNINGS})
@@ -111,6 +120,7 @@ add_dependencies(osie osie_models)
 if(OSIE_PORTABLE AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # Release archives: avoid depending on the target system's libstdc++ version.
   target_link_options(osie PRIVATE -static-libstdc++ -static-libgcc)
+  target_link_options(osie_agent PRIVATE -static-libstdc++ -static-libgcc)
 endif()
 
 add_executable(osie_wm_lab tools/world_model_lab.cpp)  # world-model data collection (serve: Linux only) and encoding
@@ -198,6 +208,13 @@ endif()
 # ---------------------------------------------------------------- install ---
 include(GNUInstallDirs)
 install(TARGETS osie RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+# The background agent is opt-in: the binary and an example configuration are
+# installed; on Linux the systemd unit is installed but never enabled or started.
+install(TARGETS osie_agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES packaging/agent/agent.conf.example DESTINATION ${CMAKE_INSTALL_DATADIR}/osie)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  install(FILES packaging/agent/osie-agent.service DESTINATION lib/systemd/system)
+endif()
 install(FILES models/intent.osiem DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models)
 install(FILES models/world_cpu.osiewm DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models OPTIONAL)
 install(FILES models/SHA256SUMS DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models OPTIONAL)
@@ -227,4 +244,11 @@ set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
 set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 set(CPACK_RPM_PACKAGE_AUTOREQ ON)
+# Maintainer scripts: make the agent's unit known on install, stop it on
+# removal. They never enable or start it (the agent is opt-in).
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_SOURCE_DIR}/packaging/agent/deb/postinst;${CMAKE_SOURCE_DIR}/packaging/agent/deb/prerm;${CMAKE_SOURCE_DIR}/packaging/agent/deb/postrm")
+set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION ON)
+set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/agent/rpm-post.sh")
+set(CPACK_RPM_PRE_UNINSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/agent/rpm-preun.sh")
+set(CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/agent/rpm-postun.sh")
 include(CPack)
