@@ -466,6 +466,14 @@ TEST(ApiServer, DisconnectsAndStopWithActiveRequests) {
                      "{\"question\":\"why is my pc slow?\"}");
         ::close(fd);
     }
+    // Let those drain: otherwise the stalled clients below can exceed the
+    // per-user cap and be refused (429) at admission, never reaching stop().
+    const auto wait_in_flight = [&](auto pred) {
+        const auto until = Clock::now() + std::chrono::seconds(5);
+        while (!pred(s.server->stats().in_flight) && Clock::now() < until)
+            std::this_thread::sleep_for(Millis{1});
+    };
+    wait_in_flight([](std::uint64_t n) { return n == 0; });
     // Clients mid-request (stalled) and clients hammering, while stop() runs.
     std::vector<int> stalled;
     for (int i = 0; i < 6; ++i) {
@@ -473,6 +481,8 @@ TEST(ApiServer, DisconnectsAndStopWithActiveRequests) {
         send_all(fd, "POST /v1/diagnose HTTP/1.1\r\nHost: l\r\n");
         stalled.push_back(fd);
     }
+    wait_in_flight([](std::uint64_t n) { return n >= 6; });
+    ASSERT_GE(s.server->stats().in_flight, 6U) << "every stalled client admitted";
     std::atomic<bool> done{false};
     std::atomic<int> answered{0}, refused_conn{0};
     std::vector<std::thread> hammer;
