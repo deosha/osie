@@ -234,7 +234,7 @@ TEST(AgentConfig, ReplacingTheFileDuringLoadNeverYieldsUnsafeContent) {
                 const std::string src = d + (i % 2 ? "/unsafe" : "/safe");
                 if (use_symlink) {
                     (void)::unlink(tmp.c_str());
-                    (void)::symlink(src.c_str(), tmp.c_str());
+                    if (::symlink(src.c_str(), tmp.c_str()) != 0) continue;  // retried next round
                 } else {
                     std::filesystem::copy_file(src, tmp, std::filesystem::copy_options::overwrite_existing);
                     ::chmod(tmp.c_str(), i % 2 ? 0666 : 0600);

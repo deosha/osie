@@ -133,21 +133,42 @@ different process in the history.
   a half-built state, and it never waits for a collection.
 - A collection interrupted by shutdown is not published.
 
-**Lifecycle and ownership contract** (`include/osie/agent/runtime.hpp`):
-- **Ownership.** The runtime owns the OS backend, broker, sampler, policy,
-  audit log and history. Snapshots own their data, so a reader may keep one
-  after the runtime is destroyed. `health()` and `history()` return copies.
-- **Threads.** Every public member may be called from any thread at the same
-  time, except `stop()` and the destructor from the scheduler thread.
+**Lifetime, ownership and concurrency contract**
+(`include/osie/agent/runtime.hpp`):
+- **Lifetime: the caller's obligation.** The runtime must outlive every call
+  to its members.
+  - Its destructor may begin only after every member call from other threads
+    has returned, and no call may begin once it has started.
+  - Destroying it concurrently with a member call on another thread is
+    undefined behaviour. The runtime cannot prevent this: a thread still
+    entering a member function may touch a mutex or field that the
+    destructor is freeing. Internal cancellation does not change that.
+  - The owner orders destruction in one of two ways:
+    - call `stop()`, join every thread that calls the runtime, then destroy
+      it;
+    - or give each calling thread a `std::shared_ptr` for as long as it makes
+      calls, so that the last reference to be dropped runs the destructor.
+  - `stop()` returning does not mean other threads have left their calls: a
+    cancelled `collect_now()` may still be returning. So `stop()` alone does
+    not make destruction safe.
+  - `osie-agent` follows the first pattern.
+- **Ownership.** The runtime owns:
+  - the OS backend, broker, sampler, policy, audit log and history;
+  - the scheduler thread, which the destructor stops and joins. Destroying
+    a running runtime is therefore safe as far as that thread is concerned.
+
+  Snapshots own their data, so a reader may keep one after the runtime is
+  destroyed. `health()` and `history()` return copies.
+- **Threads.** While the runtime is alive, every public member may be called
+  from any thread, concurrently with every other member, including `stop()`.
+  The scheduler thread never calls `stop()` and never runs the destructor.
 - **Shutdown.** `stop()`:
   - first closes admission, so neither a scheduled nor a manual collection
     can start;
   - then cancels the in-flight collection, joins the scheduler, and returns
     only when no collection is in flight.
 
-  Afterwards the runtime can be restarted or used for `--once`. The
-  destructor does the same and never reopens admission, so no collection can
-  touch the backend once destruction has begun.
+  Afterwards the runtime can be restarted or used for `--once`.
 - **State.** Once `stop()` returns the state is `stopped`. A collection that
   finishes while the runtime is stopping cannot set it back to `running`.
 - **Reconfiguration** is serialised. The configuration, history bounds and
@@ -252,7 +273,7 @@ was running. They never enable or start it.
 |---|---|
 | `AgentConfig.*` (unit) | parsing, every range, duplicates, typos, rejected network and persistence keys, unsafe file permissions, size limits (on bytes read); symlinks (followed, looping, to a directory or FIFO, planted in or pointing into a writable directory); group- or world-writable and sticky directories; files and directories owned by another user (as root); a writer swapping the file by rename and by symlink retargeting during 1.5 s of continuous loads |
 | `AgentRuntime.*` (unit, mock OS) | start/stop, repeated restarts, stop during a 3 s sampling window, no overlap, skipped ticks, missing PSI, counter reset then recovery, transient permission failures, a process vanishing mid-sample, PID reuse, a quota change while running, bounded history after 400 collections, 8 concurrent readers with a live reconfiguration, read-only audit, health JSON |
-| `AgentLifecycle.*`, `AgentConcurrency.*` (unit, mock OS) | `stop()` and destruction during a manual or scheduled collection that is blocked in the OS (cancelled and awaited); no admission while `stop()` waits; snapshots outliving the runtime; the state after `stop()` with racing manual collections; scheduler restarts, manual collections, reconfiguration and readers all at once (no overlap); racing reconfigurations |
+| `AgentLifecycle.*`, `AgentConcurrency.*` (unit, mock OS) | `stop()` during a manual or scheduled collection that is blocked in the OS (cancelled and awaited); the two allowed destruction orders (stop, join, destroy; shared ownership with the last caller destroying); destruction from the owner during a scheduled collection; no admission while `stop()` waits; snapshots outliving the runtime; the state after `stop()` with racing manual collections; scheduler restarts, manual collections, reconfiguration and readers all at once (no overlap); racing reconfigurations |
 | `AgentBounds.*`, `AgentScale.*` (unit, mock OS) | lowering capacity and top-k on reload trims existing points and releases memory; 20,000 processes (history bytes independent of the count); 2,000 collections with constant PID reuse (no identity merged); a 4 s scheduler run at a 1 ms interval with churn (bounded, no failures) |
 | `AgentLinuxFixture.*`, `AgentLinuxLive.*` (Linux platform tests) | a fixture `/proc` with unreadable and corrupt entries and no PSI, run unprivileged; the live kernel; 1,000 real child processes, 20 of them replaced every 25 ms |
 | `packaging/agent/agent_soak.sh` | the agent binary over a long run with thousands of processes and churn; fails if RSS grows after the history is full |

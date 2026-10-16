@@ -10,8 +10,11 @@
 // Guarantees:
 // - collections never overlap (one admission slot shared by the scheduler and
 //   collect_now()), and there are no unbounded queues;
-// - shutdown cancels and awaits the in-flight collection, so no collection
-//   touches the backend once stop() or the destructor has returned;
+// - stop() cancels and awaits the in-flight collection, so no collection
+//   touches the backend once it has returned;
+// - destruction must be ordered after other threads' calls by the owner
+//   (see the lifetime contract below); the runtime cannot make concurrent
+//   destruction safe;
 // - intervals are scheduled on the monotonic clock; reported times are wall
 //   clock;
 // - all memory is bounded by the configuration (history capacity x top-k
@@ -83,31 +86,53 @@ struct AgentSnapshot {
     std::shared_ptr<const SystemState> state;
 };
 
-/// Concurrency and ownership contract.
+/// Lifetime, ownership and concurrency contract.
 ///
-/// Ownership. The runtime owns the operating-system backend, the broker, the
-/// sampler, the policy, the audit log and the history. Published snapshots
-/// own their data (shared_ptr), so a reader may keep one after the runtime is
-/// gone. history() and health() return copies.
+/// Lifetime (the caller's obligation). An AgentRuntime must outlive every
+/// call to its members. Its destructor may begin only after every member
+/// call made by any other thread has returned, and no call may begin once
+/// it has started. Destroying the runtime concurrently with a member call
+/// on another thread is undefined behaviour. Nothing inside the runtime can
+/// prevent that: a thread that is still entering a member function may touch
+/// a mutex or a field that the destructor is already freeing. Internal
+/// cancellation does not change this. The owner must order destruction
+/// after the other threads' calls, either:
+///   - stop(), then join (or otherwise synchronise with) every thread that
+///     calls the runtime, then destroy it; or
+///   - share ownership: give each calling thread a std::shared_ptr to the
+///     runtime for as long as it makes calls, so that the destructor runs
+///     after the last of them has dropped its reference.
+/// stop() returning does not mean that other threads have left their member
+/// calls (a cancelled collect_now() may still be returning), so it does not
+/// on its own make destruction safe. References returned by registry() and
+/// audit() follow the same rule.
 ///
-/// Thread safety. Every public member may be called from any thread,
-/// concurrently, except that stop() and the destructor must not be called
-/// from the scheduler thread (nothing in the runtime does so).
+/// What the runtime owns. The operating-system backend, the broker, the
+/// sampler, the policy, the audit log, the history and the scheduler thread.
+/// The destructor stops and joins the scheduler thread, which is internal, so
+/// destroying a running runtime is safe as far as that thread is concerned.
+/// Published snapshots own their data (shared_ptr), so a reader may keep one
+/// after the runtime has been destroyed. history() and health() return
+/// copies.
+///
+/// Thread safety. While the runtime is alive, every public member may be
+/// called from any thread, concurrently with every other member, including
+/// stop(). The destructor is not a member call: see Lifetime. The scheduler
+/// thread never calls stop() and never runs the destructor.
 ///
 /// Collections. At most one collection runs at a time, whether started by the
 /// scheduler or by collect_now(). Each has its own cancellation source. A
 /// collection is "in flight" from the moment it is admitted until it has
 /// finished touching the backend and the history.
 ///
-/// Shutdown. stop() closes admission first: from then until it returns,
-/// collect_now() is refused and the scheduler starts nothing. It cancels the
-/// in-flight collection (scheduled or manual), joins the scheduler, and waits
-/// until no collection is in flight. After stop() returns the runtime may be
-/// started again or used for manual collections. The destructor does the
-/// same and never reopens admission, so once destruction begins no
-/// collection can start and none can still be running when members are
-/// destroyed. Calls that *begin* after the destructor has started are a
-/// use-after-destruction by the caller, as for any object.
+/// Shutdown. stop():
+///   1. closes admission: until it returns, collect_now() is refused and the
+///      scheduler starts nothing;
+///   2. cancels the in-flight collection, scheduled or manual;
+///   3. joins the scheduler;
+///   4. waits until no collection is in flight.
+/// After stop() returns, the runtime may be started again or used for manual
+/// collections.
 ///
 /// Reconfiguration. reconfigure() is serialised with itself and applied
 /// atomically with respect to readers: the configuration, the history bounds
@@ -116,12 +141,13 @@ struct AgentSnapshot {
 class AgentRuntime {
 public:
     AgentRuntime(std::unique_ptr<IOperatingSystem> os, AgentConfig cfg);
-    /// Cancels and awaits any in-flight collection, then stops the scheduler.
+    /// Precondition: no member call is in progress on another thread, and none
+    /// will begin (see Lifetime). Stops and joins the scheduler thread.
     ~AgentRuntime();
     AgentRuntime(const AgentRuntime&) = delete;
     AgentRuntime& operator=(const AgentRuntime&) = delete;
 
-    /// Starts the scheduler thread. Fails if already running or being destroyed.
+    /// Starts the scheduler thread. Fails if already running.
     Result<void> start();
     /// Stops the scheduler and any manual collection (see the contract above).
     /// Idempotent; returns once no collection is in flight.
@@ -188,8 +214,7 @@ private:
     std::condition_variable wake_;  // scheduler: stop requested
     std::condition_variable idle_;  // stop(): the in-flight collection has finished
     bool stop_requested_{false};
-    bool closed_{false};      // admission closed: stop() in progress or destruction begun
-    bool destroying_{false};  // set by the destructor; admission never reopens
+    bool closed_{false};  // admission closed: stop() in progress
     bool in_flight_{false};
     CancellationSource active_;  // the in-flight collection's source
     std::thread thread_;

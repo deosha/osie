@@ -105,27 +105,62 @@ TEST(AgentLifecycle, StopCancelsAndAwaitsAManualCollection) {
     EXPECT_EQ(rt.health().collections, 0U);
 }
 
-TEST(AgentLifecycle, DestructionCancelsAndAwaitsAManualCollection) {
-    // Destroying the runtime while another thread is inside collect_now():
-    // the collection is cancelled and awaited before any member is destroyed
-    // (AddressSanitizer reports a use-after-free otherwise).
+// Destroying the runtime while another thread is inside a member call is
+// undefined behaviour (the lifetime contract in runtime.hpp), so no test does
+// it. These two tests use the two orderings the contract allows.
+
+TEST(AgentLifecycle, StopThenJoinThenDestroyEndsAStuckCallerPromptly) {
+    // Another thread is stuck inside collect_now(). The owner calls stop()
+    // (allowed concurrently with any member call), joins that thread, and
+    // only then destroys the runtime.
     auto os = os_with();
-    std::atomic<bool> entered{false}, finished{false};
+    std::atomic<bool> entered{false}, result{true};
     block_until_cancelled(*os, entered);
     auto rt = std::make_unique<AgentRuntime>(std::move(os), cfg(Millis{10'000}, Millis{5}));
-    AgentRuntime* raw = rt.get();
-    std::thread t([raw, &finished] {
-        (void)raw->collect_now();
-        finished = true;
-    });
+    std::thread caller([&rt, &result] { result = rt->collect_now(); });
     wait_for(entered);
     const auto t0 = Clock::now();
-    rt.reset();
-    EXPECT_TRUE(finished) << "the destructor returned while a collection was still running";
-    EXPECT_LT(ms_since(t0), 2000.0);
-    t.join();
+    rt->stop();
+    caller.join();
+    EXPECT_LT(ms_since(t0), 2000.0) << "stop() did not cancel the stuck collection";
+    EXPECT_FALSE(result) << "a cancelled collection reports that nothing was published";
+    rt.reset();  // no other thread can be inside a member call now
 }
 
+TEST(AgentLifecycle, SharedOwnershipDefersDestructionToTheLastCaller) {
+    // Callers each hold a shared_ptr for as long as they make calls. The
+    // owner may drop its reference at any time; the runtime is destroyed by
+    // whichever thread drops the last one, after every call has returned.
+    auto rt = std::make_shared<AgentRuntime>(os_with(8), cfg(Millis{2}, Millis{1}));
+    ASSERT_TRUE(rt->start().ok());
+    const std::weak_ptr<AgentRuntime> watch = rt;
+    std::atomic<bool> done{false};
+    std::atomic<int> calls{0};
+    std::vector<std::thread> callers;
+    for (int i = 0; i < 4; ++i)
+        callers.emplace_back([self = rt, &done, &calls, i]() mutable {
+            while (!done) {
+                if (i % 2) (void)self->collect_now();
+                else (void)to_json(self->health());
+                (void)self->snapshot();
+                ++calls;
+            }
+            self->stop();   // any caller may stop it
+            self.reset();   // the last one to get here runs the destructor
+        });
+    std::this_thread::sleep_for(Millis{200});
+    rt.reset();  // the owner lets go while the callers are mid-call
+    EXPECT_FALSE(watch.expired()) << "destroyed while callers still held it";
+    std::this_thread::sleep_for(Millis{100});
+    EXPECT_FALSE(watch.expired());
+    done = true;
+    for (auto& t : callers) t.join();
+    EXPECT_TRUE(watch.expired()) << "the last caller's release destroys the runtime";
+    EXPECT_GT(calls.load(), 0);
+}
+
+// The scheduler thread is internal: destroying a started runtime from its
+// owner (with no other callers) is always allowed, even mid-collection.
 TEST(AgentLifecycle, DestructionWhileTheSchedulerIsMidCollection) {
     auto os = os_with();
     std::atomic<bool> entered{false};

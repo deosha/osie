@@ -39,13 +39,9 @@ AgentRuntime::AgentRuntime(std::unique_ptr<IOperatingSystem> os, AgentConfig cfg
     reconfigure(cfg_);
 }
 
-AgentRuntime::~AgentRuntime() {
-    {
-        std::lock_guard lk(life_mu_);
-        destroying_ = true;
-    }
-    stop();
-}
+// No other thread may be inside a member call (the lifetime contract), so
+// stop() here only has the scheduler thread to cancel and join.
+AgentRuntime::~AgentRuntime() { stop(); }
 
 void AgentRuntime::reconfigure(const AgentConfig& cfg) {
     // Held throughout, so concurrent reconfigurations apply one after the
@@ -84,7 +80,6 @@ Result<void> AgentRuntime::start() {
     if (thread_.joinable()) return Error{Errc::invalid_argument, "agent already running", 0};
     {
         std::lock_guard lk(life_mu_);
-        if (destroying_) return Error{Errc::invalid_argument, "agent is being destroyed", 0};
         stop_requested_ = false;
     }
     {
@@ -112,7 +107,7 @@ void AgentRuntime::stop() {
     {
         std::unique_lock lk(life_mu_);
         idle_.wait(lk, [this] { return !in_flight_; });
-        if (!destroying_) closed_ = false;
+        closed_ = false;
     }
     state_ = AgentState::stopped;
 }

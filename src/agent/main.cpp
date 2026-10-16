@@ -201,6 +201,10 @@ int main(int argc, char** argv) {
     for (int s : {SIGTERM, SIGINT, SIGHUP, SIGUSR1}) sigaddset(&set, s);
     pthread_sigmask(SIG_BLOCK, &set, nullptr);
 
+    // Lifetime (runtime.hpp): `rt` is used by this thread and the freshness
+    // probe. The probe is joined after rt.stop() and before main returns, and
+    // the signal thread never touches `rt`, so no call can be in progress
+    // when `rt` is destroyed.
     AgentRuntime rt(make_native_os(), cfg);
     if (o.once) {
         rt.collect_now();

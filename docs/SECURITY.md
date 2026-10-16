@@ -174,8 +174,11 @@ the CLI, and has no action path. Additional properties, each tested
   - It validates the file with `fstat()` on the descriptor it then reads.
     So a rename or link swap during the load cannot substitute an unchecked
     file. A test races exactly that.
-- **Shutdown is complete.** `stop()` and the destructor cancel and await any
-  in-flight collection; none is running once they return.
+- **Shutdown is complete.** `stop()` cancels and awaits any in-flight
+  collection, so none is running once it returns. Destroying the runtime
+  must be ordered after other threads' calls by its owner, as the lifetime
+  contract in `AGENT.md` sets out. `osie-agent` stops it, joins its threads,
+  and then destroys it.
 - **Bounded resources.** All buffers are bounded by the configuration. The
   unit adds `MemoryMax=64M` and `TasksMax=16`.
 
