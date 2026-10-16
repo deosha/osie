@@ -75,6 +75,8 @@ public:
     int fail_memory_with_eperm{0};
     mutable std::mutex mu;
     int process_calls{0};
+    // If set, cgroup(path) returns cgroup_gen(path, call number) (counters that advance).
+    std::function<CgroupInfo(const std::string&, int)> cgroup_gen;
     // If set, cpu_sample() returns cpu_gen(call number) instead of popping cpu_script.
     std::function<CpuSample(int)> cpu_gen;
     int cpu_calls{0};
@@ -170,6 +172,7 @@ public:
         {
             std::lock_guard lk(mu);
             if (cgroup_ok_calls && cgroup_calls++ >= *cgroup_ok_calls) return make_error(Errc::not_found, "cgroup removed");
+            if (cgroup_gen) return Observation<CgroupInfo>{cgroup_gen(path, ++cgroup_calls), Provenance::now("mock.cgroup")};
             if (!cgroup_script.empty()) {
                 auto c = pop(cgroup_script);
                 c.path = path;

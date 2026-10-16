@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/api_capabilities.schema.json",
+  "title": "GET /v1/capabilities",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "platform": {
+      "enum": [
+        "linux",
+        "macos"
+      ]
+    },
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "supported": {
+            "type": "boolean"
+          },
+          "collected_by_agent": {
+            "type": "boolean"
+          },
+          "in_latest_snapshot": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "supported",
+          "collected_by_agent",
+          "in_latest_snapshot"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "diagnoses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "not_offered": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_request_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_question_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "request_timeout_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_concurrent_requests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requests_per_second_per_user": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_evidence_age_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_sessions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "session_ttl_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "max_request_bytes",
+        "max_question_bytes",
+        "request_timeout_ms",
+        "max_concurrent_requests",
+        "requests_per_second_per_user",
+        "max_evidence_age_ms",
+        "max_sessions",
+        "session_ttl_ms"
+      ],
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "observe",
+              "act"
+            ]
+          },
+          "platform_supported": {
+            "type": "boolean"
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "platform_supported",
+          "allowed",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "platform",
+    "endpoints",
+    "observations",
+    "diagnoses",
+    "not_offered",
+    "limits",
+    "policy"
+  ],
+  "additionalProperties": false
+}

@@ -223,6 +223,21 @@ void SessionContext::remember(const std::string& utterance, const intent::Intent
 
 // -------------------------------------------------------------- engine ---
 
+/// The CLI's evidence: sampled on demand (reusing a fresh cached state), and
+/// recorded in the engine's own history.
+class Engine::LiveEvidence final : public EvidenceSource {
+public:
+    explicit LiveEvidence(Engine& e) : e_(e) {}
+    std::shared_ptr<const SystemState> state(const std::vector<ObservationKind>& kinds, bool cgroup_focus,
+                                             const CancellationToken& cancel, bool& reused) override {
+        return e_.state_for(kinds, cancel, reused, cgroup_focus);
+    }
+    const StateHistory& history() override { return e_.history_; }
+
+private:
+    Engine& e_;
+};
+
 Engine::Engine(std::unique_ptr<IOperatingSystem> os, std::unique_ptr<intent::IIntentParser> parser, EngineConfig cfg)
     : os_(std::move(os)),
       parser_(std::move(parser)),
@@ -231,7 +246,8 @@ Engine::Engine(std::unique_ptr<IOperatingSystem> os, std::unique_ptr<intent::IIn
       broker_(*os_, reg_, policy_, audit_),
       sampler_(broker_),
       reasoner_(graph_, os_->platform()),
-      history_(cfg_.history) {
+      history_(cfg_.history),
+      live_(std::make_unique<LiveEvidence>(*this)) {
     arch::load_ontology(graph_);
 }
 
@@ -263,6 +279,7 @@ std::shared_ptr<const SystemState> Engine::state_for(const std::vector<Observati
         if (std::find(req.kinds.begin(), req.kinds.end(), k) == req.kinds.end()) req.kinds.push_back(k);
     auto st = std::make_shared<SystemState>(sampler_.sample(req, c));
     arch::update_instances(graph_, *st, os_->platform());
+    graph_state_ = st;
     cache_.store(st);
     history_.record(*st, pinned_identities());
     return st;
@@ -308,6 +325,24 @@ std::shared_ptr<const SystemState> Engine::observe_all(const CancellationToken& 
 
 Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) {
     std::lock_guard lk(mu_);
+    return answer(utterance, session_, *live_, cancel);
+}
+
+Answer Engine::ask(std::string_view utterance, SessionContext& session, EvidenceSource& evidence,
+                   const CancellationToken& cancel) {
+    std::lock_guard lk(mu_);
+    return answer(utterance, session, evidence, cancel);
+}
+
+Answer Engine::answer(std::string_view utterance, SessionContext& session, EvidenceSource& evidence,
+                      const CancellationToken& cancel) {
+    // The rendering helpers read the session and evidence of this question.
+    struct Bind {
+        Engine& e;
+        ~Bind() { e.sess_ = nullptr, e.ev_ = nullptr; }
+    } bind{*this};
+    sess_ = &session;
+    ev_ = &evidence;
     const auto t0 = std::chrono::steady_clock::now();
     Answer a;
     std::vector<intent::Token> toks;
@@ -316,11 +351,11 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
 
     // "yes, do it", "go ahead", "I authorize it" right after a refusal insist
     // on the refused action: it is refused again, with the same capability.
-    if (a.frame.intent != Intent::action_request && session_.last_refused_action && insists_on_action(toks)) {
+    if (a.frame.intent != Intent::action_request && session.last_refused_action && insists_on_action(toks)) {
         auto& f = a.frame;
         f.intent = Intent::action_request;
-        f.action = *session_.last_refused_action;
-        f.target = session_.last_refused_target;
+        f.action = *session.last_refused_action;
+        f.target = session.last_refused_target;
         f.safety = intent::SafetyMode::directive;
         f.temporal.reset();
         f.ambiguous = false;
@@ -337,8 +372,8 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
     // A temporal follow-up that names no metric ("has its usage increased?")
     // continues the metric of the previous turn.
     if (a.frame.temporal && a.frame.temporal->metric == intent::TemporalMetric::overall &&
-        a.frame.target.kind == TargetKind::reference && session_.last_intent) {
-        const auto prev = *session_.last_intent;
+        a.frame.target.kind == TargetKind::reference && session.last_intent) {
+        const auto prev = *session.last_intent;
         if (prev == Intent::top_memory || prev == Intent::process_memory || prev == Intent::diagnose_memory ||
             prev == Intent::memory_status) {
             a.frame.intent = Intent::process_memory;
@@ -350,7 +385,7 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
     }
 
     // Context: short follow-ups and references.
-    if (!a.frame.temporal && session_.apply_followup(a.frame, toks)) {
+    if (!a.frame.temporal && session.apply_followup(a.frame, toks)) {
         intent::ParseOutput ctx;
         ctx.intent = a.frame.intent;
         ctx.confidence = a.frame.confidence;
@@ -371,7 +406,7 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
         a.frame.validation_errors = std::move(errs);
         a.text = "I could not interpret that request safely, so I did nothing (" + a.frame.validation_errors.front() +
                  ").\n";
-        session_.remember(std::string(utterance), a.frame, std::nullopt, {}, cfg_.history_limit,
+        session.remember(std::string(utterance), a.frame, std::nullopt, {}, cfg_.history_limit,
                           std::chrono::steady_clock::now());
         a.latency_ms = ms_since(t0);
         return a;
@@ -382,12 +417,17 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
     if (!a.frame.ambiguous || is_process_intent(a.frame.intent)) {
         const bool cgroup_focus = os_->platform() == Platform::linux_os &&
                                   (a.frame.intent == Intent::cgroup_status || a.frame.intent == Intent::container_throttle);
-        st = state_for(a.frame.observations, cancel, reused, cgroup_focus);
+        st = evidence.state(a.frame.observations, cgroup_focus, cancel, reused);
+        // Instances in the architecture graph follow the state being explained.
+        if (st && st != graph_state_) {
+            arch::update_instances(graph_, *st, os_->platform());
+            graph_state_ = st;
+        }
     }
     const auto now = std::chrono::steady_clock::now();
     Resolution res;
     if (st && a.frame.target.kind != TargetKind::host && a.frame.target.kind != TargetKind::none) {
-        res = session_.resolve(a.frame, *st, now, cfg_.context_ttl);
+        res = session.resolve(a.frame, *st, now, cfg_.context_ttl);
         if (res.subject) {
             a.frame.ambiguous = false;
             a.frame.clarification.clear();
@@ -410,7 +450,7 @@ Answer Engine::ask(std::string_view utterance, const CancellationToken& cancel) 
         for (Pid p : a.diagnosis->ranked_pids)
             if (const auto* pv = st->find_pid(p)) list.push_back(ref_of(*pv));
     }
-    session_.remember(std::string(utterance), a.frame, subject, list, cfg_.history_limit, now);
+    session.remember(std::string(utterance), a.frame, subject, list, cfg_.history_limit, now);
     a.latency_ms = ms_since(t0);
     return a;
 }
@@ -549,8 +589,8 @@ std::string Engine::render(Answer& a, const SystemState* s, const Resolution& re
             if (f.target.kind == TargetKind::process_name || f.target.kind == TargetKind::pid ||
                 f.target.kind == TargetKind::reference) {
                 std::string who = subject ? subject->name : f.target.value;
-                if (!subject && f.target.kind == TargetKind::reference && session_.last_process)
-                    who = session_.last_process->name;
+                if (!subject && f.target.kind == TargetKind::reference && sess_->last_process)
+                    who = sess_->last_process->name;
                 if (!subject && f.target.kind == TargetKind::pid) who = "pid " + f.target.value;
                 o += "I can explain what the process is doing instead - ask 'why is " + who + " using so much CPU?'\n";
             }
@@ -988,8 +1028,9 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
     using intent::TemporalKind;
     using intent::TemporalMetric;
     const auto& q = *a.frame.temporal;
-    const auto& all = history_.points();
-    const double span_min = history_.config().min_span_s;
+    const StateHistory& history = ev_->history();
+    const auto& all = history.points();
+    const double span_min = history.config().min_span_s;
     const auto now = std::chrono::steady_clock::now();
     std::vector<const HistoryPoint*> pts;
     for (const auto& p : all)
@@ -1110,7 +1151,7 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
                       : fmt::pct(t.early_mean) + " -> " + fmt::pct(t.late_mean)) +
                  "  (" + std::to_string(t.n) + " samples)\n";
         }
-        o += "Only the top " + std::to_string(history_.config().top_k) +
+        o += "Only the top " + std::to_string(history.config().top_k) +
              " processes by CPU and by memory are kept per sample, so smaller processes are not covered.\n";
         return o;
     }

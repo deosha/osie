@@ -947,6 +947,11 @@ void annotate_evidence(Diagnosis& d, const SystemState& s) {
 
 std::string to_json(const Diagnosis& d) {
     json::Writer w;
+    write_json(w, d);
+    return w.take();
+}
+
+void write_json(json::Writer& w, const Diagnosis& d) {
     w.begin_object();
     w.kv("topic", d.topic).kv("diagnosis", d.conclusion).kv("headline", d.headline);
     w.kv("certainty", to_string(d.certainty));
@@ -985,7 +990,6 @@ std::string to_json(const Diagnosis& d) {
     w.end_array();
     w.kv("recommended_next_step", d.next_step);
     w.end_object();
-    return w.take();
 }
 
 }  // namespace osie::reason

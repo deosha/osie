@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "osie/agent/config.hpp"
 
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <cstring>
-#include <deque>
 #include <set>
 #include <sstream>
+
+#include "osie/util/secure_path.hpp"
 
 namespace osie::agent {
 namespace {
@@ -38,6 +37,7 @@ std::optional<long long> parse_int(const std::string& v) {
 }
 
 std::optional<Millis> parse_duration(const std::string& v) {
+    if (v == "0") return Millis{0};  // "never" / "automatic"; ranges still apply
     std::size_t i = 0;
     while (i < v.size() && std::isdigit(static_cast<unsigned char>(v[i]))) ++i;
     const auto n = parse_int(v.substr(0, i));
@@ -56,6 +56,31 @@ std::optional<ObservationKind> kind_from(std::string_view s) {
     for (unsigned k = 0; k < static_cast<unsigned>(ObservationKind::count_); ++k)
         if (to_string(static_cast<ObservationKind>(k)) == s) return static_cast<ObservationKind>(k);
     return std::nullopt;
+}
+
+/// A socket path the agent may create: absolute, short enough for
+/// sockaddr_un on every platform, plain characters, no "." or ".." parts.
+bool valid_socket_path(const std::string& p) {
+    if (p.size() < 2 || p.size() > 100 || p[0] != '/' || p.back() == '/') return false;
+    for (char c : p)
+        if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '/' || c == '.' || c == '_' || c == '-')) return false;
+    std::size_t i = 1;
+    while (i <= p.size()) {
+        const std::size_t j = std::min(p.find('/', i), p.size());
+        const std::string part = p.substr(i, j - i);
+        if (part.empty() || part == "." || part == "..") return false;
+        i = j + 1;
+    }
+    return true;
+}
+
+bool valid_group_name(const std::string& g) {
+    if (g.empty() || g.size() > 32) return false;
+    if (!(std::islower(static_cast<unsigned char>(g[0])) || g[0] == '_')) return false;
+    for (char c : g)
+        if (!(std::islower(static_cast<unsigned char>(c)) || std::isdigit(static_cast<unsigned char>(c)) || c == '_' || c == '-'))
+            return false;
+    return true;
 }
 
 std::string dur(Millis m) {
@@ -119,6 +144,26 @@ Result<AgentConfig> parse_agent_config(std::string_view text) {
         else if (key == "cgroup_top_n") r = count_in(0, 64, c.cgroup_top_n);
         else if (key == "failure_threshold") r = count_in(1, 100, c.failure_threshold);
         else if (key == "health_log_interval") r = duration_in(Millis{0}, Millis{86'400'000}, c.health_log_interval);
+        else if (key == "api_enabled") {
+            if (val == "true") c.api_enabled = true;
+            else if (val == "false") c.api_enabled = false;
+            else r = bad(lineno, "api_enabled must be true or false");
+        } else if (key == "api_socket") {
+            if (!valid_socket_path(val))
+                r = bad(lineno, "api_socket must be an absolute path of at most 100 characters (letters, digits, '/', "
+                                "'.', '_', '-'; no '.' or '..' components)");
+            else c.api_socket = val;
+        } else if (key == "api_group") {
+            if (!valid_group_name(val)) r = bad(lineno, "api_group must be a group name (lowercase letters, digits, '_', '-')");
+            else c.api_group = val;
+        }
+        else if (key == "api_max_clients") r = count_in(1, 64, c.api_max_clients);
+        else if (key == "api_max_request_bytes") r = count_in(1024, 1024 * 1024, c.api_max_request_bytes);
+        else if (key == "api_request_timeout") r = duration_in(Millis{100}, Millis{60'000}, c.api_request_timeout);
+        else if (key == "api_max_sessions") r = count_in(1, 4096, c.api_max_sessions);
+        else if (key == "api_session_ttl") r = duration_in(Millis{10'000}, Millis{86'400'000}, c.api_session_ttl);
+        else if (key == "api_max_evidence_age") r = duration_in(Millis{0}, Millis{3'600'000}, c.api_max_evidence_age);
+        else if (key == "api_rate_limit") r = count_in(1, 10'000, c.api_rate_limit);
         else if (key == "log_level") {
             if (val == "error") c.log_level = LogLevel::error;
             else if (val == "warn") c.log_level = LogLevel::warn;
@@ -137,7 +182,7 @@ Result<AgentConfig> parse_agent_config(std::string_view text) {
         } else if (key == "listen" || key == "bind" || key == "port" || key == "persist" || key == "persistence" ||
                    key == "database" || key == "remote" || key == "upload" || key == "endpoint") {
             r = bad(lineno, "'" + key + "' is not supported: this agent keeps all data in memory and has no network "
-                            "listener or remote access");
+                            "listener or remote access (its local API is a Unix domain socket: api_enabled, api_socket)");
         } else {
             r = bad(lineno, "unknown key '" + key + "'");
         }
@@ -155,153 +200,20 @@ Result<AgentConfig> parse_agent_config(std::string_view text) {
 namespace {
 
 constexpr std::size_t kMaxConfigBytes = 64 * 1024;
-constexpr int kMaxSymlinks = 32;
-
-/// Closes a descriptor on scope exit.
-struct Fd {
-    int fd{-1};
-    explicit Fd(int f = -1) : fd(f) {}
-    Fd(const Fd&) = delete;
-    Fd& operator=(const Fd&) = delete;
-    Fd(Fd&& o) noexcept : fd(std::exchange(o.fd, -1)) {}
-    Fd& operator=(Fd&& o) noexcept {
-        if (this != &o) {
-            reset();
-            fd = std::exchange(o.fd, -1);
-        }
-        return *this;
-    }
-    ~Fd() { reset(); }
-    void reset() {
-        if (fd >= 0) ::close(fd);
-        fd = -1;
-    }
-};
-
-Error refused(const std::string& what, const std::string& why) {
-    return Error{Errc::permission_denied, "agent config: " + what + " " + why + "; refusing to use it", 0};
-}
-
-Error os_error(const std::string& what, int err) {
-    if (err == ENOENT || err == ENOTDIR) return Error{Errc::not_found, "agent config " + what + " not found", err};
-    if (err == EACCES || err == EPERM) return Error{Errc::permission_denied, "cannot read agent config " + what, err};
-    return Error{Errc::io_error, "agent config " + what + ": " + std::strerror(err), err};
-}
-
-/// Who may control something the configuration depends on: root or the
-/// agent's own user.
-bool trusted_owner(uid_t uid) { return uid == 0 || uid == ::geteuid(); }
-
-/// A directory on the path must not let anyone else replace its entries:
-/// owned by root or us, and not writable by group or others unless sticky
-/// (then others cannot rename or remove entries they do not own).
-Result<void> check_dir(int fd, const std::string& what) {
-    struct stat st {};
-    if (::fstat(fd, &st) != 0) return os_error(what, errno);
-    if (!trusted_owner(st.st_uid)) return refused("directory " + what, "is owned by uid " + std::to_string(st.st_uid));
-    if ((st.st_mode & (S_IWGRP | S_IWOTH)) != 0 && (st.st_mode & S_ISVTX) == 0)
-        return refused("directory " + what, "is writable by group or others");
-    return {};
-}
-
-std::deque<std::string> split_path(const std::string& p) {
-    std::deque<std::string> out;
-    std::size_t i = 0;
-    while (i <= p.size()) {
-        const std::size_t j = std::min(p.find('/', i), p.size());
-        std::string c = p.substr(i, j - i);
-        if (!c.empty() && c != ".") out.push_back(std::move(c));
-        i = j + 1;
-    }
-    return out;
-}
-
-Result<Fd> open_dir_at(int at, const char* name, const std::string& what) {
-    Fd d(::openat(at, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
-    if (d.fd < 0) {
-        if (errno == ELOOP) return refused(what, "was replaced by a symbolic link while being opened");
-        return os_error(what, errno);
-    }
-    if (auto r = check_dir(d.fd, what); !r) return r.error();
-    return d;
-}
-
-/// Opens the configuration file without trusting the path: every directory
-/// is opened relative to the previous one with O_NOFOLLOW and validated on
-/// its descriptor; symbolic links are followed only if root or the agent's
-/// user owns them, and their targets are walked the same way. The file
-/// itself is validated with fstat() on the descriptor that is then read, so
-/// replacing any component after a check cannot substitute another file.
-Result<Fd> open_config(const std::string& path) {
-    if (path.empty()) return Error{Errc::not_found, "agent config path is empty", 0};
-    std::deque<std::string> parts = split_path(path);
-    std::string walked = path[0] == '/' ? "/" : ".";
-    auto dir = open_dir_at(AT_FDCWD, walked.c_str(), walked);
-    if (!dir) return dir.error();
-    Fd cur = std::move(dir).value();
-    auto join = [](const std::string& a, const std::string& b) { return a == "/" ? "/" + b : a + "/" + b; };
-    int links = 0;
-    while (!parts.empty()) {
-        const std::string name = std::move(parts.front());
-        parts.pop_front();
-        const std::string what = join(walked, name);
-        struct stat lst {};
-        if (::fstatat(cur.fd, name.c_str(), &lst, AT_SYMLINK_NOFOLLOW) != 0) return os_error(what, errno);
-        if (S_ISLNK(lst.st_mode)) {
-            if (++links > kMaxSymlinks) return Error{Errc::invalid_argument, "agent config " + path + ": too many symbolic links", ELOOP};
-            if (!trusted_owner(lst.st_uid)) return refused("symbolic link " + what, "is owned by uid " + std::to_string(lst.st_uid));
-            char buf[4096];
-            const auto n = ::readlinkat(cur.fd, name.c_str(), buf, sizeof buf);
-            if (n < 0) return os_error(what, errno);
-            if (static_cast<std::size_t>(n) >= sizeof buf) return Error{Errc::invalid_argument, "agent config " + what + ": link target too long", 0};
-            const std::string target(buf, static_cast<std::size_t>(n));
-            if (target.empty()) return os_error(what, ENOENT);
-            auto t = split_path(target);
-            parts.insert(parts.begin(), t.begin(), t.end());
-            if (target[0] == '/') {
-                walked = "/";
-                auto root = open_dir_at(AT_FDCWD, "/", walked);
-                if (!root) return root.error();
-                cur = std::move(root).value();
-            }
-            continue;
-        }
-        if (!parts.empty()) {  // an intermediate directory
-            auto next = open_dir_at(cur.fd, name.c_str(), what);
-            if (!next) return next.error();
-            cur = std::move(next).value();
-            walked = what;
-            continue;
-        }
-        // The file. O_NONBLOCK: opening a FIFO must not block; it is rejected below.
-        Fd f(::openat(cur.fd, name.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_NOCTTY | O_CLOEXEC));
-        if (f.fd < 0) {
-            if (errno == ELOOP) return refused(what, "was replaced by a symbolic link while being opened");
-            return os_error(what, errno);
-        }
-        struct stat st {};
-        if (::fstat(f.fd, &st) != 0) return os_error(what, errno);
-        if (!S_ISREG(st.st_mode)) return Error{Errc::invalid_argument, "agent config " + what + " is not a regular file", 0};
-        if (!trusted_owner(st.st_uid)) return refused(what, "is owned by uid " + std::to_string(st.st_uid));
-        if ((st.st_mode & (S_IWGRP | S_IWOTH)) != 0) return refused(what, "is writable by group or others (chmod go-w)");
-        return f;
-    }
-    return Error{Errc::invalid_argument, "agent config " + path + " is not a regular file", 0};
-}
 
 }  // namespace
 
 Result<AgentConfig> load_agent_config(const std::string& path) {
-    auto f = open_config(path);
+    auto f = secure::open_trusted_file(path, secure::OpenOptions{"agent config", false});
     if (!f) return f.error();
     // The size limit is enforced on the bytes read (st_size can change, or lie).
     std::string text;
     char buf[8192];
     while (true) {
-        const auto n = ::read(f->fd, buf, sizeof buf);
+        const auto n = ::read(f->get(), buf, sizeof buf);
         if (n < 0) {
             if (errno == EINTR) continue;
-            return os_error(path, errno);
+            return Error{Errc::io_error, "agent config " + path + ": " + std::strerror(errno), errno};
         }
         if (n == 0) break;
         text.append(buf, static_cast<std::size_t>(n));
@@ -322,7 +234,18 @@ std::string to_text(const AgentConfig& c) {
     o += "log_level = " + std::string(to_string(c.log_level)) + "\n";
     o += "observe = ";
     for (std::size_t i = 0; i < c.observe.size(); ++i) o += (i ? "," : "") + std::string(to_string(c.observe[i]));
-    return o + "\n";
+    o += "\n";
+    o += "api_enabled = " + std::string(c.api_enabled ? "true" : "false") + "\n";
+    o += "api_socket = " + c.api_socket + "\n";
+    if (!c.api_group.empty()) o += "api_group = " + c.api_group + "\n";
+    o += "api_max_clients = " + std::to_string(c.api_max_clients) + "\n";
+    o += "api_max_request_bytes = " + std::to_string(c.api_max_request_bytes) + "\n";
+    o += "api_request_timeout = " + dur(c.api_request_timeout) + "\n";
+    o += "api_max_sessions = " + std::to_string(c.api_max_sessions) + "\n";
+    o += "api_session_ttl = " + dur(c.api_session_ttl) + "\n";
+    o += "api_max_evidence_age = " + dur(c.api_max_evidence_age) + "\n";
+    o += "api_rate_limit = " + std::to_string(c.api_rate_limit) + "\n";
+    return o;
 }
 
 }  // namespace osie::agent

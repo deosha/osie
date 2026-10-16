@@ -307,3 +307,58 @@ Measured 2026-10-16 (raw output in `ml/experiments/results/agent/`):
   2,500 processes, peaking at 25–27 MB, while live memory stays near 2 MB.
   This is allocator page retention, not data the agent holds. On Linux the
   same workload peaks at 8.2 MB.
+
+## Local API (`osie-agent`, Feature 2)
+
+Measured 2026-10-16 with `packaging/agent/api_bench.sh` (raw output in
+`ml/experiments/results/api/`). The agent ran unprivileged with its default
+interval (5 s, 500 ms window), with `api_rate_limit = 10000` so that the load
+phases measure the server rather than the default limit of 50 requests a
+second.
+
+How each phase was run:
+- **Idle phases** compare the same agent with the API off and on, for
+  120 s each.
+- **Latency** is per request from the client's side: connect, send,
+  receive, close. Each figure is over 200 requests.
+- **"Concurrent"**: 16 clients in a loop for 10 s.
+- **"Burst"**: 200 connections opened at once.
+- **"Shutdown"**: SIGTERM while 16 clients are active.
+
+The Linux (aarch64) column is the installed `.deb` in a Docker Desktop VM
+with `--pid=host` (kernel 6.10, 12 vCPUs, 482 processes). The macOS column is
+a development build in a user session. CI repeats the run on GitHub-hosted
+Linux x86-64 and arm64 VMs (`api-bench.jsonl` in the job log).
+
+| Measurement | Target | Linux aarch64 | macOS arm64 |
+|---|---|---|---|
+| Idle CPU, API off → on | negligible | 0.366% → 0.355% (no difference) | 0.36% → 0.37% |
+| Idle RSS, API off → on | < 10 MB more | 3.88 → 4.13 MB (+0.25 MB) | 6.95 → 7.28 MB (+0.33 MB) |
+| Startup to first `ready` | – | 569 ms (the first collection: 500 ms window) | 556 ms |
+| `/health/live` p50 / p99 | – | 0.09 / 0.15 ms | 0.04 / 0.18 ms |
+| Cached `/system/snapshot` p50 / p99 | p99 < 20 ms | 0.08 / 0.15 ms | 0.07 / 0.24 ms |
+| `/system/history` (120 points) p50 / p99 | – | 0.07 / 0.12 ms | 0.11 / 0.26 ms |
+| Diagnose "what is using the most CPU?" p50 / p99 | p99 < 100 ms | 0.10 / 0.22 ms | 0.10 / 0.34 ms |
+| Diagnose "why is my machine slow?" p50 / p99 | p99 < 100 ms | 0.14 / 0.20 ms | 0.19 / 0.28 ms |
+| Diagnose "which process uses the most memory?" p50 / p99 | p99 < 100 ms | 0.10 / 0.12 ms | 0.11 / 0.14 ms |
+| 16 concurrent clients: answered/s, p50 / p99 | – | 11,980/s; 1.0 / 3.3 ms | 11,992/s; 0.35 / 1.4 ms |
+| Burst of 200 connections | 16 admitted; excess refused | 38 answered, 162 `503 busy` (16 in flight, 16 queued at most) | 62 answered, 103 `503 busy`, 35 `429` |
+| Peak RSS under that load | – | 8.3 MB | 11.7 MB |
+| Collections during the load | no regression | 3, 0 failures, 0 skipped; start jitter p99 1.0 ms | 3, 0 failures, 0 skipped; start jitter p99 5.1 ms |
+| Shutdown with 16 active clients | < `TimeoutStopSec` (10 s) | 28 ms | 40 ms |
+
+**Reading the numbers.**
+- **Diagnosis is cheap.** The evidence is already in memory, so a diagnosis
+  is parsing, reasoning and rendering over one snapshot: tenths of a
+  millisecond. Diagnoses are serialised on one engine.
+- **Throughput was set by the rate limit,** not the server: the clients sent
+  more than 10,000 requests a second, and every refusal was a 429. Under the
+  default `api_rate_limit = 50`, one user gets 50 a second (bursts of 100).
+- **Burst refusals are immediate.** A burst beyond 16 in flight plus 16
+  queued gets an immediate `503 busy` with `Retry-After`. The kernel's
+  listen backlog only absorbs the burst; admission is decided after
+  `accept()`.
+- **Memory under pressure is bounded** by the workers and the queue. Each
+  in-flight diagnosis for a redacted peer holds one copy of the snapshot.
+- **The systemd stop** in the integration test, with a client stalled
+  mid-request, took 146 ms. The stalled client got `503 stopping`.

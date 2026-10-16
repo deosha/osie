@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/api_ready.schema.json",
+  "title": "GET /v1/health/ready",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "degraded",
+        "starting",
+        "unavailable",
+        "stopping"
+      ]
+    },
+    "runtime_state": {
+      "enum": [
+        "stopped",
+        "starting",
+        "running",
+        "degraded",
+        "stopping"
+      ]
+    },
+    "snapshot_age_ms": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "max_evidence_age_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mandatory": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "status",
+    "runtime_state",
+    "snapshot_age_ms",
+    "max_evidence_age_ms",
+    "mandatory",
+    "reasons"
+  ],
+  "additionalProperties": false
+}

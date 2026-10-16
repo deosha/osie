@@ -152,13 +152,16 @@ the CLI, and has no action path. Additional properties, each tested
   - Under systemd it runs as a `DynamicUser` with empty capability sets
     (`CapEff`, `CapPrm` = 0, checked by `agent_systemd_test.sh`).
 - **No network.**
-  - It has no listener and no network code.
+  - It has no IP listener and no network client code. The opt-in local
+    API is a Unix domain socket (see below).
   - The unit restricts it to `AF_UNIX` (systemd notification) and
     `AF_NETLINK` (interface counters), with `IPAddressDeny=any`.
   - An `strace` of a 12 s run shows no `socket`, `connect`, `bind` or
     `listen` calls at all.
 - **No persistence or writes.**
-  - It writes nothing (`ProtectSystem=strict`).
+  - It writes nothing (`ProtectSystem=strict`). With the API enabled, the
+    only filesystem object it creates is its socket in the runtime directory
+    `/run/osie`. systemd creates and removes that directory.
   - The `strace` shows no file opened for writing, and no unlink, rename or
     mkdir.
   - Configuration keys that would enable a listener, persistence or remote
@@ -181,6 +184,79 @@ the CLI, and has no action path. Additional properties, each tested
   and then destroys it.
 - **Bounded resources.** All buffers are bounded by the configuration. The
   unit adds `MemoryMax=64M` and `TasksMax=16`.
+
+## Local diagnostic API (`osie-agent`, opt-in)
+
+The API ([`API.md`](API.md)) adds a way to ask questions. It adds no new way
+to observe or to act:
+- **Off by default.** It needs `api_enabled = true` and a restart. An
+  existing installation is unaffected until then.
+- **Local only.**
+  - A Unix domain socket in a directory that only the agent can write
+    (`RuntimeDirectory=osie`).
+  - No IP listener and no outbound connection.
+  - The unit still restricts address families to `AF_UNIX` and
+    `AF_NETLINK`, with `IPAddressDeny=any`. The systemd test checks that no
+    IP socket is open while the API is enabled.
+- **Socket safety.**
+  - The directory and its ancestors are validated on descriptors, like the
+    configuration file.
+  - A symlink, file or live socket at the path is never replaced or
+    followed. Only the agent's own stale socket is removed.
+  - Permissions are set before `listen()`.
+  - Stopping removes only the inode the agent created.
+  - A `flock` on the directory keeps a second agent out.
+- **Authenticated peers, two layers.**
+  1. The socket's mode (0600, or 0660 with `api_group`) keeps out users
+     without access.
+  2. The access tier is decided from the peer's kernel credentials
+     (`SO_PEERCRED` and `SO_PEERGROUPS`), never from anything the client
+     sends, and before the request is read.
+
+  A peer that gets through a misconfigured socket mode is still limited to
+  the health endpoints. Both layers are tested with real other-uid peers
+  (`ApiLinuxPeers`). Rewording a question cannot change the tier.
+- **Data minimisation.**
+  - Peers other than root and the agent's user do not see other users'
+    executable paths. Under `hidepid`, they do not see other users'
+    processes at all.
+  - The state is redacted before reasoning, so no answer text can contain
+    what was withheld.
+  - Environments and command lines are never collected.
+  - Health endpoints reveal no process data. Capabilities reveal no
+    hostname, socket path or group.
+- **No second observer.** The API's engine runs on a backend that refuses
+  every observation (`RefusingOs`). Answers use the agent's snapshots;
+  questions needing evidence the agent did not collect are told so.
+- **Read-only.** The capability policy is unchanged. Action requests,
+  including prompt-injection attempts, are refused (`status: refused`,
+  `action_executed: false`) without any OS call; tests check this.
+- **Bounded.**
+  - Request size, header count, a per-request deadline, workers and queue
+    length are all limited.
+  - A per-uid rate limit applies; its table is bounded.
+  - Sessions are bounded, with a per-uid quota, and expire.
+  - Refused connections are drained only for a bounded time, and logging of
+    refusals is rate-limited.
+- **Session isolation.** Sessions are keyed by kernel uid and session id, so
+  conversational references never cross users. Same-uid processes are
+  treated as one principal.
+- **Inputs.**
+  - HTTP heads are tokenised by picohttpparser, vendored, pinned and
+    unmodified, with strict policy on top: no chunked encoding, no folded
+    headers, no duplicate framing headers, literal paths only.
+  - Bodies are parsed by a strict flat-object JSON parser.
+  - Both are fuzzed (`osie_fuzz_api`, in CI).
+- **Logging.** Questions are never logged. Refusals are logged, at most 10
+  lines a second. Access lines (uid, path, status, duration) appear only at
+  `log_level = debug`.
+
+Limits of this design:
+- Same-uid processes can read each other's sessions by id.
+- The diagnostics tier sees process names, CPU and memory of every user's
+  processes, as `ps` does on a default Linux system.
+- macOS runs the server, but its peer-isolation has not been evaluated to
+  the Linux standard.
 
 ## Privacy
 

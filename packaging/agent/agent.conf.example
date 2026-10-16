@@ -3,7 +3,8 @@
 # files), and reload with: sudo systemctl reload osie-agent
 #
 # Everything stays in memory. There is no network listener, no persistence
-# and no remote access; keys that would enable them are rejected.
+# and no remote access; keys that would enable them are rejected. The
+# optional local API below is a Unix domain socket only (docs/API.md).
 
 # Time between collections (250ms .. 1h) and the window rates are measured
 # over (50ms .. 5s, at most half the interval).
@@ -26,3 +27,21 @@ observe = cpu_times,load_average,memory,swap,memory_pressure_level,process_list,
 log_level = info
 # One health line in the journal at this interval (0 = never).
 health_log_interval = 10m
+
+# ---- Local diagnostic API (docs/API.md). Off unless enabled. ----
+# HTTP/JSON over a Unix domain socket; never an IP listener. Changes to these
+# keys take effect on restart, not on reload.
+api_enabled = false
+api_socket = /run/osie/agent.sock
+# Members of this group may use the diagnostic endpoints (socket 0660).
+# Without it, only root can (socket 0600). Add users with: usermod -aG osie <user>
+#api_group = osie
+api_max_clients = 16
+api_max_request_bytes = 16384
+api_request_timeout = 5s
+api_max_sessions = 128
+api_session_ttl = 10m
+# Evidence older than this is never used (0 = 2 x interval + sample_window + 2s).
+api_max_evidence_age = 0
+# Requests per second per client user (bursts of twice this).
+api_rate_limit = 50

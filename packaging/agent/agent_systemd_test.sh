@@ -20,6 +20,35 @@ wait_state() {  # wait_state <active|inactive|failed> <seconds>
 dpkg -i "$deb" >/dev/null
 systemctl daemon-reload
 
+# A minimal HTTP/1.1 client over a Unix domain socket (python3 is everywhere
+# this runs; curl is used too where installed). Prints "STATUS BODY", or
+# "CONNECT <errno>" when the socket cannot be opened.
+cat > /tmp/osie_uds.py <<'PY'
+import socket, sys
+path, method, target = sys.argv[1:4]
+body = sys.argv[4] if len(sys.argv) > 4 else ""
+s = socket.socket(socket.AF_UNIX)
+s.settimeout(10)
+try:
+    s.connect(path)
+except OSError as e:
+    print("CONNECT", e.errno); sys.exit(0)
+req = f"{method} {target} HTTP/1.1\r\nHost: localhost\r\n"
+if body or method == "POST":
+    req += f"Content-Type: application/json\r\nContent-Length: {len(body.encode())}\r\n"
+s.sendall((req + "\r\n" + body).encode())
+data = b""
+while True:
+    c = s.recv(65536)
+    if not c: break
+    data += c
+head, _, b = data.partition(b"\r\n\r\n")
+print(head.split(b" ")[1].decode(), b.decode())
+PY
+chmod 0644 /tmp/osie_uds.py
+sock=/run/osie/agent.sock
+uds() { local user=$1; shift; su -s /bin/sh "$user" -c "python3 /tmp/osie_uds.py $(printf "'%s' " "$sock" "$@")"; }
+
 # 1. Installed, but disabled and not running.
 [[ "$(systemctl is-enabled $unit 2>/dev/null || true)" == "disabled" ]] || fail "unit should be installed disabled"
 [[ "$(systemctl is-active $unit || true)" == "inactive" ]] || fail "unit must not start on install"
@@ -36,6 +65,9 @@ grep -q "^CapEff:[[:space:]]*0000000000000000" /proc/$pid/status || fail "has ef
 grep -q "^CapPrm:[[:space:]]*0000000000000000" /proc/$pid/status || fail "has permitted capabilities"
 grep -q "^NoNewPrivs:[[:space:]]*1" /proc/$pid/status || fail "NoNewPrivs not set"
 pass "running as uid $uid with no capabilities and NoNewPrivs"
+[[ ! -e $sock ]] || fail "the local API must be off by default"
+getent group osie >/dev/null || fail "the package did not create the osie group"
+pass "local API off by default; osie group present"
 
 # 3. No network: no IP sockets, only AF_UNIX (notify) and AF_NETLINK (interface counters).
 sleep 2
@@ -79,6 +111,58 @@ for _ in $(seq 1 30); do journalctl -u $unit --no-pager | grep -q "stopped in" &
 [[ $logged -eq 1 ]] || fail "no clean stop logged"
 [[ $stop_ms -lt 5000 ]] || fail "stop took ${stop_ms} ms"
 pass "5 restarts; stop in ${stop_ms} ms (clean)"
+
+# 7a. Local API: enabled explicitly, for root and members of the osie group only.
+id apiuser >/dev/null 2>&1 || useradd -m -G osie apiuser
+id outsider >/dev/null 2>&1 || useradd -m outsider
+printf 'interval = 1s\nsample_window = 200ms\napi_enabled = true\napi_group = osie\n' > /etc/osie/agent.conf
+systemctl restart $unit
+wait_state active 30 || fail "did not start with the API enabled"
+for _ in $(seq 1 50); do [[ -S $sock ]] && break; sleep 0.1; done
+[[ -S $sock ]] || fail "no API socket"
+[[ "$(stat -c '%a %G' /run/osie)" == "750 osie" ]] || fail "runtime directory is $(stat -c '%a %G' /run/osie), want 750 osie"
+[[ "$(stat -c '%a %G' $sock)" == "660 osie" ]] || fail "socket is $(stat -c '%a %G' $sock), want 660 osie"
+pass "API socket $sock: mode 660, group osie, in a 750 directory"
+r=$(uds root GET /v1/health/live); [[ $r == "200 "* ]] || fail "live: $r"
+for _ in $(seq 1 50); do r=$(uds root GET /v1/health/ready); [[ $r == "200 "* ]] && break; sleep 0.2; done
+[[ $r == "200 "*'"status":"ready"'* ]] || fail "ready: $r"
+r=$(uds apiuser POST /v1/diagnose '{"question":"what is using the most CPU?","request_id":"ci-1"}')
+[[ $r == "200 "*'"request_id":"ci-1"'*'"action_executed":false'* ]] || fail "diagnose as a member of osie: ${r:0:300}"
+r=$(uds apiuser POST /v1/diagnose '{"question":"kill the busiest process"}')
+[[ $r == "200 "*'"status":"refused"'* ]] || fail "action not refused: ${r:0:300}"
+r=$(uds outsider GET /v1/health/live); [[ $r == "CONNECT 13" ]] || fail "a user outside the osie group could connect: $r"
+pass "API: root and osie members served; actions refused; other users cannot connect"
+if command -v curl >/dev/null; then
+  code=$(curl -s -o /dev/null -w '%{http_code}' --unix-socket $sock http://localhost/v1/health/live)
+  [[ $code == 200 ]] || fail "curl live: $code"
+  code=$(curl -s -o /dev/null -w '%{http_code}' --unix-socket $sock -H 'Content-Type: application/json' \
+         -d '{"question":"Why is my CPU usage high?"}' http://localhost/v1/diagnose)
+  [[ $code == 200 ]] || fail "curl diagnose: $code"
+  pass "documented curl commands work"
+fi
+pid=$(systemctl show -p MainPID --value $unit)
+for inode in $(find /proc/$pid/fd -lname 'socket:*' 2>/dev/null | xargs -r -n1 readlink | sed 's/socket:\[\(.*\)\]/\1/'); do
+  grep -qs " $inode " /proc/net/tcp /proc/net/tcp6 /proc/net/udp /proc/net/udp6 && fail "IP socket with the API enabled"
+done
+# Stop with a client stalled mid-request: bounded, and the socket is removed.
+python3 - "$sock" <<'PY' &
+import socket, sys, time
+s = socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); s.sendall(b"POST /v1/diagnose HTTP/1.1\r\nHost: l\r\n"); time.sleep(8)
+PY
+slow=$!
+sleep 0.5
+t0=$(date +%s%N); systemctl stop $unit; t1=$(date +%s%N)
+kill $slow 2>/dev/null || true
+api_stop_ms=$(( (t1 - t0) / 1000000 ))
+[[ $api_stop_ms -lt 6000 ]] || fail "stop with an active request took ${api_stop_ms} ms"
+[[ ! -e /run/osie ]] || fail "/run/osie left behind"
+pass "stop with an active API request: ${api_stop_ms} ms; socket directory removed"
+# Disabling it again removes the socket.
+printf 'interval = 1s\nsample_window = 200ms\n' > /etc/osie/agent.conf
+systemctl start $unit; wait_state active 30 || fail "restart without the API"
+[[ ! -e $sock ]] || fail "socket present after disabling the API"
+systemctl stop $unit
+pass "API disabled again: no socket"
 
 # 7. Invalid configuration: fails with exit 2 and is not restarted in a loop.
 printf 'interval = 1ms\n' > /etc/osie/agent.conf

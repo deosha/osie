@@ -45,6 +45,7 @@ endif()
 set(OSIE_CORE_SOURCES
   src/core/common.cpp
   src/core/json.cpp
+  src/core/secure_path.cpp
   src/capabilities/capabilities.cpp
   src/state/state.cpp
   src/state/history.cpp
@@ -62,6 +63,15 @@ set(OSIE_CORE_SOURCES
   src/prediction/features.cpp
   src/prediction/world_model.cpp
   src/engine/engine.cpp
+  src/engine/serialize.cpp
+  src/api/http.cpp
+  src/api/json_in.cpp
+  src/api/peer.cpp
+  src/api/sessions.cpp
+  src/api/evidence.cpp
+  src/api/api.cpp
+  src/api/server.cpp
+  third_party/picohttpparser/picohttpparser.c
 )
 
 if(APPLE)
@@ -84,7 +94,7 @@ else()
 endif()
 
 add_library(osie_core STATIC ${OSIE_CORE_SOURCES} ${OSIE_PLATFORM_SOURCES})
-target_include_directories(osie_core PUBLIC include PRIVATE src)
+target_include_directories(osie_core PUBLIC include PRIVATE src third_party/picohttpparser)
 target_compile_options(osie_core PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OSIE_WARNINGS}>)
 if(APPLE)
   target_link_libraries(osie_core PUBLIC "-framework Foundation")
@@ -130,6 +140,8 @@ add_executable(osie_eval tools/osie_eval.cpp)
 target_link_libraries(osie_eval PRIVATE osie_core)
 add_executable(osie_perf tools/osie_perf.cpp)
 target_link_libraries(osie_perf PRIVATE osie_core)
+add_executable(osie_api_bench tools/osie_api_bench.cpp)
+target_link_libraries(osie_api_bench PRIVATE Threads::Threads)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_executable(osie_cpu_lab tools/cpu_lab.cpp)  # isolated CPU-contention experiments
@@ -199,6 +211,11 @@ if(OSIE_FUZZ)
   target_link_libraries(osie_fuzz_model PRIVATE osie_core)
   target_compile_options(osie_fuzz_model PRIVATE -fsanitize=fuzzer)
   target_link_options(osie_fuzz_model PRIVATE -fsanitize=fuzzer)
+  add_executable(osie_fuzz_api tests/fuzz/fuzz_api_request.cpp)
+  target_include_directories(osie_fuzz_api PRIVATE tests)
+  target_link_libraries(osie_fuzz_api PRIVATE osie_core)
+  target_compile_options(osie_fuzz_api PRIVATE -fsanitize=fuzzer)
+  target_link_options(osie_fuzz_api PRIVATE -fsanitize=fuzzer)
   add_executable(osie_fuzz_world_model tests/fuzz/fuzz_world_model_loader.cpp)
   target_link_libraries(osie_fuzz_world_model PRIVATE osie_core)
   target_compile_options(osie_fuzz_world_model PRIVATE -fsanitize=fuzzer)
@@ -219,6 +236,8 @@ install(FILES models/intent.osiem DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/mode
 install(FILES models/world_cpu.osiewm DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models OPTIONAL)
 install(FILES models/SHA256SUMS DESTINATION ${CMAKE_INSTALL_DATADIR}/osie/models OPTIONAL)
 install(FILES LICENSE README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
+# Third-party code compiled into the binaries: its licence travels with them.
+install(FILES third_party/picohttpparser/LICENSE DESTINATION ${CMAKE_INSTALL_DOCDIR}/third_party RENAME picohttpparser.LICENSE)
 
 # ------------------------------------------------------------------ cpack ---
 set(CPACK_PACKAGE_NAME osie)
@@ -241,7 +260,7 @@ endif()
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_SECTION utils)
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
-set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
+set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0 and MIT")
 set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 set(CPACK_RPM_PACKAGE_AUTOREQ ON)
 # Maintainer scripts: make the agent's unit known on install, stop it on

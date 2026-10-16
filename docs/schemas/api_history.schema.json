@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/api_history.schema.json",
+  "title": "GET /v1/system/history",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "window_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "metric": {
+      "enum": [
+        "all",
+        "cpu_busy_pct",
+        "mem_available_bytes",
+        "mem_total_bytes",
+        "memory_pressure",
+        "psi_cpu_some10",
+        "psi_mem_some10"
+      ]
+    },
+    "interval_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "capacity": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "points_in_window": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "returned": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "points": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "age_s": {
+            "type": "number"
+          },
+          "cpu_busy_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "mem_available_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "mem_total_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "memory_pressure": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "psi_cpu_some10": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "psi_mem_some10": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "t",
+          "age_s"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "seconds": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "seconds"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "window_seconds",
+    "metric",
+    "interval_ms",
+    "capacity",
+    "points_in_window",
+    "returned",
+    "truncated",
+    "points",
+    "gaps"
+  ],
+  "additionalProperties": false
+}

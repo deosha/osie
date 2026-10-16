@@ -44,6 +44,32 @@ struct AgentConfig {
     LogLevel log_level{LogLevel::info};
     /// Write a one-line health summary at this interval; 0 = never. [0, 1 day]
     Millis health_log_interval{Millis{0}};
+
+    // ---- Local diagnostic API (docs/API.md): off unless enabled. ----------
+    // Read at start only; a reload that changes these keeps the running values.
+    /// Serve the API on a Unix domain socket. There is never an IP listener.
+    bool api_enabled{false};
+    /// Socket path; its directory must belong to the agent's user and be
+    /// writable by nobody else (systemd: RuntimeDirectory=osie).
+    std::string api_socket{"/run/osie/agent.sock"};
+    /// Members of this group may use the diagnostic endpoints (socket mode
+    /// 0660, group-owned). Empty: only root and the agent's own user (0600).
+    std::string api_group;
+    /// Requests handled at once; as many more may wait. [1, 64]
+    std::size_t api_max_clients{16};
+    /// Largest request (headers and body). [1 KiB, 1 MiB]
+    std::size_t api_max_request_bytes{16 * 1024};
+    /// Deadline for reading, answering and writing one request. [100 ms, 60 s]
+    Millis api_request_timeout{5000};
+    /// Conversation sessions kept in memory. [1, 4096]
+    std::size_t api_max_sessions{128};
+    /// A session unused for this long is forgotten. [10 s, 1 day]
+    Millis api_session_ttl{600'000};
+    /// Evidence older than this is never used for a diagnosis; 0 = automatic
+    /// (2 x interval + sample_window + 2 s). [0, 1 h]
+    Millis api_max_evidence_age{0};
+    /// Requests per second per client user (burst: twice this). [1, 10000]
+    std::size_t api_rate_limit{50};
 };
 
 /// Parses configuration text. Values: durations take a unit ("500ms", "5s",

@@ -33,9 +33,16 @@ jobs:
         run: ./build/osie_unit_tests
       - name: Platform tests (live kernel)
         run: ./build/osie_platform_tests
-      - name: Config ownership checks (as root)
+      - name: Root-only checks (config ownership; API peers of other users)
         if: runner.os == 'Linux'
-        run: sudo ./build/osie_unit_tests --gtest_filter='AgentConfig.*'
+        run: |
+          sudo ./build/osie_unit_tests --gtest_filter='AgentConfig.*'
+          sudo ./build/osie_platform_tests --gtest_filter='ApiLinuxPeers.*'
+      - name: Local API benchmark (unprivileged; 60 s idle phases)
+        if: runner.os == 'Linux'
+        run: |
+          nproc; uname -r
+          packaging/agent/api_bench.sh build/osie-agent build/osie_api_bench 60 | tee api-bench.jsonl
       - name: ASan + UBSan
         run: |
           cmake -S . -B build-asan -G Ninja -DOSIE_SANITIZE=address,undefined -DCMAKE_BUILD_TYPE=Debug -DOSIE_BUILD_BENCHMARKS=OFF
@@ -63,7 +70,7 @@ jobs:
         run: |
           cmake -S . -B build-fuzz -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang \
                 -DOSIE_FUZZ=ON -DOSIE_SANITIZE=address,undefined -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF
-          ninja -C build-fuzz osie_fuzz_model osie_fuzz_world_model
+          ninja -C build-fuzz osie_fuzz_model osie_fuzz_world_model osie_fuzz_api
       - name: Fuzz the intent model loader (5 minutes, seeded with tiny models of each architecture)
         run: |
           mkdir -p corpus && cp tests/fuzz/seeds/*.osiem corpus/
@@ -72,6 +79,10 @@ jobs:
         run: |
           mkdir -p corpus_wm && cp tests/fuzz/seeds/*.osiewm corpus_wm/
           ./build-fuzz/osie_fuzz_world_model -max_total_time=180 -max_len=8192 -rss_limit_mb=2048 corpus_wm
+      - name: Fuzz the local API request path (5 minutes, seeded with valid requests)
+        run: |
+          mkdir -p corpus_api && cp tests/fuzz/seeds/api/*.http corpus_api/
+          ./build-fuzz/osie_fuzz_api -max_total_time=300 -max_len=20000 -rss_limit_mb=2048 -timeout=10 corpus_api
 
   packaging:
     # Clean install, upgrade from the previous release, and uninstall of the
@@ -124,6 +135,10 @@ jobs:
           python3 -m pip install --upgrade "jsonschema>=4.18" referencing
           ninja -C build osie
           python3 tests/check_json_schemas.py build/osie
+      - name: Local API responses match docs/schemas (live agent, API enabled)
+        run: |
+          ninja -C build osie_agent
+          python3 tests/check_api_schemas.py build/osie-agent
       - name: Frozen v0.2 intent test set (rules must not regress below the reported result)
         run: |
           python3 ml/datasets/v02/evaluate.py --split test --binary build/osie_eval | tee eval.txt

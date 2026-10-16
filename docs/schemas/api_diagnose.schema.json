@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/api_diagnose.schema.json",
+  "title": "POST /v1/diagnose (answered)",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{1,64}$"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "partial",
+        "needs_clarification",
+        "refused"
+      ]
+    },
+    "answer": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "assessment": {
+          "type": "string"
+        },
+        "certainty": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": "null"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "assessment",
+        "certainty",
+        "confidence",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "interpretation": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "type": "string"
+        },
+        "safety": {
+          "type": "string"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        "temporal": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "metric": {
+              "type": "string"
+            },
+            "window_s": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "metric"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "intent",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "observation": {
+      "type": "object",
+      "properties": {
+        "snapshot_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "collected_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+        },
+        "age_ms": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_age_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "snapshot_seq",
+        "collected_at",
+        "age_ms",
+        "max_age_ms"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "signal": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "validity": {
+            "type": "string"
+          },
+          "interval_s": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "permission_limited": {
+            "const": true
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "signal",
+          "source",
+          "value",
+          "validity",
+          "description"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "processes": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "properties": {
+          "pid": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "start_time_us": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "uid": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cpu_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "memory_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "threads": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pid",
+          "start_time_us",
+          "name",
+          "uid",
+          "cpu_pct",
+          "memory_bytes",
+          "threads"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "trends": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "series",
+          "direction",
+          "samples",
+          "span_s"
+        ],
+        "properties": {
+          "series": {
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "insufficient_data",
+              "increasing",
+              "decreasing",
+              "stable"
+            ]
+          },
+          "samples": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "span_s": {
+            "type": "number"
+          },
+          "why": {
+            "type": "string"
+          },
+          "first": {
+            "type": "number"
+          },
+          "last": {
+            "type": "number"
+          },
+          "early_mean": {
+            "type": "number"
+          },
+          "late_mean": {
+            "type": "number"
+          },
+          "slope_per_min": {
+            "type": "number"
+          },
+          "mann_kendall_z": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "diagnosis": {
+      "$ref": "answer.schema.json#/properties/diagnosis"
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "enum": [
+              "observation_not_collected",
+              "unsupported_on_platform",
+              "on_demand_observation_unavailable",
+              "cgroup_rates",
+              "permission_limited",
+              "redacted",
+              "no_event_history",
+              "prediction_not_available",
+              "missing_evidence"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "detail"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "action_executed": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "session_id",
+    "status",
+    "answer",
+    "interpretation",
+    "limitations",
+    "action_executed"
+  ],
+  "additionalProperties": false
+}

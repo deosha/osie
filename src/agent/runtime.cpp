@@ -261,6 +261,7 @@ bool AgentRuntime::collect(const CancellationToken& cancel) {
     {
         std::lock_guard sl(snap_mu_);
         snap->seq = ++seq_;
+        prev_snap_ = std::move(snap_);
         snap_ = std::move(snap);
     }
     set_live_state(degraded.empty() ? AgentState::running : AgentState::degraded);
@@ -270,6 +271,16 @@ bool AgentRuntime::collect(const CancellationToken& cancel) {
 std::shared_ptr<const AgentSnapshot> AgentRuntime::snapshot() const {
     std::lock_guard sl(snap_mu_);
     return snap_;
+}
+
+std::pair<std::shared_ptr<const AgentSnapshot>, std::shared_ptr<const AgentSnapshot>> AgentRuntime::snapshots() const {
+    std::lock_guard sl(snap_mu_);
+    return {snap_, prev_snap_};
+}
+
+StateHistory AgentRuntime::history_copy() const {
+    std::lock_guard hl(hist_mu_);
+    return StateHistory(history_.config(), history_.points());
 }
 
 std::vector<HistoryPoint> AgentRuntime::history(std::size_t max) const {
@@ -332,8 +343,13 @@ std::string to_json(const HealthStatus& h) {
 }
 
 std::string capabilities_json(const AgentRuntime& r) {
-    SafetyPolicy pol;
     json::Writer w;
+    write_capabilities(w, r);
+    return w.take();
+}
+
+void write_capabilities(json::Writer& w, const AgentRuntime& r) {
+    SafetyPolicy pol;
     w.begin_array();
     for (const auto& c : r.registry().all()) {
         const auto d = pol.authorize(c, r.platform(), r.supported());
@@ -342,7 +358,6 @@ std::string capabilities_json(const AgentRuntime& r) {
             .kv("reason", d.reason).end_object();
     }
     w.end_array();
-    return w.take();
 }
 
 }  // namespace osie::agent

@@ -106,6 +106,25 @@ struct PredictionAnswer {
     bool answered{false};  // false: unsupported, insufficient evidence, or abstained
 };
 
+/// Where an answer's evidence comes from.
+///
+/// The CLI samples on demand: Engine::ask(utterance) uses an internal live
+/// source (the sampler, the answer cache and the engine's own history). The
+/// agent API answers from the agent's published snapshot and bounded history
+/// instead, through its own EvidenceSource, and never samples (src/api).
+class EvidenceSource {
+public:
+    virtual ~EvidenceSource() = default;
+    /// The state to answer from for an intent that needs `kinds`; nullptr if
+    /// there is none. `cgroup_focus`: cgroup questions, which need throttling
+    /// rates. `reused`: set when the state was not taken for this question.
+    virtual std::shared_ptr<const SystemState> state(const std::vector<ObservationKind>& kinds, bool cgroup_focus,
+                                                     const CancellationToken& cancel, bool& reused) = 0;
+    /// The history temporal questions are answered from. Valid until the next
+    /// call on this source.
+    virtual const StateHistory& history() = 0;
+};
+
 class Engine {
 public:
     Engine(std::unique_ptr<IOperatingSystem> os, std::unique_ptr<intent::IIntentParser> parser, EngineConfig cfg = {});
@@ -113,7 +132,13 @@ public:
     Engine(const Engine&) = delete;
     Engine& operator=(const Engine&) = delete;
 
+    /// CLI: answers with the engine's own session and on-demand observation.
     Answer ask(std::string_view utterance, const CancellationToken& cancel = {});
+    /// Answers with the caller's session and evidence. The same pipeline as
+    /// ask(): safety routing, validation, context, reasoning and rendering.
+    /// Serialised with every other call on this engine.
+    Answer ask(std::string_view utterance, SessionContext& session, EvidenceSource& evidence,
+               const CancellationToken& cancel = {});
 
     /// Snapshot of everything (used by `osie snapshot`).
     std::shared_ptr<const SystemState> observe_all(const CancellationToken& cancel = {});
@@ -145,6 +170,9 @@ public:
     intent::IntentFrame interpret(std::string_view utterance) const;
 
 private:
+    class LiveEvidence;
+    Answer answer(std::string_view utterance, SessionContext& session, EvidenceSource& evidence,
+                  const CancellationToken& cancel);
     std::shared_ptr<const SystemState> state_for(const std::vector<ObservationKind>& kinds, const CancellationToken& c,
                                                  bool& reused, bool cgroup_focus = false);
     std::string render_capacity(const intent::IntentFrame& f, const std::optional<ProcessRef>& subject);
@@ -167,6 +195,12 @@ private:
     SessionContext session_;
     StateHistory history_;
     std::shared_ptr<const predict::IWorldModel> world_model_;
+    std::unique_ptr<LiveEvidence> live_;
+    // Set for the duration of answer() (under mu_): the session and evidence
+    // the current question is answered with.
+    SessionContext* sess_{nullptr};
+    EvidenceSource* ev_{nullptr};
+    std::shared_ptr<const SystemState> graph_state_;  // the state graph_ instances were last built from
     mutable std::mutex mu_;  // serialises ask(), observe_all() and record_sample()
 };
 

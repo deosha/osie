@@ -146,6 +146,19 @@ osie-agent` keeps a bounded in-memory history of CPU, memory, processes, PSI
 and cgroups. It runs unprivileged, with no network and no disk writes, and is
 off by default. See [`docs/AGENT.md`](docs/AGENT.md).
 
+**Local diagnostic API (opt-in):** with `api_enabled = true`, the agent
+answers HTTP/JSON over a Unix domain socket, never an IP port. The
+answers come from its own snapshots, using the same safety routing and
+reasoning as the CLI:
+
+```bash
+curl --unix-socket /run/osie/agent.sock -H "Content-Type: application/json" \
+  -d '{"question":"Why is my CPU usage high?"}' http://localhost/v1/diagnose
+```
+
+Access is root-only by default; set `api_group = osie` to grant a group.
+See [`docs/API.md`](docs/API.md).
+
 ## Develop and test
 
 Requirements:

@@ -1,13 +1,16 @@
 # OSIE agent (`osie-agent`)
 
 An **opt-in** background process that observes the machine on a fixed
-schedule and keeps a bounded, in-memory history. It answers no questions by
-itself. It is the runtime that a later local API (Feature 2) will read from.
-The `osie` CLI does not need it and is unchanged.
+schedule and keeps a bounded, in-memory history. The optional local
+diagnostic API ([`API.md`](API.md)) answers questions from this runtime's
+snapshots and history; it is off unless `api_enabled = true`. The `osie` CLI
+does not need the agent.
 
 **What it is not:**
-- not a network service: it opens no IP socket;
-- not persistent: it writes nothing to disk;
+- not a network service: it opens no IP socket. The optional API is a Unix
+  domain socket only.
+- not persistent: it writes nothing to disk. The API's socket lives in the
+  runtime directory `/run/osie` and is removed at stop.
 - not an actor: it cannot change system state, because the read-only policy
   and the absence of any executor are the same as for the CLI.
 
@@ -207,12 +210,13 @@ the policy decision; every `act.*` capability is denied.
 | What | Bound |
 |---|---|
 | History | `history_capacity` points × ≤ 2 × `history_top_k` processes |
+| Snapshots | the newest and the one before it (the API derives rates between them) |
 | Cgroups per collection | `cgroup_top_n` |
 | Audit ring | 256 decisions |
 | Jitter ring | 1024 values |
 
-A snapshot holds one `SystemState`, the same as one CLI question. Nothing
-grows with uptime.
+A snapshot holds one `SystemState`, the same as one CLI question. The agent
+keeps two: the newest and the previous one. Nothing grows with uptime.
 
 These bounds hold across reloads as well. When a `SIGHUP` lowers
 `history_capacity` or `history_top_k`, the history is trimmed during the
@@ -252,8 +256,13 @@ Raising the bounds keeps existing points as they are.
     `@cpu-emulation` and `@clock` groups;
   - `MemoryDenyWriteExecute`, `RestrictNamespaces`, `RestrictRealtime`,
     `RestrictSUIDSGID`, `LockPersonality`.
-- **Resources:** `MemoryMax=64M`, `TasksMax=16`, `Nice=10`, `CPUWeight=20`,
-  `IOWeight=20`.
+- **Resources:** `MemoryMax=64M`, `TasksMax=32` (16 API workers and the
+  agent's own threads), `Nice=10`, `CPUWeight=20`, `IOWeight=20`.
+- **Local API** (only used when enabled):
+  - `RuntimeDirectory=osie`, mode 0750, removed at stop;
+  - `Group=osie`: the packages' static group, whose members may use the API
+    when `api_group = osie`. Without that group, systemd allocates a dynamic
+    one with no members.
 - **Lifecycle:**
   - `Type=notify`: the unit is "active" after the first collection;
   - `Restart=on-failure` after 5 s, at most 10 starts a minute;

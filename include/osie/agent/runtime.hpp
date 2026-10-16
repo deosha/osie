@@ -39,6 +39,10 @@
 #include "osie/state/history.hpp"
 #include "osie/state/state.hpp"
 
+namespace osie::json {
+class Writer;
+}
+
 namespace osie::agent {
 
 enum class AgentState : std::uint8_t { stopped, starting, running, degraded, stopping };
@@ -166,6 +170,12 @@ public:
     void reconfigure(const AgentConfig& cfg);
 
     [[nodiscard]] std::shared_ptr<const AgentSnapshot> snapshot() const;
+    /// The newest snapshot and the one published before it (either may be
+    /// null), read together: rates between two collections, such as cgroup
+    /// throttling, are derived from them without sampling again.
+    [[nodiscard]] std::pair<std::shared_ptr<const AgentSnapshot>, std::shared_ptr<const AgentSnapshot>> snapshots() const;
+    /// A copy of the whole history, with its bounds (copied under a short lock).
+    [[nodiscard]] StateHistory history_copy() const;
     [[nodiscard]] HealthStatus health() const;
     /// Newest `max` history points (copied under a short lock).
     [[nodiscard]] std::vector<HistoryPoint> history(std::size_t max) const;
@@ -198,8 +208,9 @@ private:
     mutable std::mutex cfg_mu_;  // guards cfg_; held for the whole of reconfigure()
     AgentConfig cfg_;
 
-    mutable std::mutex snap_mu_;  // guards the snapshot pointer only
+    mutable std::mutex snap_mu_;  // guards the snapshot pointers only
     std::shared_ptr<const AgentSnapshot> snap_;
+    std::shared_ptr<const AgentSnapshot> prev_snap_;
     std::uint64_t seq_{0};
 
     mutable std::mutex hist_mu_;  // guards history_, health_ and the jitter ring
@@ -224,5 +235,7 @@ std::string to_json(const HealthStatus& h);
 /// Capability and policy status: every capability, whether it is supported on
 /// this platform and allowed by the read-only policy.
 std::string capabilities_json(const AgentRuntime& r);
+/// Writes the same array into `w`.
+void write_capabilities(json::Writer& w, const AgentRuntime& r);
 
 }  // namespace osie::agent
