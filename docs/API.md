@@ -54,6 +54,7 @@ Without `api_group`, the socket is mode 0600 and only root can use it.
 | `api_socket` | `/run/osie/agent.sock` | absolute path, ≤ 100 characters | socket path; see "Socket" below |
 | `api_group` | (none) | group name | members get the diagnostic tier; socket 0660 |
 | `api_max_clients` | 16 | 1 – 64 | requests handled at once; as many more may wait |
+| `api_max_clients_per_user` | 4 | 1 – `api_max_clients` | requests one user (uid) may have waiting or in progress |
 | `api_max_request_bytes` | 16384 | 1 KiB – 1 MiB | request line, headers and body together |
 | `api_request_timeout` | 5s | 100ms – 60s | to receive, answer and send one request |
 | `api_max_sessions` | 128 | 1 – 4096 | conversation sessions in memory |
@@ -192,8 +193,8 @@ Rules:
 - **`limitations`:** each `{code, detail}`. The codes are
   `observation_not_collected`, `unsupported_on_platform`,
   `on_demand_observation_unavailable`, `cgroup_rates`, `permission_limited`,
-  `redacted`, `no_event_history`, `prediction_not_available` and
-  `missing_evidence`.
+  `redacted`, `no_event_history`, `prediction_not_available`,
+  `missing_evidence`, `inconsistent_evidence` and `insufficient_history`.
 - **`action_executed`:** always `false`.
 
 **Outcomes that are not answers** use the error envelope:
@@ -204,6 +205,26 @@ Rules:
 | the newest snapshot is older than allowed | 503 | `stale_evidence` | yes (`Retry-After`) |
 | none of the observations the question needs is collected by the agent (e.g. disks, when `filesystems` is not in `observe`) | 422 | `insufficient_evidence` (with `limitations` naming them) | no |
 | outside OSIE's scope, Kubernetes, or an uninterpretable request | 422 | `unsupported` | no |
+
+**Truthfulness rules** (each covered by `ApiTruth.*`, against a ground
+truth built from the scenario's physical parameters):
+- **Contradictory observations.** Some combinations cannot all be true: a
+  process using more CPU than the host has, processes together much busier
+  than the host, or more memory available than exists. The reasoner takes
+  its inputs at face value, so the API reports such a contradiction
+  (`inconsistent_evidence`) and the status becomes `partial`.
+- **Short history.** A trend question whose history is too short for any
+  trend is `partial`, with `insufficient_history`. It is not answered as
+  "no change".
+- **A target that is not running.** A PID with no process, or an earlier
+  subject that exited or whose PID was reused, is a definite answer:
+  `completed`, assessment `process_not_running`, with `no_event_history`.
+  The process that now holds a reused PID is never diagnosed as "it".
+- **Cgroup counters.** If a cgroup's counters reset (it was recreated), or
+  its quota changed between the two collections, no rate is computed. The
+  `cgroup_rates` limitation says which cgroup, and why.
+- **Empty cgroups.** No cgroups in a snapshot is not reported as a
+  collection failure unless reading them failed.
 
 **Evidence is never synthesised.** Questions that need no observations (for
 example "what is memory compression?") are answered even when the snapshot
@@ -250,8 +271,8 @@ back to them.
 | | 501 | `transfer_encoding` |
 | `insufficient_evidence` | 422 / 503 | `observations_not_collected` / `no_snapshot` |
 | `stale_evidence` | 503 | `stale_snapshot` |
-| `rate_limited` | 429 | `rate_limited` (with `Retry-After`) |
-| `busy` | 503 | `busy`: all slots in use; `stopping` |
+| `rate_limited` | 429 | `rate_limited`: over the per-user request rate; `too_many_connections`: the user already has `api_max_clients_per_user` requests in progress (both with `Retry-After`) |
+| `busy` | 503 | `busy`: all slots in use; `deadline_exceeded`: the request's deadline passed while the engine answered others; `stopping` |
 | `internal_error` | 500 | `internal_error` |
 
 ## Transport
@@ -347,6 +368,14 @@ withheld:
 **Bounds.**
 - `api_max_clients` workers, and a queue of the same length. Connections
   beyond that get an immediate 503 `busy` instead of waiting.
+- At most `api_max_clients_per_user` of those per uid. One user, however
+  many connections it opens or leaves stalled, cannot hold every worker;
+  others are still served (`ApiLinuxPeers.AdmissionIsFairAcrossUsers`).
+- Diagnoses share one engine, whose lock is taken with the request's
+  deadline. A request still waiting at its deadline is refused
+  (`deadline_exceeded`) instead of waiting longer. A diagnosis takes
+  0.03–0.35 ms at p99, so in practice the lock wait stays below 3 ms even
+  with 100 clients (BENCHMARKS.md).
 - A per-uid token bucket (429), whose map is bounded to 4096 uids.
 - Each request's deadline (`api_request_timeout`) covers queueing, reading
   and answering, so a slow client cannot hold a worker for longer than that.
@@ -386,11 +415,37 @@ contract requires.
 `SO_PEERCRED` and `SO_PEERGROUPS`, `hidepid` detection, and the root-only
 cross-user test.
 
-**macOS** runs the same server, for development. Peer credentials come from
-`LOCAL_PEERCRED`, and all unit and socket tests run on macOS too. But macOS
-has no service unit or runtime directory here, and no cross-user test. Its
-security has not been evaluated to the same standard: do not rely on it to
-separate users.
+**macOS: experimental, owner-only.**
+- The same server runs, for development.
+- Peer credentials come from `LOCAL_PEERCRED`, and the unit and socket
+  tests, including kernel peer credentials, run on macOS.
+- macOS has no service unit, no runtime directory and no cross-user test, so
+  its isolation between users is not evaluated. The API is therefore
+  restricted there:
+  - `api_group` is refused, so the socket is 0600 and only root and the
+    agent's own user can use it;
+  - startup logs a warning;
+  - `/v1/capabilities` reports `"platform_support": "experimental"`.
+
+## Known limitations
+
+These come from the intent parser shared with the CLI. The CLI answers the
+same way, and they are left for a parser change with its own evaluation:
+- **Unrecognised past periods.** "What was the CPU usage last week?" is
+  answered with the current state: the period is not recognised. The
+  response's `interpretation` has no `temporal` object, which shows that the
+  question was read as being about now.
+- **Some past events read as current problems.** "Why did nginx crash an
+  hour ago?" is read as a current slowness question, while "why was nginx
+  killed?" is recognised as a past event (`no_event_history`). OSIE keeps no
+  event history either way.
+- **Some growth questions routed to process information.** "Is nginx's
+  memory increasing?" (with the possessive) and "which process's memory
+  grew?" go to `process_info` rather than a trend. "Is nginx memory
+  increasing?" and "which process is growing in memory?" are trend
+  questions.
+- **Bare ordinals.** "The second one" on its own is not understood, even
+  after a list. "Why is the second one using CPU?" is.
 
 ## Tests
 

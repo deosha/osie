@@ -85,24 +85,97 @@ double pct(std::vector<double> v, double p) {
 const char* kQuestions[] = {"what is using the most CPU?", "why is my machine slow?", "which process uses the most memory?",
                             "is memory pressure increasing?", "why is it using so much CPU?", "is a container being throttled?"};
 
+/// A mixed workload at several concurrency levels: CPU, memory, process,
+/// trend and unsupported questions, a near-limit question, and clients that
+/// disconnect right after sending. One JSON line per level.
+int run_sweep(const std::string& sock, const std::string& levels, double seconds) {
+    std::string longq = "why is the machine slow";
+    while (longq.size() < 1900) longq += " and why is it slow";
+    const std::vector<std::string> mix = {diagnose("what is using the most CPU?"), diagnose("which process uses the most memory?"),
+                                          diagnose("tell me about pid 1"), diagnose("is memory pressure increasing?"),
+                                          diagnose("why is my machine slow?"), diagnose("what is the weather tomorrow?"),
+                                          diagnose(longq), diagnose("is a container being throttled?")};
+    std::size_t pos = 0;
+    while (pos < levels.size()) {
+        const auto comma = std::min(levels.find(',', pos), levels.size());
+        const int c = std::atoi(levels.substr(pos, comma - pos).c_str());
+        pos = comma + 1;
+        if (c <= 0) continue;
+        std::atomic<bool> stop{false};
+        std::mutex mu;
+        std::vector<double> ms;
+        std::map<int, int> statuses;
+        int disconnects = 0;
+        std::vector<std::thread> ts;
+        const auto t0 = Clock::now();
+        for (int k = 0; k < c; ++k)
+            ts.emplace_back([&, k] {
+                std::vector<double> mine;
+                std::map<int, int> st;
+                int gone = 0;
+                for (int i = 0; !stop; ++i) {
+                    const auto& req = mix[static_cast<std::size_t>(k + i) % mix.size()];
+                    if (i % 20 == 19) {  // a client that leaves right after sending
+                        const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+                        sockaddr_un sa{};
+                        sa.sun_family = AF_UNIX;
+                        std::memcpy(sa.sun_path, sock.c_str(), std::min(sock.size(), sizeof sa.sun_path - 1));
+                        if (::connect(fd, reinterpret_cast<sockaddr*>(&sa), sizeof sa) == 0) (void)!::write(fd, req.data(), req.size());
+                        ::close(fd);
+                        ++gone;
+                        continue;
+                    }
+                    const auto r = call(sock, req);
+                    ++st[r.status];
+                    if (r.status == 200 || r.status == 422) mine.push_back(r.ms);
+                    if (r.status == 503 || r.status == 429) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                }
+                std::lock_guard lk(mu);
+                ms.insert(ms.end(), mine.begin(), mine.end());
+                for (auto [kk, v] : st) statuses[kk] += v;
+                disconnects += gone;
+            });
+        std::this_thread::sleep_for(std::chrono::duration<double>(seconds));
+        stop = true;
+        for (auto& t : ts) t.join();
+        const double wall = std::chrono::duration<double>(Clock::now() - t0).count();
+        std::printf("{\"phase\":\"sweep\",\"clients\":%d,\"seconds\":%.1f,\"answered\":%zu,\"per_s\":%.1f,\"p50_ms\":%.3f,"
+                    "\"p95_ms\":%.3f,\"p99_ms\":%.3f,\"max_ms\":%.3f,\"disconnects\":%d,\"statuses\":{",
+                    c, wall, ms.size(), static_cast<double>(ms.size()) / wall, pct(ms, 0.5), pct(ms, 0.95), pct(ms, 0.99),
+                    ms.empty() ? 0 : *std::max_element(ms.begin(), ms.end()), disconnects);
+        bool first = true;
+        for (auto [kk, v] : statuses) {
+            std::printf("%s\"%d\":%d", first ? "" : ",", kk, v);
+            first = false;
+        }
+        std::printf("}}\n");
+        std::fflush(stdout);
+    }
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: osie_api_bench <socket> [--requests N] [--clients C] [--seconds S] [--burst B]\n");
+        std::fprintf(stderr, "usage: osie_api_bench <socket> [--requests N] [--clients C] [--seconds S] [--burst B]\n"
+                             "       osie_api_bench <socket> --sweep 1,4,8,16,32,100 [--seconds S]\n");
         return 2;
     }
     ::signal(SIGPIPE, SIG_IGN);  // the server may close a refused connection while we still write
     const std::string sock = argv[1];
     int requests = 200, clients = 16, burst = 200;
     double seconds = 10;
+    std::string sweep;
     for (int i = 2; i + 1 < argc; i += 2) {
         const std::string a = argv[i];
         if (a == "--requests") requests = std::atoi(argv[i + 1]);
         else if (a == "--clients") clients = std::atoi(argv[i + 1]);
         else if (a == "--seconds") seconds = std::atof(argv[i + 1]);
         else if (a == "--burst") burst = std::atoi(argv[i + 1]);
+        else if (a == "--sweep") sweep = argv[i + 1];
     }
+    if (!sweep.empty()) return run_sweep(sock, sweep, seconds);
 
     // 1. Sequential latency.
     const std::vector<std::pair<std::string, std::string>> phases = {

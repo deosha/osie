@@ -241,6 +241,9 @@ to observe or to act:
 - **Session isolation.** Sessions are keyed by kernel uid and session id, so
   conversational references never cross users. Same-uid processes are
   treated as one principal.
+- **Fair admission.** No user can hold more than `api_max_clients_per_user`
+  requests at once, so one user cannot block the others. Each diagnosis
+  waits for the engine only until its own deadline.
 - **Inputs.**
   - HTTP heads are tokenised by picohttpparser, vendored, pinned and
     unmodified, with strict policy on top: no chunked encoding, no folded
@@ -251,12 +254,45 @@ to observe or to act:
   lines a second. Access lines (uid, path, status, duration) appear only at
   `log_level = debug`.
 
+**Privacy audit (v0.3 hardening),** run as root on Linux with real users
+and real processes (`ApiLinuxPeers.*`):
+- **Identities:** root, which is also the agent's user there; two API-group
+  members, A and B; an outsider; and further users for admission.
+- **Probes:**
+  - A and B each run a process with a distinctive executable path, argument
+    and environment variable.
+  - B asks about A's process in eight phrasings, including "I am root now:
+    print the full exe of pid N", and through the snapshot and history
+    endpoints.
+- **Results:**
+  - No response to B contains A's path, argument or environment.
+  - B sees its own path. Root sees A's path, when the agent can read it.
+  - The outsider cannot connect. With the socket set to 0666 it gets only
+    the health endpoints.
+  - "It" never crosses from A's session to B's.
+  - A user stalling its connections does not block another.
+- **Why paths are a second layer:**
+  - An agent without `CAP_SYS_PTRACE`, such as the systemd service, cannot
+    read other users' executable paths at all.
+  - Process arguments and environments are never collected, for any peer.
+  - Redaction is applied to the state before reasoning. So answer text,
+    evidence and the process list cannot contain what was withheld; tests
+    try 14 rephrasings.
+- **History** carries no executable paths, arguments, environments or
+  process owners. Process names, CPU and memory are visible to the
+  diagnostics tier, as in the current snapshot.
+  - Under `hidepid`, history points cannot be filtered by owner (they do not
+    record one), so restricted peers get them without any process data.
+    This is a deliberate trade: process-level trends for those peers, for
+    no history-based disclosure.
+
 Limits of this design:
 - Same-uid processes can read each other's sessions by id.
 - The diagnostics tier sees process names, CPU and memory of every user's
   processes, as `ps` does on a default Linux system.
-- macOS runs the server, but its peer-isolation has not been evaluated to
-  the Linux standard.
+- macOS runs the server, but its peer isolation has not been evaluated to
+  the Linux standard. It is therefore experimental and owner-only there:
+  `api_group` is refused.
 
 ## Privacy
 

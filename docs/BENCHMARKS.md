@@ -383,3 +383,99 @@ rate limit, so the concurrent figure is the server's own throughput.
   in-flight diagnosis for a redacted peer holds one copy of the snapshot.
 - **The systemd stop** in the integration test, with a client stalled
   mid-request, took 146 ms. The stalled client got `503 stopping`.
+
+### Local API: concurrency, Feature 1 baseline and OS access
+
+Measured 2026-10-16, with the hardening changes.
+
+**Setup.**
+- The installed `.deb`, run unprivileged in a Docker Desktop VM (kernel
+  6.10, aarch64, 12 vCPUs) with `--pid=host`. Release build (`-O2`, the
+  release-builder image).
+- 2,000 extra sleeping processes: about 2,490 visible.
+- Default interval (5 s, 500 ms window), and a configuration reload every
+  2 s throughout.
+- One user plays every client, so `api_max_clients_per_user` was set to 16
+  and `api_rate_limit` to 10,000.
+
+**Commands.**
+- `packaging/agent/api_sweep.sh /usr/bin/osie-agent osie_api_bench 2000 10`;
+- `ml/experiments/results/api/compare.sh`.
+
+**Workload, per level.** 10 s of mixed questions: CPU, memory, a process,
+a trend, slowness, a container, an unsupported question and a 1.9 KB
+question. Every 20th request disconnects right after sending.
+
+**Measurements.**
+- *Client* columns are from the clients: connect, request, response.
+- *Server* columns come from the agent's own timings (SIGUSR1): time in
+  the queue, waiting for the engine lock, and inside the engine.
+- *Agent* columns are from `/proc/<pid>`.
+
+| Clients | Answers/s | p50 / p95 / p99 (client) | Queue wait p99 | Engine-lock wait p99 | Engine p99 | Agent CPU (cores) | RSS / peak | Threads, fds | 429s |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 6,461 | 0.12 / 0.39 / 0.42 ms | 0.031 ms | 0.00 ms | 0.33 ms | 0.77 | 7.8 / 9.1 MB | 20, 7 | 0 |
+| 4 | 11,397 | 0.27 / 0.76 / 0.97 ms | 0.058 ms | 0.78 ms | 0.35 ms | 1.64 | 11.7 / 11.7 MB | 20, 7 | 236 |
+| 8 | 9,834 | 0.48 / 1.39 / 1.96 ms | 0.060 ms | 1.70 ms | 0.35 ms | 1.48 | 9.2 / 11.7 MB | 20, 7 | 4,067 |
+| 16 | 9,775 | 0.47 / 2.26 / 3.46 ms | 0.055 ms | 2.68 ms | 0.34 ms | 1.42 | 11.2 / 11.7 MB | 20, 7 | 14,655 |
+| 32 | 9,285 | 0.46 / 2.41 / 4.09 ms | 0.064 ms | 2.42 ms | 0.34 ms | 1.54 | 12.5 / 12.5 MB | 20, 7 | 42,171 |
+| 100 | 9,215 | 0.42 / 1.84 / 3.50 ms | 0.085 ms | 2.06 ms | 0.35 ms | 1.60 | 12.2 / 12.5 MB | 20, 7 | 156,961 |
+
+- **Latency and contention.** Every level stays below 4.1 ms at p99. No
+  request hit its deadline, and no client was refused for lack of a worker.
+  Zero `503 busy` at any level. The 429s are the rate limit (10,000/s, which
+  the clients exceed from 4 upward) and, from 16 clients upward, the
+  per-user cap of 16: one user plays every client, and disconnecting clients
+  briefly hold extra slots.
+  - Diagnoses are serialised on one engine. The engine-lock wait is the cost
+    of that: at most 2.7 ms at p99, while the work inside the engine is
+    0.35 ms. A finer-grained engine is not justified by these numbers.
+- **Memory.** Before this change, peak RSS under load was
+  **31.0 MB**: glibc gave each of the 16 worker threads an arena
+  and kept their freed memory. Capping arenas at 2 (`mallopt(M_ARENA_MAX, 2)`
+  in `osie-agent`, glibc only) brings the peak to **12.5 MB**, with
+  the same throughput.
+- **Shutdown** with 100 active clients took 52 ms.
+- **Before the hardening,** a request from a diagnostics-tier peer cost
+  about 13.5 ms at 5,000 processes, against 0.06–0.4 ms for most full-tier
+  requests. Every redacted state was a new object, which made the engine
+  rebuild its knowledge graph's instance nodes inside the lock, although no
+  API answer reads them. The API's engine no longer builds them
+  (`EngineConfig::track_instances`). Now every request costs 0.01–0.6 ms,
+  whatever the tier: 2.7 ms at most with 20,000 processes. This is measured
+  single-threaded, through `DiagnosticApi::handle`.
+
+**Against Feature 1** (`main` at `c3851d7`): same host, about 2,000 extra
+processes, 120 s idle each.
+
+| Variant | CPU (one core) | RSS / peak | Threads | Open fds | Snapshot age p99 |
+|---|---|---|---|---|---|
+| feature1 | 1.12% | 6.3 / 6.3 MB | 4 | 4 | 4.95 s |
+| feature2 api off | 1.20% | 7.3 / 7.8 MB | 4 | 4 | 4.94 s |
+| feature2 api on | 1.15% | 7.8 / 7.8 MB | 21 | 9 | 4.95 s |
+
+- **CPU** is unchanged within noise.
+- **RSS** is about 1 MB more with the API off, and 1.5 MB more with it on.
+  Most of that is the larger binary: the API code, the HTTP parser and the
+  engine's evidence plumbing are linked in either way.
+- **With the API on,** the extra 17 threads are the acceptor and 16 idle
+  workers, and the 5 extra descriptors are the socket, the directory lock
+  and the wake pipe.
+
+**No additional OS observation per request.** `strace -f -e trace=openat`
+counted the agent's opens of `/proc` files for 40 s, idle and then with 100
+concurrent API clients (Feature 2, API on, ~2,000 extra processes):
+
+| Run | Collections | `/proc` opens | Opens per collection | API answers |
+|---|---|---|---|---|
+| idle | 8 | 96,386 | 12,048 | 0 |
+| load 100 clients | 8 | 96,428 | 12,054 | 60,532 |
+
+Answering tens of thousands of requests added no `/proc` reads: opens per
+collection are within six (process churn). Snapshot freshness was the same
+in both runs (p99 about 5.0 s, the interval). In the unit tests the same
+property is asserted with an instrumented OS
+(`ApiTruth.ConcurrentDiagnosesNeverObserveTheOs`):
+- the OS calls equal two per collection;
+- the API engine's refusing backend records zero attempted observations
+  during 100 concurrent diagnoses.

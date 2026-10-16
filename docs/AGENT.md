@@ -218,6 +218,11 @@ the policy decision; every `act.*` capability is denied.
 A snapshot holds one `SystemState`, the same as one CLI question. The agent
 keeps two: the newest and the previous one. Nothing grows with uptime.
 
+On glibc, `osie-agent` caps malloc arenas at 2 (`M_ARENA_MAX`). Otherwise
+every API worker thread would keep its own arena of freed memory: peak RSS
+under load fell from 31 MB to 12.8 MB, with the same throughput
+(BENCHMARKS.md).
+
 These bounds hold across reloads as well. When a `SIGHUP` lowers
 `history_capacity` or `history_top_k`, the history is trimmed during the
 reload, not as points age out:
