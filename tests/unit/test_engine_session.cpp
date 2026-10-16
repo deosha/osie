@@ -148,7 +148,10 @@ TEST(StateCache, ConcurrentReadersAndWriter) {
             }
         });
     }
-    for (int i = 0; i < 2000; ++i) {
+    // Keep writing until the readers have run: on a loaded machine 2000
+    // stores can finish before any reader thread is scheduled.
+    const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    for (int i = 0; i < 2000 || (reads.load() < 100 && std::chrono::steady_clock::now() < until); ++i) {
         auto s = std::make_shared<SystemState>();
         s->cpu = Observation<CpuUtilization>{CpuUtilization{}, Provenance::now("t")};
         s->taken_at = std::chrono::steady_clock::now();
