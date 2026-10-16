@@ -1,0 +1,46 @@
+# packaging/agent/agent_soak.sh build/osie-agent 600 2000 50 1s (macOS 15, arm64; heap sampling suspends the agent briefly)
+t_s,rss_kb,heap_bytes
+0,304,852688
+10,13664,962480
+20,16304,997696
+30,12032,1039248
+40,16384,1075408
+50,18960,1878592
+60,12832,1141280
+70,19120,1172592
+80,20128,1205184
+90,21344,1238608
+100,22720,1271376
+110,20336,2073040
+120,18528,1313488
+130,18496,2084640
+140,19424,1314208
+150,17648,1314736
+160,18832,1314928
+170,21168,1314768
+180,18816,2084432
+190,21600,1313392
+200,17488,1313584
+210,19456,1314368
+220,18496,1314320
+230,19216,1314944
+240,18384,2087808
+250,19392,1314336
+260,21488,1314320
+270,13888,1313904
+280,13984,2086624
+290,14704,1314816
+300,17568,2789088
+310,19760,1316272
+320,19952,1316976
+330,19152,2091552
+340,20592,1317120
+350,20224,2089408
+360,17840,1315568
+370,20640,2089312
+380,17808,1316272
+390,21840,2088528
+400,24368,1316112
+{"version":"0.2.0","wall_s":1374.31,"cpu_s":13.0823,"cpu_share_of_one_core":0.00951918,"rss_mb":25.125,"peak_rss_mb":25.125,"shutdown_ms":152.208,"interval_ms":1000,"sample_window_ms":200,"health":{"state":"stopped","started_at_unix_ms":1792141134928,"collections":433,"failed_collections":0,"skipped_ticks":44,"rejected_manual_collections":0,"last_collection_unix_ms":1792141611185,"last_collection_age_s":898.053,"last_collection_ms":252.566,"start_jitter":{"n":433,"p50_ms":7.83317,"p99_ms":2415.87,"max_ms":28389.8},"history_points":120,"history_bytes":366653,"observations":[{"kind":"cpu_times","supported":true,"allowed":true,"ok":433,"failed":0,"consecutive_failures":0,"last_ok_unix_ms":1792141611185},{"kind":"load_average","supported":true,"allowed":true,"ok":433,"failed":0,"consecutive_failures":0,"last_ok_unix_ms":1792141611185},{"kind":"memory","supported":true,"allowed":true,"ok":433,"failed":0,"consecutive_failures":0,"last_ok_unix_ms":1792141611185},{"kind":"swap","supported":true,"allowed":true,"ok":433,"failed":0,"consecutive_failures":0,"last_ok_unix_ms":1792141611185},{"kind":"memory_pressure_level","supported":true,"allowed":true,"ok":433,"failed":0,"consecutive_failures":0,"last_ok_unix_ms":1792141611185},{"kind":"process_list","supported":true,"allowed":true,"ok":433,"failed":0,"consecutive_failures":0,"last_ok_unix_ms":1792141611185},{"kind":"pressure_stall","supported":false,"allowed":false,"ok":0,"failed":0,"consecutive_failures":0},{"kind":"cgroup","supported":false,"allowed":false,"ok":0,"failed":0,"consecutive_failures":0}],"degraded_reasons":[]}}
+live heap median: middle third 1283 kB, last third 1286 kB
+SOAK OK

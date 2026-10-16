@@ -33,6 +33,9 @@ jobs:
         run: ./build/osie_unit_tests
       - name: Platform tests (live kernel)
         run: ./build/osie_platform_tests
+      - name: Config ownership checks (as root)
+        if: runner.os == 'Linux'
+        run: sudo ./build/osie_unit_tests --gtest_filter='AgentConfig.*'
       - name: ASan + UBSan
         run: |
           cmake -S . -B build-asan -G Ninja -DOSIE_SANITIZE=address,undefined -DCMAKE_BUILD_TYPE=Debug -DOSIE_BUILD_BENCHMARKS=OFF
@@ -105,6 +108,8 @@ jobs:
           nproc; uname -r
           osie-agent --duration 300 --report --measure-freshness | tee agent-report.json
           python3 -c "import json; d=json.load(open('agent-report.json')); print('rss_mb', d['rss_mb'], 'cpu_share', d['cpu_share_of_one_core'], 'shutdown_ms', d['shutdown_ms'], 'jitter', d['health']['start_jitter'])"
+      - name: Soak (10 min, 2000 processes with churn, unprivileged)
+        run: packaging/agent/agent_soak.sh "$(command -v osie-agent)" 600 2000 50 1s
 
   python-parity:
     runs-on: ubuntu-24.04

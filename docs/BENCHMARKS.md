@@ -279,3 +279,31 @@ VM. The first run sees only its own container (a handful of processes).
 - The CI `agent-systemd` job repeats the default-configuration measurement
   on a GitHub-hosted x86-64 VM (last row). Jitter is lower there than on
   Docker Desktop, whose VM shares a laptop CPU with a desktop session.
+
+### Agent under load: high process counts, churn, prolonged runs
+
+Measured 2026-10-16 (raw output in `ml/experiments/results/agent/`):
+- `soak_*.txt` and `heap_macos_2000p.txt`: from
+  `packaging/agent/agent_soak.sh <agent> 600 2000 50 1s`, which runs
+  2,000 sleeping processes, replaces 50 short-lived ones every second, and
+  sets a 1 s interval with a 120-point history;
+- the in-process rows: from the `AgentScale.*` and
+  `AgentLinuxLive.ThousandsOfRealProcessesWithChurn` tests.
+
+| Run | Collections, failures, skipped | CPU (one core) | Memory | Notes |
+|---|---|---|---|---|
+| Linux soak, 10 min (Docker Desktop VM, 6.10, aarch64), unprivileged, installed `.deb` | 600, 0, 0 | 5.2% | RSS 4.3 MB at the end, peak 8.2 MB; median 6.9 MB (middle third) → 6.4 MB (last third) | collection 236 ms (200 ms window); jitter p99 10.6 ms; stop 0.8 ms |
+| macOS soak, 10 min (arm64) | 433, 0, – | 1.0% | live heap median 1,283 kB → 1,286 kB; RSS 12–25 MB | the `heap` tool suspends the agent while it samples, so the tick counts and CPU here are not timing results |
+| macOS live heap, 11 min, sampled every 60 s | – | – | live heap 1.31 MB between collections, 2.09 MB mid-collection, flat from minute 2; RSS 12–23 MB | RSS swings by about 10 MB with no growth in live memory: macOS keeps freed malloc pages resident lazily |
+| Live Linux test: 1,000 child processes, 20 replaced every 25 ms (Release) | 20 in 5 s, 0 | – | history ≤ 16 points × 16 processes | 139.5 ms per collection (100 ms window); stop 1 ms |
+| Mock, 20,000 processes (Release, macOS) | 40, 0 | – | history 108,616 bytes, against 105,352 bytes for 200 processes | worst collection 8.7 ms (1 ms window), against 1.4 ms for 200 processes |
+
+**What this shows.**
+- **No growth with uptime.** Memory stays flat over 10 minutes with
+  thousands of processes and constant churn: RSS on Linux, live heap on
+  macOS.
+- **History size does not depend on the process count.**
+- **On macOS RSS can exceed the 20 MB target transiently** with about
+  2,500 processes, peaking at 25–27 MB, while live memory stays near 2 MB.
+  This is allocator page retention, not data the agent holds. On Linux the
+  same workload peaks at 8.2 MB.

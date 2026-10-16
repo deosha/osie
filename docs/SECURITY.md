@@ -164,8 +164,18 @@ the CLI, and has no action path. Additional properties, each tested
   - Configuration keys that would enable a listener, persistence or remote
     access are rejected.
 - **Configuration is untrusted input.** Parsing is strict, size-capped and
-  range-checked. Files writable by group or others are refused. An invalid
-  reload keeps the running configuration.
+  range-checked. An invalid reload keeps the running configuration.
+- **The configuration file cannot be swapped.**
+  - The file must be controlled by root or the agent's user. So must every
+    directory and symbolic link on its path: anything owned by another user,
+    or writable by group or others (except sticky directories), is refused.
+  - The loader walks the path one component at a time with `O_NOFOLLOW` on
+    file descriptors.
+  - It validates the file with `fstat()` on the descriptor it then reads.
+    So a rename or link swap during the load cannot substitute an unchecked
+    file. A test races exactly that.
+- **Shutdown is complete.** `stop()` and the destructor cancel and await any
+  in-flight collection; none is running once they return.
 - **Bounded resources.** All buffers are bounded by the configuration. The
   unit adds `MemoryMax=64M` and `TasksMax=16`.
 

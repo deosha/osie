@@ -2,10 +2,14 @@
 // osie-agent runtime (Feature 1): configuration validation, lifecycle,
 // cancellation, failure handling, identity, bounds and concurrency.
 #include <gtest/gtest.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <atomic>
 #include <set>
+#include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <thread>
 
@@ -127,6 +131,148 @@ TEST(AgentConfig, FileSafetyChecks) {
     EXPECT_EQ(load_agent_config(write_tmp("gw.conf", "interval = 10s\n", 0620)).error().code, Errc::permission_denied);
     EXPECT_FALSE(load_agent_config(::testing::TempDir()).ok()) << "a directory is not a config file";
     EXPECT_FALSE(load_agent_config(write_tmp("big.conf", std::string(70 * 1024, '#'), 0600)).ok());
+}
+
+namespace {
+
+/// A fresh private directory for one test.
+std::string tmp_dir(const std::string& name, mode_t mode = 0700) {
+    const std::string d = ::testing::TempDir() + "osie_agent_" + std::to_string(::getpid()) + "_" + name;
+    std::filesystem::remove_all(d);
+    std::filesystem::create_directories(d);
+    ::chmod(d.c_str(), mode);
+    return d;
+}
+
+void put_file(const std::string& path, const std::string& body, mode_t mode = 0600) {
+    std::ofstream(path) << body;
+    ::chmod(path.c_str(), mode);
+}
+
+}  // namespace
+
+TEST(AgentConfig, SymlinksAndDirectoriesAreValidatedNotJustTheFinalFile) {
+    const std::string d = tmp_dir("links");
+    put_file(d + "/real.conf", "interval = 10s\n");
+    // A symlink we own, in a directory only we can write: followed.
+    ASSERT_EQ(::symlink((d + "/real.conf").c_str(), (d + "/link.conf").c_str()), 0);
+    auto ok = load_agent_config(d + "/link.conf");
+    ASSERT_TRUE(ok.ok()) << ok.error().describe();
+    EXPECT_EQ(ok->interval, Millis{10'000});
+    // A symlink loop fails promptly.
+    ASSERT_EQ(::symlink((d + "/loop2").c_str(), (d + "/loop1").c_str()), 0);
+    ASSERT_EQ(::symlink((d + "/loop1").c_str(), (d + "/loop2").c_str()), 0);
+    EXPECT_FALSE(load_agent_config(d + "/loop1").ok());
+    // A symlink to a directory or a FIFO is not a config file (and a FIFO must not block the loader).
+    ASSERT_EQ(::symlink(d.c_str(), (d + "/dir.conf").c_str()), 0);
+    EXPECT_FALSE(load_agent_config(d + "/dir.conf").ok());
+    ASSERT_EQ(::mkfifo((d + "/fifo").c_str(), 0600), 0);
+    ASSERT_EQ(::symlink((d + "/fifo").c_str(), (d + "/fifo.conf").c_str()), 0);
+    const auto t0 = Clock::now();
+    EXPECT_FALSE(load_agent_config(d + "/fifo.conf").ok());
+    EXPECT_FALSE(load_agent_config(d + "/fifo").ok());
+    EXPECT_LT(std::chrono::duration<double>(Clock::now() - t0).count(), 2.0) << "opening a FIFO blocked";
+
+    // A file in a directory that others can write: they could replace it.
+    const std::string open_dir = tmp_dir("openwrite", 0777);
+    ::chmod(open_dir.c_str(), 0777);  // umask-proof
+    put_file(open_dir + "/agent.conf", "interval = 10s\n");
+    auto r = load_agent_config(open_dir + "/agent.conf");
+    ASSERT_FALSE(r.ok());
+    EXPECT_EQ(r.error().code, Errc::permission_denied) << r.error().describe();
+    // ... and a safe-looking symlink whose target sits in such a directory.
+    ASSERT_EQ(::symlink((open_dir + "/agent.conf").c_str(), (d + "/via.conf").c_str()), 0);
+    EXPECT_FALSE(load_agent_config(d + "/via.conf").ok()) << "the target's directory is checked too";
+    // ... and a symlink placed in such a directory, pointing to a safe file.
+    ASSERT_EQ(::symlink((d + "/real.conf").c_str(), (open_dir + "/planted.conf").c_str()), 0);
+    EXPECT_FALSE(load_agent_config(open_dir + "/planted.conf").ok()) << "a symlink in a writable directory can be swapped";
+    const std::string group_dir = tmp_dir("groupwrite", 0770);
+    put_file(group_dir + "/agent.conf", "interval = 10s\n");
+    EXPECT_FALSE(load_agent_config(group_dir + "/agent.conf").ok());
+
+    // A sticky, world-writable directory (like /tmp) protects our own entries from others.
+    const std::string sticky = tmp_dir("sticky", 01777);
+    ::chmod(sticky.c_str(), 01777);
+    put_file(sticky + "/agent.conf", "interval = 10s\n");
+    auto st = load_agent_config(sticky + "/agent.conf");
+    EXPECT_TRUE(st.ok()) << st.error().describe();
+    std::filesystem::remove_all(d);
+    std::filesystem::remove_all(open_dir);
+    std::filesystem::remove_all(group_dir);
+    std::filesystem::remove_all(sticky);
+}
+
+TEST(AgentConfig, FilesOwnedByAnotherUserAreRefused) {
+    if (::geteuid() != 0) GTEST_SKIP() << "needs root to create a file owned by another user";
+    const std::string d = tmp_dir("owner");
+    put_file(d + "/agent.conf", "interval = 10s\n", 0644);
+    ASSERT_EQ(::chown((d + "/agent.conf").c_str(), 65534, 65534), 0);
+    auto r = load_agent_config(d + "/agent.conf");
+    ASSERT_FALSE(r.ok());
+    EXPECT_EQ(r.error().code, Errc::permission_denied) << r.error().describe();
+    ASSERT_EQ(::chown((d + "/agent.conf").c_str(), 0, 0), 0);
+    ASSERT_EQ(::chown(d.c_str(), 65534, 65534), 0);  // a directory another user controls
+    EXPECT_FALSE(load_agent_config(d + "/agent.conf").ok());
+    std::filesystem::remove_all(d);
+}
+
+TEST(AgentConfig, ReplacingTheFileDuringLoadNeverYieldsUnsafeContent) {
+    // A writer swaps the config path between a safe file and a world-writable
+    // one (rename and symlink retargeting are both atomic). Every successful
+    // load must come from the safe file: validation and reading are on the
+    // same open file descriptor, not on the path twice.
+    const std::string d = tmp_dir("swap");
+    put_file(d + "/safe", "interval = 10s\n", 0600);
+    put_file(d + "/unsafe", "interval = 20s\n", 0666);
+    ::chmod((d + "/unsafe").c_str(), 0666);
+    for (const bool use_symlink : {false, true}) {
+        const std::string path = d + (use_symlink ? "/link.conf" : "/agent.conf");
+        std::atomic<bool> done{false};
+        std::thread swapper([&] {
+            for (int i = 0; !done; ++i) {
+                const std::string tmp = path + ".new";
+                const std::string src = d + (i % 2 ? "/unsafe" : "/safe");
+                if (use_symlink) {
+                    (void)::unlink(tmp.c_str());
+                    (void)::symlink(src.c_str(), tmp.c_str());
+                } else {
+                    std::filesystem::copy_file(src, tmp, std::filesystem::copy_options::overwrite_existing);
+                    ::chmod(tmp.c_str(), i % 2 ? 0666 : 0600);
+                }
+                (void)std::rename(tmp.c_str(), path.c_str());
+            }
+        });
+        int loaded = 0, unsafe = 0;
+        const auto until = Clock::now() + std::chrono::milliseconds(1500);
+        while (Clock::now() < until) {
+            if (auto c = load_agent_config(path)) {
+                ++loaded;
+                if (c->interval != Millis{10'000}) ++unsafe;
+            }
+        }
+        done = true;
+        swapper.join();
+        EXPECT_EQ(unsafe, 0) << (use_symlink ? "symlink" : "rename") << ": loaded the world-writable file's content "
+                             << unsafe << " of " << loaded << " times";
+        EXPECT_GT(loaded, 0);
+    }
+    std::filesystem::remove_all(d);
+}
+
+TEST(AgentConfig, RelativePathsAndOversizedReadsAreHandled) {
+    const std::string d = tmp_dir("rel");
+    put_file(d + "/agent.conf", "interval = 10s\n");
+    const auto cwd = std::filesystem::current_path();
+    std::filesystem::current_path(d);
+    auto r = load_agent_config("agent.conf");
+    std::filesystem::current_path(cwd);
+    EXPECT_TRUE(r.ok()) << r.error().describe();
+    // The 64 KiB limit is enforced on the bytes read, not only on st_size.
+    put_file(d + "/big.conf", std::string(64 * 1024 + 1, '#'));
+    EXPECT_FALSE(load_agent_config(d + "/big.conf").ok());
+    put_file(d + "/edge.conf", std::string(64 * 1024, '#'));
+    EXPECT_TRUE(load_agent_config(d + "/edge.conf").ok());
+    std::filesystem::remove_all(d);
 }
 
 // ---------------------------------------------------------------- lifecycle ---

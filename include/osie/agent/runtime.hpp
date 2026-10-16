@@ -8,8 +8,10 @@
 // shared_ptr under a lock held for a pointer swap only.
 //
 // Guarantees:
-// - collections never overlap (one scheduler thread; collect_now() refuses
-//   while one is running), and there are no unbounded queues;
+// - collections never overlap (one admission slot shared by the scheduler and
+//   collect_now()), and there are no unbounded queues;
+// - shutdown cancels and awaits the in-flight collection, so no collection
+//   touches the backend once stop() or the destructor has returned;
 // - intervals are scheduled on the monotonic clock; reported times are wall
 //   clock;
 // - all memory is bounded by the configuration (history capacity x top-k
@@ -81,27 +83,60 @@ struct AgentSnapshot {
     std::shared_ptr<const SystemState> state;
 };
 
+/// Concurrency and ownership contract.
+///
+/// Ownership. The runtime owns the operating-system backend, the broker, the
+/// sampler, the policy, the audit log and the history. Published snapshots
+/// own their data (shared_ptr), so a reader may keep one after the runtime is
+/// gone. history() and health() return copies.
+///
+/// Thread safety. Every public member may be called from any thread,
+/// concurrently, except that stop() and the destructor must not be called
+/// from the scheduler thread (nothing in the runtime does so).
+///
+/// Collections. At most one collection runs at a time, whether started by the
+/// scheduler or by collect_now(). Each has its own cancellation source. A
+/// collection is "in flight" from the moment it is admitted until it has
+/// finished touching the backend and the history.
+///
+/// Shutdown. stop() closes admission first: from then until it returns,
+/// collect_now() is refused and the scheduler starts nothing. It cancels the
+/// in-flight collection (scheduled or manual), joins the scheduler, and waits
+/// until no collection is in flight. After stop() returns the runtime may be
+/// started again or used for manual collections. The destructor does the
+/// same and never reopens admission, so once destruction begins no
+/// collection can start and none can still be running when members are
+/// destroyed. Calls that *begin* after the destructor has started are a
+/// use-after-destruction by the caller, as for any object.
+///
+/// Reconfiguration. reconfigure() is serialised with itself and applied
+/// atomically with respect to readers: the configuration, the history bounds
+/// and the per-kind health always correspond to the same call. A collection
+/// already in flight finishes with the configuration it started with.
 class AgentRuntime {
 public:
     AgentRuntime(std::unique_ptr<IOperatingSystem> os, AgentConfig cfg);
+    /// Cancels and awaits any in-flight collection, then stops the scheduler.
     ~AgentRuntime();
     AgentRuntime(const AgentRuntime&) = delete;
     AgentRuntime& operator=(const AgentRuntime&) = delete;
 
-    /// Starts the scheduler thread. Fails if already running.
+    /// Starts the scheduler thread. Fails if already running or being destroyed.
     Result<void> start();
-    /// Stops the scheduler: cancels an in-flight collection and joins the
-    /// thread. Idempotent; safe to call from any thread except the scheduler.
+    /// Stops the scheduler and any manual collection (see the contract above).
+    /// Idempotent; returns once no collection is in flight.
     void stop();
     [[nodiscard]] bool running() const noexcept;
 
-    /// Runs one collection on the calling thread, unless one is already in
-    /// progress (then returns false and nothing is collected).
+    /// Runs one collection on the calling thread. Returns true if it was
+    /// completed and published; false if it was refused (another collection
+    /// is in flight, or shutdown has begun) or cancelled by stop().
     bool collect_now();
 
-    /// Applies a new configuration between collections (history keeps its
-    /// points; capacity changes trim the oldest). Invalid combinations are
-    /// rejected by the config parser, not here.
+    /// Applies a new configuration between collections. The history is trimmed
+    /// to the new bounds immediately: the oldest points beyond the capacity are
+    /// dropped and every kept point is cut to the new top-k. Invalid
+    /// combinations are rejected by the config parser, not here.
     void reconfigure(const AgentConfig& cfg);
 
     [[nodiscard]] std::shared_ptr<const AgentSnapshot> snapshot() const;
@@ -115,9 +150,16 @@ public:
     [[nodiscard]] ObservationSet supported() const { return os_->supported(); }
 
 private:
+    enum class Admit : std::uint8_t { ok, busy, closed };
     void loop();
-    void collect(const CancellationToken& cancel);
+    /// Admits one collection and hands out its cancellation token.
+    Admit begin_collection(CancellationToken& token);
+    void end_collection();
+    /// Returns true if the collection was completed and published.
+    bool collect(const CancellationToken& cancel);
     void record_jitter(double ms);
+    /// Moves state_ to `to` only while the scheduler is live (starting, running, degraded).
+    void set_live_state(AgentState to);
 
     std::unique_ptr<IOperatingSystem> os_;
     CapabilityRegistry reg_;
@@ -126,27 +168,31 @@ private:
     ObservationBroker broker_;
     StateSampler sampler_;
 
-    mutable std::mutex cfg_mu_;
+    // Lock order: run_mu_ -> life_mu_; cfg_mu_ -> hist_mu_. snap_mu_ is a leaf.
+    mutable std::mutex cfg_mu_;  // guards cfg_; held for the whole of reconfigure()
     AgentConfig cfg_;
 
     mutable std::mutex snap_mu_;  // guards the snapshot pointer only
     std::shared_ptr<const AgentSnapshot> snap_;
+    std::uint64_t seq_{0};
 
-    mutable std::mutex hist_mu_;  // guards history_ and health counters
+    mutable std::mutex hist_mu_;  // guards history_, health_ and the jitter ring
     StateHistory history_;
     HealthStatus health_;
     std::array<double, 1024> jitter_{};
     std::size_t jitter_n_{0};
 
-    std::atomic<bool> collecting_{false};
     std::atomic<AgentState> state_{AgentState::stopped};
     std::mutex run_mu_;  // serialises start/stop
-    std::mutex wake_mu_;
-    std::condition_variable wake_;
+    std::mutex life_mu_;  // guards the fields below
+    std::condition_variable wake_;  // scheduler: stop requested
+    std::condition_variable idle_;  // stop(): the in-flight collection has finished
     bool stop_requested_{false};
-    std::unique_ptr<CancellationSource> cancel_;
+    bool closed_{false};      // admission closed: stop() in progress or destruction begun
+    bool destroying_{false};  // set by the destructor; admission never reopens
+    bool in_flight_{false};
+    CancellationSource active_;  // the in-flight collection's source
     std::thread thread_;
-    std::uint64_t seq_{0};
 };
 
 std::string to_json(const HealthStatus& h);

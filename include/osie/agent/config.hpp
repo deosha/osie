@@ -50,9 +50,20 @@ struct AgentConfig {
 /// "2m", "1h"); counts are plain integers; `observe` is a comma-separated list.
 Result<AgentConfig> parse_agent_config(std::string_view text);
 
-/// Loads and parses a file. Refuses files over 64 KiB, non-regular files,
-/// and files writable by users other than the owner (the configuration
-/// decides what the agent observes).
+/// Loads and parses a file. The configuration decides what the agent
+/// observes, so the file and everything that could replace it must be under
+/// the control of root or the agent's own user. Refused:
+/// - files over 64 KiB (counted on the bytes read), and non-regular files
+///   (directories, FIFOs, devices; a FIFO never blocks the loader);
+/// - a file owned by another user, or writable by group or others;
+/// - a path through a directory owned by another user, or writable by group
+///   or others without the sticky bit;
+/// - a symbolic link owned by another user (links owned by root or the
+///   agent's user are followed, and their targets checked the same way).
+/// Each directory is opened relative to the previous one with O_NOFOLLOW and
+/// validated on its descriptor, and the file is validated with fstat() on
+/// the descriptor that is read, so swapping a path component during the load
+/// cannot substitute an unchecked file.
 Result<AgentConfig> load_agent_config(const std::string& path);
 
 /// "key = value" rendering of a configuration (round-trips through parse).

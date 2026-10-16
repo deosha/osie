@@ -55,8 +55,29 @@ privileges. On Linux it also sets `PR_SET_NO_NEW_PRIVS`.
 ## Configuration
 
 `key = value` lines, `#` comments. Parsing is strict: unknown keys,
-duplicates, out-of-range values, and files writable by group or others are
-rejected. An example is installed as `share/osie/agent.conf.example`.
+duplicates and out-of-range values are rejected. An example is installed as
+`share/osie/agent.conf.example`.
+
+**File safety.** The configuration decides what the agent observes, so the
+file, and everything that could replace it, must be controlled by root or by
+the agent's own user. The loader refuses:
+- a file owned by another user, or writable by group or others;
+- a non-regular file (a directory, FIFO or device). A FIFO never blocks the
+  loader.
+- a file over 64 KiB, counted on the bytes actually read;
+- a path through a directory owned by another user, or writable by group or
+  others without the sticky bit (so `/tmp` is acceptable);
+- a symbolic link owned by another user. Links owned by root or by the
+  agent's user are followed, and their targets are checked the same way.
+
+The path is never trusted as a whole:
+- Each directory is opened relative to the previous one with `O_NOFOLLOW`
+  and validated on its file descriptor.
+- The file is validated with `fstat()` on the descriptor that is then read.
+
+So renaming a file into place, or retargeting a link, during a load cannot
+substitute an unchecked file. The same loader is used at start, on
+`SIGHUP` and by `--check-config`.
 
 | Key | Default | Range | Meaning |
 |---|---|---|---|
@@ -97,8 +118,10 @@ different process in the history.
 - A collection that overruns skips the ticks it missed (`skipped_ticks`)
   rather than queueing them, so there is never a backlog and never an
   overlap.
-- `collect_now()` refuses while a collection is running. There are no work
-  queues.
+- There is one admission slot, shared by the scheduler and `collect_now()`.
+  A manual collection is refused while any collection is in flight. A tick
+  that finds a manual collection running is skipped and counted. There are
+  no work queues.
 - Start jitter (actual minus scheduled start) is kept in a 1024-entry ring.
 - Reported times are wall clock.
 
@@ -109,6 +132,27 @@ different process in the history.
 - A reader copies the pointer and then reads without locks. It can never see
   a half-built state, and it never waits for a collection.
 - A collection interrupted by shutdown is not published.
+
+**Lifecycle and ownership contract** (`include/osie/agent/runtime.hpp`):
+- **Ownership.** The runtime owns the OS backend, broker, sampler, policy,
+  audit log and history. Snapshots own their data, so a reader may keep one
+  after the runtime is destroyed. `health()` and `history()` return copies.
+- **Threads.** Every public member may be called from any thread at the same
+  time, except `stop()` and the destructor from the scheduler thread.
+- **Shutdown.** `stop()`:
+  - first closes admission, so neither a scheduled nor a manual collection
+    can start;
+  - then cancels the in-flight collection, joins the scheduler, and returns
+    only when no collection is in flight.
+
+  Afterwards the runtime can be restarted or used for `--once`. The
+  destructor does the same and never reopens admission, so no collection can
+  touch the backend once destruction has begun.
+- **State.** Once `stop()` returns the state is `stopped`. A collection that
+  finishes while the runtime is stopping cannot set it back to `running`.
+- **Reconfiguration** is serialised. The configuration, history bounds and
+  per-kind health always come from the same call. A collection already in
+  flight finishes with the configuration it started with.
 
 **Failure handling.** Each observation kind is tracked separately:
 - **Recorded failures.** A failure is a recorded reason, such as permission
@@ -148,6 +192,16 @@ the policy decision; every `act.*` capability is denied.
 
 A snapshot holds one `SystemState`, the same as one CLI question. Nothing
 grows with uptime.
+
+These bounds hold across reloads as well. When a `SIGHUP` lowers
+`history_capacity` or `history_top_k`, the history is trimmed during the
+reload, not as points age out:
+- the oldest points beyond the new capacity are dropped;
+- each kept point is cut to its top `history_top_k` processes by CPU and by
+  memory;
+- the history is rebuilt, so the memory that was dropped is released.
+
+Raising the bounds keeps existing points as they are.
 
 ## systemd hardening (`packaging/agent/osie-agent.service`)
 
@@ -196,10 +250,21 @@ was running. They never enable or start it.
 
 | Test | What it covers |
 |---|---|
-| `AgentConfig.*` (unit) | parsing, every range, duplicates, typos, rejected network and persistence keys, unsafe file permissions, size limits |
+| `AgentConfig.*` (unit) | parsing, every range, duplicates, typos, rejected network and persistence keys, unsafe file permissions, size limits (on bytes read); symlinks (followed, looping, to a directory or FIFO, planted in or pointing into a writable directory); group- or world-writable and sticky directories; files and directories owned by another user (as root); a writer swapping the file by rename and by symlink retargeting during 1.5 s of continuous loads |
 | `AgentRuntime.*` (unit, mock OS) | start/stop, repeated restarts, stop during a 3 s sampling window, no overlap, skipped ticks, missing PSI, counter reset then recovery, transient permission failures, a process vanishing mid-sample, PID reuse, a quota change while running, bounded history after 400 collections, 8 concurrent readers with a live reconfiguration, read-only audit, health JSON |
-| `AgentLinuxFixture.*`, `AgentLinuxLive.*` (Linux platform tests) | a fixture `/proc` with unreadable and corrupt entries and no PSI, run unprivileged; the live kernel |
+| `AgentLifecycle.*`, `AgentConcurrency.*` (unit, mock OS) | `stop()` and destruction during a manual or scheduled collection that is blocked in the OS (cancelled and awaited); no admission while `stop()` waits; snapshots outliving the runtime; the state after `stop()` with racing manual collections; scheduler restarts, manual collections, reconfiguration and readers all at once (no overlap); racing reconfigurations |
+| `AgentBounds.*`, `AgentScale.*` (unit, mock OS) | lowering capacity and top-k on reload trims existing points and releases memory; 20,000 processes (history bytes independent of the count); 2,000 collections with constant PID reuse (no identity merged); a 4 s scheduler run at a 1 ms interval with churn (bounded, no failures) |
+| `AgentLinuxFixture.*`, `AgentLinuxLive.*` (Linux platform tests) | a fixture `/proc` with unreadable and corrupt entries and no PSI, run unprivileged; the live kernel; 1,000 real child processes, 20 of them replaced every 25 ms |
+| `packaging/agent/agent_soak.sh` | the agent binary over a long run with thousands of processes and churn; fails if RSS grows after the history is full |
 | `packaging/agent/agent_systemd_test.sh` | as a real service: installed disabled; unprivileged with no capabilities; no IP sockets; no files written; reload, valid and invalid; 5 restarts; stop time; bad config (exit 2, no restart loop); removal stops it |
+
+On Linux (x86-64 and arm64) and macOS, CI runs:
+- the unit and platform tests under AddressSanitizer with
+  UndefinedBehaviorSanitizer;
+- the unit tests under ThreadSanitizer;
+- on Linux, the ownership test as root.
+
+The `agent-systemd` job runs a 10-minute soak with 2,000 processes.
 
 The systemd test runs locally in a privileged Ubuntu 22.04 container with
 systemd as PID 1, and in CI on a GitHub-hosted VM (`agent-systemd` job).

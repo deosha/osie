@@ -4,9 +4,13 @@
 #include <gtest/gtest.h>
 
 #if defined(__linux__)
+#include <signal.h>
+#include <spawn.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <filesystem>
 #include <fstream>
 #include <thread>
@@ -18,6 +22,7 @@ using namespace osie;
 using namespace osie::agent;
 using osie::linux_os::LinuxOperatingSystem;
 using Clock = std::chrono::steady_clock;
+extern char** environ;
 
 namespace {
 
@@ -47,6 +52,18 @@ AgentConfig cfg() {
     c.sample_window = Millis{10};
     c.history_capacity = 8;
     return c;
+}
+
+pid_t spawn_sleeper() {
+    char a0[] = "sleep", a1[] = "120";
+    char* argv[] = {a0, a1, nullptr};
+    pid_t pid = -1;
+    return ::posix_spawnp(&pid, "sleep", nullptr, nullptr, argv, environ) == 0 ? pid : -1;
+}
+
+void reap(pid_t pid) {
+    ::kill(pid, SIGKILL);
+    ::waitpid(pid, nullptr, 0);
 }
 
 }  // namespace
@@ -112,5 +129,71 @@ TEST(AgentLinuxLive, CollectsFromTheRunningKernelAndStopsPromptly) {
         if (k.supported && k.kind != ObservationKind::cgroup)
             EXPECT_EQ(k.consecutive_failures, 0U) << to_string(k.kind) << ": " << k.last_error;
     EXPECT_LE(h.history_points, 8U);
+}
+
+TEST(AgentLinuxLive, ThousandsOfRealProcessesWithChurn) {
+    // 1000 child processes, 20 of which are killed and replaced every 25 ms
+    // (new PIDs, new start times), while the agent collects from /proc.
+    // Sanitizer builds take seconds per collection, during which that churn
+    // would replace every child: they churn 2 per 25 ms, run longer, and
+    // check memory safety rather than throughput.
+#if defined(OSIE_SANITIZED)
+    constexpr int kChurn = 2, kSeconds = 15;
+    constexpr std::size_t kMinSeen = 600, kMinCollections = 1;
+#else
+    constexpr int kChurn = 20, kSeconds = 5;
+    constexpr std::size_t kMinSeen = 900, kMinCollections = 8;
+#endif
+    std::vector<pid_t> kids;
+    for (int i = 0; i < 1000; ++i)
+        if (const pid_t p = spawn_sleeper(); p > 0) kids.push_back(p);
+    ASSERT_GE(kids.size(), 900U) << "could not spawn the workload";
+    std::atomic<bool> done{false};
+    std::atomic<std::uint64_t> replaced{0};
+    std::thread churn([&] {
+        std::size_t next = 0;
+        while (!done) {
+            for (int i = 0; i < kChurn; ++i, next = (next + 1) % kids.size()) {
+                reap(kids[next]);
+                kids[next] = spawn_sleeper();
+                ++replaced;
+            }
+            std::this_thread::sleep_for(Millis{25});
+        }
+    });
+    AgentConfig c = cfg();
+    c.interval = Millis{250};
+    c.sample_window = Millis{100};
+    c.history_capacity = 16;
+    c.history_top_k = 8;
+    AgentRuntime rt(make_native_os(), c);
+    ASSERT_TRUE(rt.start().ok());
+    std::size_t max_seen = 0;
+    const auto until = Clock::now() + std::chrono::seconds(kSeconds);
+    while (Clock::now() < until) {
+        if (auto s = rt.snapshot(); s && s->state->processes) max_seen = std::max(max_seen, s->state->processes->value.size());
+        std::this_thread::sleep_for(Millis{50});
+    }
+    const auto t0 = Clock::now();
+    rt.stop();
+    const double stop_ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+    done = true;
+    churn.join();
+    for (pid_t p : kids)
+        if (p > 0) reap(p);
+    const auto h = rt.health();
+    std::printf("[ info ] %zu processes seen, %llu replaced, %llu collections, last %.1f ms, stop %.0f ms\n", max_seen,
+                static_cast<unsigned long long>(replaced.load()), static_cast<unsigned long long>(h.collections),
+                h.last_collection_ms, stop_ms);
+    EXPECT_GE(max_seen, kMinSeen);
+    EXPECT_GT(replaced.load(), 400U) << "churn did not run";
+    EXPECT_GE(h.collections, kMinCollections) << to_json(h);
+    EXPECT_LT(stop_ms, 1000.0);
+    for (const auto& k : h.kinds)
+        if (k.kind == ObservationKind::process_list || k.kind == ObservationKind::cpu_times ||
+            k.kind == ObservationKind::memory)
+            EXPECT_EQ(k.failed, 0U) << to_string(k.kind) << ": " << k.last_error << " (exiting processes are not failures)";
+    EXPECT_LE(h.history_points, 16U);
+    for (const auto& p : rt.history(100)) EXPECT_LE(p.processes.size(), 16U);
 }
 #endif

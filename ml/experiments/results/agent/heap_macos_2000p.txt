@@ -1,0 +1,12 @@
+# macOS, 2000 processes + churn, 1 s interval: RSS vs live heap (heap tool) every 60 s
+t=60 rss_kb=12448 All zones: 3183 nodes (1895616 bytes)
+t=120 rss_kb=16048 All zones: 3032 nodes (1308032 bytes)
+t=180 rss_kb=23264 All zones: 3087 nodes (1313920 bytes)
+t=240 rss_kb=15904 All zones: 3200 nodes (1318528 bytes)
+t=300 rss_kb=20128 All zones: 4029 nodes (2088944 bytes)
+t=360 rss_kb=21440 All zones: 3206 nodes (1317296 bytes)
+t=420 rss_kb=20048 All zones: 3237 nodes (1319888 bytes)
+t=480 rss_kb=20336 All zones: 4053 nodes (2090128 bytes)
+t=540 rss_kb=15424 All zones: 3194 nodes (1317648 bytes)
+t=600 rss_kb=14944 All zones: 3160 nodes (1317472 bytes)
+t=660 rss_kb=13744 All zones: 3960 nodes (2087616 bytes)

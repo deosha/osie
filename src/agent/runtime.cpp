@@ -39,20 +39,23 @@ AgentRuntime::AgentRuntime(std::unique_ptr<IOperatingSystem> os, AgentConfig cfg
     reconfigure(cfg_);
 }
 
-AgentRuntime::~AgentRuntime() { stop(); }
+AgentRuntime::~AgentRuntime() {
+    {
+        std::lock_guard lk(life_mu_);
+        destroying_ = true;
+    }
+    stop();
+}
 
 void AgentRuntime::reconfigure(const AgentConfig& cfg) {
-    {
-        std::lock_guard lk(cfg_mu_);
-        cfg_ = cfg;
-    }
-    std::lock_guard lk(hist_mu_);
-    // Rebuild the history with the new bounds, keeping the newest points.
+    // Held throughout, so concurrent reconfigurations apply one after the
+    // other and the configuration always matches the history bounds.
+    std::lock_guard cl(cfg_mu_);
+    cfg_ = cfg;
+    const auto sup = os_->supported();
+    std::lock_guard hl(hist_mu_);
     if (history_.config().capacity != cfg.history_capacity || history_.config().top_k != cfg.history_top_k) {
-        std::deque<HistoryPoint> keep(history_.points().begin(), history_.points().end());
-        while (keep.size() > cfg.history_capacity) keep.pop_front();
-        history_ = StateHistory(HistoryConfig{cfg.history_capacity, cfg.history_top_k, 10.0});
-        history_.restore(std::move(keep));
+        history_.reconfigure(HistoryConfig{cfg.history_capacity, cfg.history_top_k, history_.config().min_span_s});
         health_.history_points = history_.size();
         health_.history_bytes = history_.approx_bytes();
     }
@@ -63,9 +66,9 @@ void AgentRuntime::reconfigure(const AgentConfig& cfg) {
         for (const auto& old : health_.kinds)
             if (old.kind == k) kh = old;
         kh.kind = k;
-        kh.supported = os_->supported().contains(k);
+        kh.supported = sup.contains(k);
         const auto* cap = reg_.for_observation(k);
-        kh.allowed = cap != nullptr && policy_.authorize(*cap, os_->platform(), os_->supported()).allowed;
+        kh.allowed = cap != nullptr && policy_.authorize(*cap, os_->platform(), sup).allowed;
         kinds.push_back(std::move(kh));
     }
     health_.kinds = std::move(kinds);
@@ -77,13 +80,13 @@ AgentConfig AgentRuntime::config() const {
 }
 
 Result<void> AgentRuntime::start() {
-    std::lock_guard lk(run_mu_);
+    std::lock_guard rl(run_mu_);
     if (thread_.joinable()) return Error{Errc::invalid_argument, "agent already running", 0};
     {
-        std::lock_guard wl(wake_mu_);
+        std::lock_guard lk(life_mu_);
+        if (destroying_) return Error{Errc::invalid_argument, "agent is being destroyed", 0};
         stop_requested_ = false;
     }
-    cancel_ = std::make_unique<CancellationSource>();
     {
         std::lock_guard hl(hist_mu_);
         health_.started_at = std::chrono::system_clock::now();
@@ -94,16 +97,23 @@ Result<void> AgentRuntime::start() {
 }
 
 void AgentRuntime::stop() {
-    std::lock_guard lk(run_mu_);
-    if (!thread_.joinable()) return;
-    state_ = AgentState::stopping;
+    std::lock_guard rl(run_mu_);
+    const bool scheduler = thread_.joinable();
+    if (scheduler) state_ = AgentState::stopping;
     {
-        std::lock_guard wl(wake_mu_);
+        // Close admission, then cancel whatever is in flight (scheduled or manual).
+        std::lock_guard lk(life_mu_);
+        closed_ = true;
         stop_requested_ = true;
+        active_.cancel();
+        wake_.notify_all();
     }
-    if (cancel_) cancel_->cancel();  // interrupts the sampling window of an in-flight collection
-    wake_.notify_all();
-    thread_.join();
+    if (scheduler) thread_.join();
+    {
+        std::unique_lock lk(life_mu_);
+        idle_.wait(lk, [this] { return !in_flight_; });
+        if (!destroying_) closed_ = false;
+    }
     state_ = AgentState::stopped;
 }
 
@@ -112,29 +122,61 @@ bool AgentRuntime::running() const noexcept {
     return s == AgentState::starting || s == AgentState::running || s == AgentState::degraded;
 }
 
+void AgentRuntime::set_live_state(AgentState to) {
+    auto cur = state_.load();
+    while ((cur == AgentState::starting || cur == AgentState::running || cur == AgentState::degraded) &&
+           !state_.compare_exchange_weak(cur, to)) {
+    }
+}
+
+AgentRuntime::Admit AgentRuntime::begin_collection(CancellationToken& token) {
+    std::lock_guard lk(life_mu_);
+    if (closed_) return Admit::closed;
+    if (in_flight_) return Admit::busy;
+    in_flight_ = true;
+    active_ = CancellationSource{};
+    token = active_.token();
+    return Admit::ok;
+}
+
+void AgentRuntime::end_collection() {
+    // Notified under the lock: stop() (and so the destructor) cannot proceed
+    // until this thread has released life_mu_, after which it touches nothing.
+    std::lock_guard lk(life_mu_);
+    in_flight_ = false;
+    idle_.notify_all();
+}
+
 void AgentRuntime::record_jitter(double ms) {
     jitter_[jitter_n_ % jitter_.size()] = ms;
     ++jitter_n_;
 }
 
 void AgentRuntime::loop() {
-    const CancellationToken token = cancel_->token();
     auto next = std::chrono::steady_clock::now();
     while (true) {
         {
-            std::unique_lock wl(wake_mu_);
-            if (wake_.wait_until(wl, next, [this] { return stop_requested_; })) break;
+            std::unique_lock lk(life_mu_);
+            if (wake_.wait_until(lk, next, [this] { return stop_requested_; })) break;
         }
         const auto started = std::chrono::steady_clock::now();
         {
             std::lock_guard hl(hist_mu_);
             record_jitter(ms_between(next, started));
         }
-        if (!collecting_.exchange(true)) {
-            collect(token);
-            collecting_ = false;
+        CancellationToken token;
+        switch (begin_collection(token)) {
+            case Admit::ok:
+                (void)collect(token);
+                end_collection();
+                break;
+            case Admit::busy: {  // a manual collection holds the slot: this tick is skipped
+                std::lock_guard hl(hist_mu_);
+                ++health_.skipped_ticks;
+                break;
+            }
+            case Admit::closed: return;
         }
-        if (token.cancelled()) break;
         // Fixed cadence on the monotonic clock. A collection that overran one
         // or more ticks skips them (counted) instead of running back to back.
         const auto interval = config().interval;
@@ -150,17 +192,18 @@ void AgentRuntime::loop() {
 }
 
 bool AgentRuntime::collect_now() {
-    if (collecting_.exchange(true)) {
+    CancellationToken token;
+    if (begin_collection(token) != Admit::ok) {
         std::lock_guard hl(hist_mu_);
         ++health_.rejected_manual;
         return false;
     }
-    collect(CancellationToken{});
-    collecting_ = false;
-    return true;
+    const bool published = collect(token);
+    end_collection();
+    return published;
 }
 
-void AgentRuntime::collect(const CancellationToken& cancel) {
+bool AgentRuntime::collect(const CancellationToken& cancel) {
     const AgentConfig cfg = config();
     const auto t0 = std::chrono::steady_clock::now();
     SampleRequest req;
@@ -173,7 +216,7 @@ void AgentRuntime::collect(const CancellationToken& cancel) {
         if (sup.contains(k) && std::find(req.kinds.begin(), req.kinds.end(), k) == req.kinds.end()) req.kinds.push_back(k);
     auto st = std::make_shared<SystemState>(sampler_.sample(req, cancel));
     // A collection interrupted by shutdown is incomplete: it is not published.
-    if (cancel.cancelled()) return;
+    if (cancel.cancelled()) return false;
     const auto t1 = std::chrono::steady_clock::now();
     const auto wall = std::chrono::system_clock::now();
 
@@ -225,8 +268,8 @@ void AgentRuntime::collect(const CancellationToken& cancel) {
         snap->seq = ++seq_;
         snap_ = std::move(snap);
     }
-    if (state_ != AgentState::stopping && state_ != AgentState::stopped)
-        state_ = degraded.empty() ? AgentState::running : AgentState::degraded;
+    set_live_state(degraded.empty() ? AgentState::running : AgentState::degraded);
+    return true;
 }
 
 std::shared_ptr<const AgentSnapshot> AgentRuntime::snapshot() const {

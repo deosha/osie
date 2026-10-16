@@ -214,6 +214,14 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    const auto t_start = Clock::now();
+    const Usage u0 = usage();
+    // Started before the signal thread, so a failure returns with no thread to join.
+    // Signals that arrive meanwhile stay pending (blocked) until sigwait().
+    if (auto r = rt.start(); !r) {
+        log(LogLevel::error, r.error().describe());
+        return 1;
+    }
     SignalState sig;
     std::thread sig_thread([&] {
         while (true) {
@@ -233,12 +241,6 @@ int main(int argc, char** argv) {
         }
     });
 
-    const auto t_start = Clock::now();
-    const Usage u0 = usage();
-    if (auto r = rt.start(); !r) {
-        log(LogLevel::error, r.error().describe());
-        return 1;
-    }
     log(LogLevel::info, "started (interval " + std::to_string(cfg.interval.count()) + " ms, window " +
                             std::to_string(cfg.sample_window.count()) + " ms, history " +
                             std::to_string(cfg.history_capacity) + " points); read-only, in memory only, no network");

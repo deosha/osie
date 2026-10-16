@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "osie/agent/config.hpp"
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cctype>
-#include <fstream>
+#include <cerrno>
+#include <cstring>
+#include <deque>
 #include <set>
 #include <sstream>
 
@@ -148,19 +152,162 @@ Result<AgentConfig> parse_agent_config(std::string_view text) {
     return c;
 }
 
-Result<AgentConfig> load_agent_config(const std::string& path) {
+namespace {
+
+constexpr std::size_t kMaxConfigBytes = 64 * 1024;
+constexpr int kMaxSymlinks = 32;
+
+/// Closes a descriptor on scope exit.
+struct Fd {
+    int fd{-1};
+    explicit Fd(int f = -1) : fd(f) {}
+    Fd(const Fd&) = delete;
+    Fd& operator=(const Fd&) = delete;
+    Fd(Fd&& o) noexcept : fd(std::exchange(o.fd, -1)) {}
+    Fd& operator=(Fd&& o) noexcept {
+        if (this != &o) {
+            reset();
+            fd = std::exchange(o.fd, -1);
+        }
+        return *this;
+    }
+    ~Fd() { reset(); }
+    void reset() {
+        if (fd >= 0) ::close(fd);
+        fd = -1;
+    }
+};
+
+Error refused(const std::string& what, const std::string& why) {
+    return Error{Errc::permission_denied, "agent config: " + what + " " + why + "; refusing to use it", 0};
+}
+
+Error os_error(const std::string& what, int err) {
+    if (err == ENOENT || err == ENOTDIR) return Error{Errc::not_found, "agent config " + what + " not found", err};
+    if (err == EACCES || err == EPERM) return Error{Errc::permission_denied, "cannot read agent config " + what, err};
+    return Error{Errc::io_error, "agent config " + what + ": " + std::strerror(err), err};
+}
+
+/// Who may control something the configuration depends on: root or the
+/// agent's own user.
+bool trusted_owner(uid_t uid) { return uid == 0 || uid == ::geteuid(); }
+
+/// A directory on the path must not let anyone else replace its entries:
+/// owned by root or us, and not writable by group or others unless sticky
+/// (then others cannot rename or remove entries they do not own).
+Result<void> check_dir(int fd, const std::string& what) {
     struct stat st {};
-    if (::stat(path.c_str(), &st) != 0) return Error{Errc::not_found, "agent config " + path + " not found", 0};
-    if (!S_ISREG(st.st_mode)) return Error{Errc::invalid_argument, "agent config " + path + " is not a regular file", 0};
-    if ((st.st_mode & (S_IWGRP | S_IWOTH)) != 0)
-        return Error{Errc::permission_denied,
-                     "agent config " + path + " is writable by group or others; refusing to use it (chmod go-w)", 0};
-    if (st.st_size > 64 * 1024) return Error{Errc::invalid_argument, "agent config " + path + " is larger than 64 KiB", 0};
-    std::ifstream f(path, std::ios::binary);
-    if (!f) return Error{Errc::permission_denied, "cannot read agent config " + path, 0};
-    std::ostringstream ss;
-    ss << f.rdbuf();
-    return parse_agent_config(ss.str());
+    if (::fstat(fd, &st) != 0) return os_error(what, errno);
+    if (!trusted_owner(st.st_uid)) return refused("directory " + what, "is owned by uid " + std::to_string(st.st_uid));
+    if ((st.st_mode & (S_IWGRP | S_IWOTH)) != 0 && (st.st_mode & S_ISVTX) == 0)
+        return refused("directory " + what, "is writable by group or others");
+    return {};
+}
+
+std::deque<std::string> split_path(const std::string& p) {
+    std::deque<std::string> out;
+    std::size_t i = 0;
+    while (i <= p.size()) {
+        const std::size_t j = std::min(p.find('/', i), p.size());
+        std::string c = p.substr(i, j - i);
+        if (!c.empty() && c != ".") out.push_back(std::move(c));
+        i = j + 1;
+    }
+    return out;
+}
+
+Result<Fd> open_dir_at(int at, const char* name, const std::string& what) {
+    Fd d(::openat(at, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
+    if (d.fd < 0) {
+        if (errno == ELOOP) return refused(what, "was replaced by a symbolic link while being opened");
+        return os_error(what, errno);
+    }
+    if (auto r = check_dir(d.fd, what); !r) return r.error();
+    return d;
+}
+
+/// Opens the configuration file without trusting the path: every directory
+/// is opened relative to the previous one with O_NOFOLLOW and validated on
+/// its descriptor; symbolic links are followed only if root or the agent's
+/// user owns them, and their targets are walked the same way. The file
+/// itself is validated with fstat() on the descriptor that is then read, so
+/// replacing any component after a check cannot substitute another file.
+Result<Fd> open_config(const std::string& path) {
+    if (path.empty()) return Error{Errc::not_found, "agent config path is empty", 0};
+    std::deque<std::string> parts = split_path(path);
+    std::string walked = path[0] == '/' ? "/" : ".";
+    auto dir = open_dir_at(AT_FDCWD, walked.c_str(), walked);
+    if (!dir) return dir.error();
+    Fd cur = std::move(dir).value();
+    auto join = [](const std::string& a, const std::string& b) { return a == "/" ? "/" + b : a + "/" + b; };
+    int links = 0;
+    while (!parts.empty()) {
+        const std::string name = std::move(parts.front());
+        parts.pop_front();
+        const std::string what = join(walked, name);
+        struct stat lst {};
+        if (::fstatat(cur.fd, name.c_str(), &lst, AT_SYMLINK_NOFOLLOW) != 0) return os_error(what, errno);
+        if (S_ISLNK(lst.st_mode)) {
+            if (++links > kMaxSymlinks) return Error{Errc::invalid_argument, "agent config " + path + ": too many symbolic links", ELOOP};
+            if (!trusted_owner(lst.st_uid)) return refused("symbolic link " + what, "is owned by uid " + std::to_string(lst.st_uid));
+            char buf[4096];
+            const auto n = ::readlinkat(cur.fd, name.c_str(), buf, sizeof buf);
+            if (n < 0) return os_error(what, errno);
+            if (static_cast<std::size_t>(n) >= sizeof buf) return Error{Errc::invalid_argument, "agent config " + what + ": link target too long", 0};
+            const std::string target(buf, static_cast<std::size_t>(n));
+            if (target.empty()) return os_error(what, ENOENT);
+            auto t = split_path(target);
+            parts.insert(parts.begin(), t.begin(), t.end());
+            if (target[0] == '/') {
+                walked = "/";
+                auto root = open_dir_at(AT_FDCWD, "/", walked);
+                if (!root) return root.error();
+                cur = std::move(root).value();
+            }
+            continue;
+        }
+        if (!parts.empty()) {  // an intermediate directory
+            auto next = open_dir_at(cur.fd, name.c_str(), what);
+            if (!next) return next.error();
+            cur = std::move(next).value();
+            walked = what;
+            continue;
+        }
+        // The file. O_NONBLOCK: opening a FIFO must not block; it is rejected below.
+        Fd f(::openat(cur.fd, name.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_NOCTTY | O_CLOEXEC));
+        if (f.fd < 0) {
+            if (errno == ELOOP) return refused(what, "was replaced by a symbolic link while being opened");
+            return os_error(what, errno);
+        }
+        struct stat st {};
+        if (::fstat(f.fd, &st) != 0) return os_error(what, errno);
+        if (!S_ISREG(st.st_mode)) return Error{Errc::invalid_argument, "agent config " + what + " is not a regular file", 0};
+        if (!trusted_owner(st.st_uid)) return refused(what, "is owned by uid " + std::to_string(st.st_uid));
+        if ((st.st_mode & (S_IWGRP | S_IWOTH)) != 0) return refused(what, "is writable by group or others (chmod go-w)");
+        return f;
+    }
+    return Error{Errc::invalid_argument, "agent config " + path + " is not a regular file", 0};
+}
+
+}  // namespace
+
+Result<AgentConfig> load_agent_config(const std::string& path) {
+    auto f = open_config(path);
+    if (!f) return f.error();
+    // The size limit is enforced on the bytes read (st_size can change, or lie).
+    std::string text;
+    char buf[8192];
+    while (true) {
+        const auto n = ::read(f->fd, buf, sizeof buf);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            return os_error(path, errno);
+        }
+        if (n == 0) break;
+        text.append(buf, static_cast<std::size_t>(n));
+        if (text.size() > kMaxConfigBytes) return Error{Errc::invalid_argument, "agent config " + path + " is larger than 64 KiB", 0};
+    }
+    return parse_agent_config(text);
 }
 
 std::string to_text(const AgentConfig& c) {

@@ -54,6 +54,53 @@ void StateHistory::record(const SystemState& s, const std::vector<std::pair<Pid,
     while (points_.size() > cfg_.capacity) points_.pop_front();
 }
 
+namespace {
+
+/// Keeps the top `k` processes by CPU and by memory, in the order record() uses.
+void keep_top(std::vector<ProcessPoint>& v, std::size_t k) {
+    std::vector<std::size_t> by_cpu, by_mem;
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        if (v[i].cpu_pct) by_cpu.push_back(i);
+        if (v[i].memory_bytes) by_mem.push_back(i);
+    }
+    const auto top = [&](std::vector<std::size_t>& idx, auto value) {
+        const std::size_t n = std::min(k, idx.size());
+        std::partial_sort(idx.begin(), idx.begin() + static_cast<std::ptrdiff_t>(n), idx.end(),
+                          [&](std::size_t a, std::size_t b) { return value(v[a]) > value(v[b]); });
+        idx.resize(n);
+    };
+    top(by_cpu, [](const ProcessPoint& p) { return *p.cpu_pct; });
+    top(by_mem, [](const ProcessPoint& p) { return *p.memory_bytes; });
+    std::vector<bool> taken(v.size(), false);
+    std::vector<ProcessPoint> out;
+    out.reserve(by_cpu.size() + by_mem.size());
+    for (auto* list : {&by_cpu, &by_mem})
+        for (std::size_t i : *list)
+            if (!taken[i]) {
+                taken[i] = true;
+                out.push_back(std::move(v[i]));
+            }
+    out.shrink_to_fit();
+    v = std::move(out);
+}
+
+}  // namespace
+
+void StateHistory::reconfigure(HistoryConfig cfg) {
+    const bool fewer_processes = cfg.top_k < cfg_.top_k;
+    cfg_ = cfg;
+    // Rebuilt rather than trimmed in place, so that the memory of dropped
+    // points and of the longer process lists is released.
+    std::deque<HistoryPoint> kept;
+    const std::size_t skip = points_.size() > cfg_.capacity ? points_.size() - cfg_.capacity : 0;
+    for (std::size_t i = skip; i < points_.size(); ++i) {
+        HistoryPoint p = std::move(points_[i]);
+        if (fewer_processes) keep_top(p.processes, cfg_.top_k);
+        kept.push_back(std::move(p));
+    }
+    points_.swap(kept);
+}
+
 std::size_t StateHistory::approx_bytes() const {
     std::size_t n = sizeof(*this);
     for (const auto& p : points_) {
