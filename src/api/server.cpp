@@ -95,6 +95,13 @@ Result<void> ApiServer::open_socket() {
     if (::flock(dir_fd_.get(), LOCK_EX | LOCK_NB) != 0)
         return setup_error(errno == EWOULDBLOCK ? "another osie-agent is serving from " + dir_ : "cannot lock " + dir_,
                            errno == EWOULDBLOCK ? 0 : errno);
+#if defined(__APPLE__)
+    // macOS is a development platform for the API: peer credentials come from
+    // LOCAL_PEERCRED, but cross-user isolation is not evaluated there, so
+    // group access is not offered. Only root and the agent's own user.
+    if (!cfg_.api_group.empty())
+        return setup_error("api_group is not supported on macOS, where the local API is experimental and owner-only");
+#endif
     if (!cfg_.api_group.empty()) {
         group g{};
         group* res = nullptr;
@@ -180,6 +187,9 @@ Result<void> ApiServer::start() {
     started_ = true;
     for (std::size_t i = 0; i < cfg_.api_max_clients; ++i) workers_.emplace_back([this] { worker_loop(); });
     acceptor_ = std::thread([this] { accept_loop(); });
+#if defined(__APPLE__)
+    if (log_) log_(agent::LogLevel::warn, "api: the local API is experimental on macOS (owner-only; see docs/API.md)");
+#endif
     if (log_)
         log_(agent::LogLevel::info, "api: serving on " + path_ + " (mode " + (policy_.group ? "0660, group " + cfg_.api_group : std::string("0600")) +
                                         "; " + std::to_string(cfg_.api_max_clients) + " workers)");
@@ -205,6 +215,7 @@ void ApiServer::stop() {
     }
     for (auto& c : left) {
         quick_reply(c.fd, DiagnosticApi::error_response(err(503, ErrorCode::busy, "stopping", "The agent is stopping.", true, 1)));
+        release_uid(c.peer.uid);
         std::lock_guard sl(stats_mu_);
         ++stats_.rejected_stopping;
     }
@@ -218,8 +229,39 @@ void ApiServer::stop() {
 }
 
 ServerStats ApiServer::stats() const {
-    std::lock_guard sl(stats_mu_);
-    return stats_;
+    std::vector<Sample> samples;
+    ServerStats out;
+    {
+        std::lock_guard sl(stats_mu_);
+        out = stats_;
+        samples = samples_;
+    }
+    auto summary = [&](auto field) {
+        std::vector<float> v;
+        for (const auto& x : samples)
+            if (field(x) >= 0) v.push_back(field(x));
+        TimingSummary t;
+        t.n = v.size();
+        if (v.empty()) return t;
+        std::sort(v.begin(), v.end());
+        auto at = [&](double p) { return static_cast<double>(v[std::min(v.size() - 1, static_cast<std::size_t>(p * static_cast<double>(v.size())))]); };
+        t.p50 = at(0.50);
+        t.p95 = at(0.95);
+        t.p99 = at(0.99);
+        t.max = static_cast<double>(v.back());
+        return t;
+    };
+    out.queue_wait_ms = summary([](const Sample& x) { return x.queue_ms; });
+    out.engine_wait_ms = summary([](const Sample& x) { return x.engine_wait_ms; });
+    out.engine_ms = summary([](const Sample& x) { return x.engine_ms; });
+    out.total_ms = summary([](const Sample& x) { return x.total_ms; });
+    return out;
+}
+
+void ApiServer::release_uid(uid_t uid) {
+    std::lock_guard lk(q_mu_);
+    auto it = per_uid_.find(uid);
+    if (it != per_uid_.end() && --it->second == 0) per_uid_.erase(it);
 }
 
 void ApiServer::note_status(int status) {
@@ -383,18 +425,32 @@ void ApiServer::accept_loop() {
                                                               "Too many requests from this user; retry shortly.", true, 1)));
                 continue;
             }
-            bool queued = false;
+            bool queued = false, per_user_full = false;
             {
                 std::lock_guard lk(q_mu_);
-                if (queue_.size() < cfg_.api_max_clients) {
+                auto& mine = per_uid_[c.peer.uid];
+                if (mine >= cfg_.api_max_clients_per_user) {
+                    per_user_full = true;
+                } else if (queue_.size() < cfg_.api_max_clients) {
+                    ++mine;
                     queue_.push_back(c);
                     queued = true;
                     std::lock_guard sl(stats_mu_);
                     stats_.queued = queue_.size();
                     stats_.max_queued = std::max(stats_.max_queued, stats_.queued);
                 }
+                if (!queued && mine == 0) per_uid_.erase(c.peer.uid);  // the map holds only active users
             }
-            if (queued) {
+            if (per_user_full) {
+                {
+                    std::lock_guard sl(stats_mu_);
+                    ++stats_.rejected_per_user;
+                }
+                log_denial("per-user limit: uid " + std::to_string(c.peer.uid));
+                refuse(fd, DiagnosticApi::error_response(
+                               err(429, ErrorCode::rate_limited, "too_many_connections",
+                                   "This user already has the maximum number of requests in progress; retry shortly.", true, 1)));
+            } else if (queued) {
                 q_cv_.notify_one();
             } else {
                 {
@@ -423,6 +479,7 @@ void ApiServer::worker_loop() {
         }
         if (stopping_) {
             quick_reply(c.fd, DiagnosticApi::error_response(err(503, ErrorCode::busy, "stopping", "The agent is stopping.", true, 1)));
+            release_uid(c.peer.uid);
             std::lock_guard sl(stats_mu_);
             ++stats_.rejected_stopping;
             continue;
@@ -432,7 +489,9 @@ void ApiServer::worker_loop() {
             ++stats_.in_flight;
             stats_.max_in_flight = std::max(stats_.max_in_flight, stats_.in_flight);
         }
+        const uid_t uid = c.peer.uid;
         serve(c);
+        release_uid(uid);
         std::lock_guard sl(stats_mu_);
         --stats_.in_flight;
         ++stats_.handled;
@@ -442,6 +501,23 @@ void ApiServer::worker_loop() {
 void ApiServer::serve(Conn c) {
     const auto t0 = Clock::now();
     const auto deadline = c.accepted + cfg_.api_request_timeout;
+    // One timing sample per connection a worker served, recorded on exit.
+    double engine_wait_ms = -1, engine_ms = -1;
+    struct Record {
+        ApiServer& s;
+        const Conn& c;
+        Clock::time_point t0;
+        double& ew;
+        double& e;
+        ~Record() {
+            auto ms = [](Clock::duration d) { return static_cast<float>(std::chrono::duration<double, std::milli>(d).count()); };
+            const Sample x{ms(t0 - c.accepted), static_cast<float>(ew), static_cast<float>(e), ms(Clock::now() - c.accepted)};
+            std::lock_guard sl(s.stats_mu_);
+            if (s.samples_.size() < 4096) s.samples_.push_back(x);
+            else s.samples_[s.sample_next_ % 4096] = x;
+            ++s.sample_next_;
+        }
+    } record{*this, c, t0, engine_wait_ms, engine_ms};
     secure::Fd fd(c.fd);
     HeadLimits lim;
     lim.max_head_bytes = std::min<std::size_t>(8 * 1024, cfg_.api_max_request_bytes);
@@ -547,10 +623,16 @@ void ApiServer::serve(Conn c) {
     }
     HttpResponse resp;
     try {
-        resp = api_->handle(req, c.peer, c.access, cancel_.token());
+        resp = api_->handle(req, c.peer, c.access, cancel_.token(), deadline);
     } catch (const std::exception&) {
         resp = DiagnosticApi::error_response(err(500, ErrorCode::internal_error, "internal_error",
                                                  "The request could not be answered."), rid);
+    }
+    engine_wait_ms = resp.engine_wait_ms;
+    engine_ms = resp.engine_ms;
+    if (resp.status == 503 && resp.body.find("\"deadline_exceeded\"") != std::string::npos) {
+        std::lock_guard sl(stats_mu_);
+        ++stats_.rejected_deadline;
     }
     if (peer_gone(fd.get())) {
         std::lock_guard sl(stats_mu_);

@@ -158,6 +158,7 @@ Result<AgentConfig> parse_agent_config(std::string_view text) {
             else c.api_group = val;
         }
         else if (key == "api_max_clients") r = count_in(1, 64, c.api_max_clients);
+        else if (key == "api_max_clients_per_user") r = count_in(1, 64, c.api_max_clients_per_user);
         else if (key == "api_max_request_bytes") r = count_in(1024, 1024 * 1024, c.api_max_request_bytes);
         else if (key == "api_request_timeout") r = duration_in(Millis{100}, Millis{60'000}, c.api_request_timeout);
         else if (key == "api_max_sessions") r = count_in(1, 4096, c.api_max_sessions);
@@ -189,6 +190,12 @@ Result<AgentConfig> parse_agent_config(std::string_view text) {
         if (!r) return r.error();
     }
     // Cross-field rules.
+    if (c.api_max_clients_per_user > c.api_max_clients)
+        return Error{Errc::invalid_argument, "agent config: api_max_clients_per_user (" +
+                                                 std::to_string(c.api_max_clients_per_user) +
+                                                 ") must not exceed api_max_clients (" +
+                                                 std::to_string(c.api_max_clients) + ")",
+                     0};
     if (c.sample_window * 2 > c.interval)
         return Error{Errc::invalid_argument,
                      "agent config: sample_window (" + dur(c.sample_window) + ") must be at most half of interval (" +
@@ -239,6 +246,7 @@ std::string to_text(const AgentConfig& c) {
     o += "api_socket = " + c.api_socket + "\n";
     if (!c.api_group.empty()) o += "api_group = " + c.api_group + "\n";
     o += "api_max_clients = " + std::to_string(c.api_max_clients) + "\n";
+    o += "api_max_clients_per_user = " + std::to_string(c.api_max_clients_per_user) + "\n";
     o += "api_max_request_bytes = " + std::to_string(c.api_max_request_bytes) + "\n";
     o += "api_request_timeout = " + dur(c.api_request_timeout) + "\n";
     o += "api_max_sessions = " + std::to_string(c.api_max_sessions) + "\n";

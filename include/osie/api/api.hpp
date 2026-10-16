@@ -34,6 +34,7 @@ struct ApiSettings {
     ProcVisibility visibility{ProcVisibility::all};
     // Reported by /v1/capabilities.
     std::size_t max_clients{16};
+    std::size_t max_clients_per_user{4};
     Millis request_timeout{5000};
     std::size_t rate_limit{50};
 };
@@ -53,9 +54,12 @@ public:
     DiagnosticApi& operator=(const DiagnosticApi&) = delete;
 
     /// Routes and answers one request. `access` was decided from the peer's
-    /// credentials before the request was read. Thread-safe.
+    /// credentials before the request was read. A diagnosis that cannot get
+    /// the engine before `deadline` is refused (503 busy) rather than waiting
+    /// past it. Thread-safe.
     HttpResponse handle(const HttpRequest& req, const PeerCredentials& peer, Access access,
-                        const CancellationToken& cancel = {});
+                        const CancellationToken& cancel = {}, SteadyTime deadline = SteadyTime::max());
+    [[nodiscard]] const Engine& engine() const noexcept { return engine_; }
 
     /// Readiness then reports "stopping".
     void set_stopping() noexcept { stopping_ = true; }
@@ -74,7 +78,7 @@ private:
     HttpResponse snapshot(const HttpRequest& req, const PeerCredentials& peer, Access access, const std::string& rid);
     HttpResponse history(const HttpRequest& req, const PeerCredentials& peer, Access access, const std::string& rid);
     HttpResponse diagnose(const HttpRequest& req, const PeerCredentials& peer, Access access, const std::string& rid,
-                          const CancellationToken& cancel);
+                          const CancellationToken& cancel, SteadyTime deadline);
 
     std::shared_ptr<agent::AgentRuntime> rt_;
     ApiSettings s_;

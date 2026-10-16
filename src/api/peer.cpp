@@ -75,9 +75,8 @@ Access authorize(const PeerCredentials& p, const AccessPolicy& policy) noexcept 
     return Access::health;
 }
 
-ProcVisibility detect_proc_visibility() {
-#if defined(__linux__)
-    std::ifstream in("/proc/self/mountinfo");
+ProcVisibility proc_visibility_from_mountinfo(std::string_view mountinfo) {
+    std::istringstream in{std::string(mountinfo)};
     for (std::string line; std::getline(in, line);) {
         std::istringstream ls(line);
         std::string id, parent, devno, root, mount_point;
@@ -96,8 +95,18 @@ ProcVisibility detect_proc_visibility() {
             if (v != "0" && v != "off") return ProcVisibility::own_only;
         }
     }
-#endif
     return ProcVisibility::all;
+}
+
+ProcVisibility detect_proc_visibility() {
+#if defined(__linux__)
+    std::ifstream in("/proc/self/mountinfo");
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    return proc_visibility_from_mountinfo(ss.str());
+#else
+    return ProcVisibility::all;
+#endif
 }
 
 void redact(SystemState& s, uid_t peer_uid, ProcVisibility v) {

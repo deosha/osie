@@ -54,6 +54,9 @@ enum class ProcVisibility : std::uint8_t {
 
 /// Linux: reads /proc's mount options (hidepid / subset). macOS: all.
 ProcVisibility detect_proc_visibility();
+/// The same decision from mountinfo text (one mount per line): own_only when
+/// the procfs mounted at /proc has hidepid set to anything but 0/off.
+ProcVisibility proc_visibility_from_mountinfo(std::string_view mountinfo);
 
 /// Removes from `s` what `peer_uid` could not read from the kernel itself:
 /// the executable path of other users' processes (as /proc/<pid>/exe), and,

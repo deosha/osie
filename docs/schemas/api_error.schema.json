@@ -61,7 +61,9 @@
               "redacted",
               "no_event_history",
               "prediction_not_available",
-              "missing_evidence"
+              "missing_evidence",
+              "inconsistent_evidence",
+              "insufficient_history"
             ]
           },
           "detail": {

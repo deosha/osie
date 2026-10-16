@@ -43,9 +43,19 @@
 
 namespace osie::api {
 
+/// Percentiles of one timing over the most recent requests (up to 4096).
+struct TimingSummary {
+    std::size_t n{0};
+    double p50{0}, p95{0}, p99{0}, max{0};
+};
+
 struct ServerStats {
     std::uint64_t accepted{0}, handled{0};
     std::uint64_t rejected_unauthorized{0}, rejected_rate_limited{0}, rejected_busy{0}, rejected_stopping{0};
+    std::uint64_t rejected_per_user{0}, rejected_deadline{0};
+    // Recent requests, in milliseconds: accept -> a worker starts it; waiting
+    // for the engine and inside it (diagnoses only); accept -> response sent.
+    TimingSummary queue_wait_ms, engine_wait_ms, engine_ms, total_ms;
     std::uint64_t timeouts{0}, client_gone{0}, responses_2xx{0}, responses_4xx{0}, responses_5xx{0};
     std::uint64_t in_flight{0}, max_in_flight{0}, queued{0}, max_queued{0};
 };
@@ -110,6 +120,8 @@ private:
     std::mutex q_mu_;
     std::condition_variable q_cv_;
     std::deque<Conn> queue_;
+    std::map<uid_t, std::size_t> per_uid_;  // waiting or in progress, by uid (guarded by q_mu_)
+    void release_uid(uid_t uid);
 
     std::mutex rate_mu_;
     struct Bucket {
@@ -125,6 +137,11 @@ private:
 
     mutable std::mutex stats_mu_;
     ServerStats stats_;
+    struct Sample {
+        float queue_ms, engine_wait_ms, engine_ms, total_ms;
+    };
+    std::vector<Sample> samples_;  // ring of the most recent requests (guarded by stats_mu_)
+    std::size_t sample_next_{0};
 };
 
 }  // namespace osie::api

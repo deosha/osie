@@ -84,6 +84,9 @@ struct HttpResponse {
     int status{200};
     std::string body;  // JSON
     std::vector<std::pair<std::string, std::string>> headers;  // extra headers
+    // Measurements for the server's statistics (never sent): time spent
+    // waiting for the engine and inside it, for diagnoses; -1 otherwise.
+    double engine_wait_ms{-1}, engine_ms{-1};
 };
 
 /// Serialises a response: status line, Content-Type: application/json,

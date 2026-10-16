@@ -57,6 +57,9 @@ struct AgentConfig {
     std::string api_group;
     /// Requests handled at once; as many more may wait. [1, 64]
     std::size_t api_max_clients{16};
+    /// Requests one user (uid) may have waiting or in progress, so that one
+    /// user cannot occupy every worker. [1, api_max_clients]
+    std::size_t api_max_clients_per_user{4};
     /// Largest request (headers and body). [1 KiB, 1 MiB]
     std::size_t api_max_request_bytes{16 * 1024};
     /// Deadline for reading, answering and writing one request. [100 ms, 60 s]

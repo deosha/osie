@@ -13,6 +13,7 @@ std::string derive_cgroup_rates(SystemState& cur, const SystemState* prev) {
     const double dt = std::chrono::duration<double>(cur.taken_at - prev->taken_at).count();
     if (dt <= 0) return "throttling rates unavailable: collections out of order";
     std::size_t matched = 0;
+    std::string notes;
     for (auto& v : cur.cgroups) {
         const auto it = std::find_if(prev->cgroups.begin(), prev->cgroups.end(),
                                      [&](const CgroupView& p) { return p.info.path == v.info.path; });
@@ -26,11 +27,16 @@ std::string derive_cgroup_rates(SystemState& cur, const SystemState* prev) {
         v.window_throttled_ratio = w.window_throttled_ratio;
         v.window_usage_cpus = w.window_usage_cpus;
         v.window_throttled_cpus = w.window_throttled_cpus;
-        if (!w.window_note.empty()) v.window_note = w.window_note;
+        if (!w.window_note.empty()) {
+            v.window_note = w.window_note;
+            notes += "; " + v.info.path + ": " + w.window_note;  // e.g. counters reset, quota changed
+        }
         ++matched;
     }
-    return "throttling rates over the " + std::to_string(static_cast<long>(dt + 0.5)) + " s between the agent's last two "
-           "collections (" + std::to_string(matched) + " of " + std::to_string(cur.cgroups.size()) + " cgroups in both)";
+    char span[32];
+    std::snprintf(span, sizeof span, dt < 10 ? "%.1f" : "%.0f", dt);
+    return std::string("throttling rates over the ") + span + " s between the agent's last two collections (" +
+           std::to_string(matched) + " of " + std::to_string(cur.cgroups.size()) + " cgroups in both)" + notes;
 }
 
 std::shared_ptr<const SystemState> AgentEvidence::state(const std::vector<ObservationKind>& kinds, bool cgroup_focus,
@@ -51,9 +57,16 @@ std::shared_ptr<const SystemState> AgentEvidence::state(const std::vector<Observ
         r_.stale = true;
         return nullptr;
     }
-    for (auto k : kinds)
-        if (!cur->state->has(k) && std::find(r_.missing.begin(), r_.missing.end(), k) == r_.missing.end())
-            r_.missing.push_back(k);
+    for (auto k : kinds) {
+        if (cur->state->has(k) || std::find(r_.missing.begin(), r_.missing.end(), k) != r_.missing.end()) continue;
+        // No cgroups in the snapshot is not a missing observation unless reading
+        // them failed: the busiest processes may simply have none (or have exited).
+        if (k == ObservationKind::cgroup) {
+            const auto* why = cur->state->why_unavailable(k);
+            if (why == nullptr || why->why.code == Errc::not_found || why->why.code == Errc::process_exited) continue;
+        }
+        r_.missing.push_back(k);
+    }
     if (!cgroup_focus && !o_.redact_for) return used_ = cur->state;  // shared, immutable
     auto copy = std::make_shared<SystemState>(*cur->state);
     if (cgroup_focus) r_.cgroup_note = derive_cgroup_rates(*copy, prev && prev->state ? prev->state.get() : nullptr);

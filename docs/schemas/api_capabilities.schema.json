@@ -96,6 +96,10 @@
         "session_ttl_ms": {
           "type": "integer",
           "minimum": 0
+        },
+        "max_concurrent_requests_per_user": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -106,7 +110,8 @@
         "requests_per_second_per_user",
         "max_evidence_age_ms",
         "max_sessions",
-        "session_ttl_ms"
+        "session_ttl_ms",
+        "max_concurrent_requests_per_user"
       ],
       "additionalProperties": false
     },
@@ -143,6 +148,12 @@
         ],
         "additionalProperties": false
       }
+    },
+    "platform_support": {
+      "enum": [
+        "supported",
+        "experimental"
+      ]
     }
   },
   "required": [
@@ -153,7 +164,8 @@
     "diagnoses",
     "not_offered",
     "limits",
-    "policy"
+    "policy",
+    "platform_support"
   ],
   "additionalProperties": false
 }

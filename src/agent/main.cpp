@@ -20,6 +20,9 @@
 #if defined(__linux__)
 #include <sys/prctl.h>
 #endif
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
 
 #include <algorithm>
 #include <atomic>
@@ -58,8 +61,18 @@ std::string api_stats_json(const api::ApiServer& srv) {
         .kv("rejected_busy", st.rejected_busy).kv("rejected_stopping", st.rejected_stopping).kv("timeouts", st.timeouts)
         .kv("client_gone", st.client_gone).kv("responses_2xx", st.responses_2xx).kv("responses_4xx", st.responses_4xx)
         .kv("responses_5xx", st.responses_5xx).kv("max_in_flight", st.max_in_flight).kv("max_queued", st.max_queued)
+        .kv("rejected_per_user", st.rejected_per_user).kv("rejected_deadline", st.rejected_deadline)
         .kv("sessions", static_cast<std::uint64_t>(srv.api().sessions().size()))
-        .end_object();
+        .kv("refused_os_calls", srv.api().os().refused_calls());
+    auto t = [&](const char* name, const api::TimingSummary& s) {
+        w.key(name).begin_object().kv("n", static_cast<std::uint64_t>(s.n)).kv("p50", s.p50).kv("p95", s.p95)
+            .kv("p99", s.p99).kv("max", s.max).end_object();
+    };
+    t("queue_wait_ms", st.queue_wait_ms);
+    t("engine_wait_ms", st.engine_wait_ms);
+    t("engine_ms", st.engine_ms);
+    t("total_ms", st.total_ms);
+    w.end_object();
     return w.take();
 }
 
@@ -187,6 +200,12 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+#if defined(__GLIBC__)
+    // glibc gives every thread that allocates its own arena and keeps freed
+    // memory in it, so 16 API workers would hold ~25 MB after a burst of
+    // requests (measured: docs/BENCHMARKS.md). Two arenas are plenty here.
+    (void)::mallopt(M_ARENA_MAX, 2);
+#endif
 #if defined(__linux__)
     // Never gain privileges through execve (setuid helpers); the agent needs none.
     (void)::prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);

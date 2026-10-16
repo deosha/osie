@@ -90,6 +90,31 @@ struct Limitation {
     std::string code, detail;
 };
 
+/// Observations that cannot all be true at once. The reasoner takes its
+/// inputs at face value, so contradictions are reported here rather than
+/// left to be read as findings. Returns "" when none is found.
+std::string inconsistency(const SystemState& s) {
+    const auto cpus = static_cast<double>(s.logical_cpus());
+    if (s.processes && cpus > 0) {
+        double sum = 0;
+        for (const auto& p : s.processes->value) {
+            if (!p.cpu_pct) continue;
+            sum += *p.cpu_pct;
+            if (*p.cpu_pct > 100.0 * cpus * 1.05 + 5.0)
+                return p.info.name + " (pid " + std::to_string(p.info.pid) + ") shows more CPU than the machine's " +
+                       std::to_string(static_cast<int>(cpus)) + " logical CPUs can provide; per-process and host figures disagree";
+        }
+        // Processes together cannot be much busier than the host as a whole.
+        if (s.cpu && sum > s.cpu->value.busy_pct() * cpus * 1.25 + 25.0)
+            return "processes add up to " + std::to_string(static_cast<int>(sum)) + "% of one CPU while the host reports " +
+                   std::to_string(static_cast<int>(s.cpu->value.busy_pct() * cpus)) +
+                   "%; the host and per-process figures disagree";
+    }
+    if (s.memory && s.memory->value.available_bytes && *s.memory->value.available_bytes > s.memory->value.total_bytes)
+        return "available memory exceeds total memory";
+    return {};
+}
+
 }  // namespace
 
 std::string iso8601(WallTime t) {
@@ -114,6 +139,7 @@ ApiSettings settings_from(const agent::AgentConfig& c) {
     s.max_sessions = c.api_max_sessions;
     s.session_ttl = c.api_session_ttl;
     s.max_clients = c.api_max_clients;
+    s.max_clients_per_user = c.api_max_clients_per_user;
     s.request_timeout = c.api_request_timeout;
     s.rate_limit = c.api_rate_limit;
     return s;
@@ -134,6 +160,7 @@ DiagnosticApi::DiagnosticApi(std::shared_ptr<agent::AgentRuntime> rt, ApiSetting
               EngineConfig ec;
               ec.context_ttl = s.session_ttl;
               ec.experimental_prediction = false;  // predictions are never offered through the API
+              ec.track_instances = false;          // no API answer reads graph instances
               return ec;
           }()),
       sessions_(s.max_sessions, s.session_ttl) {}
@@ -149,7 +176,7 @@ HttpResponse DiagnosticApi::error_response(const ApiError& e, const std::string&
 }
 
 HttpResponse DiagnosticApi::handle(const HttpRequest& req, const PeerCredentials& peer, Access access,
-                                   const CancellationToken& cancel) {
+                                   const CancellationToken& cancel, SteadyTime deadline) {
     const std::string& rid = req.request_id;
     if (access == Access::none)
         return error_response(make(401, ErrorCode::unauthorized, "unknown_peer",
@@ -186,7 +213,7 @@ HttpResponse DiagnosticApi::handle(const HttpRequest& req, const PeerCredentials
     if (req.path == "/v1/capabilities") return capabilities(rid);
     if (req.path == "/v1/system/snapshot") return snapshot(req, peer, access, rid);
     if (req.path == "/v1/system/history") return history(req, peer, access, rid);
-    return diagnose(req, peer, access, rid, cancel);
+    return diagnose(req, peer, access, rid, cancel, deadline);
 }
 
 // ------------------------------------------------------------------ health ---
@@ -261,6 +288,13 @@ HttpResponse DiagnosticApi::capabilities(const std::string& rid) {
     const auto sup = rt_->supported();
     auto w = envelope(rid);
     w.kv("platform", rt_->platform() == Platform::linux_os ? "linux" : "macos");
+    // The server's own host decides: Linux is the supported service platform;
+    // on macOS the API is experimental (owner-only, isolation not evaluated).
+#if defined(__APPLE__)
+    w.kv("platform_support", "experimental");
+#else
+    w.kv("platform_support", "supported");
+#endif
     w.key("endpoints").begin_array();
     for (const char* e : {"GET /v1/health/live", "GET /v1/health/ready", "GET /v1/capabilities", "GET /v1/system/snapshot",
                           "GET /v1/system/history", "POST /v1/diagnose"})
@@ -289,6 +323,7 @@ HttpResponse DiagnosticApi::capabilities(const std::string& rid) {
         .kv("max_question_bytes", static_cast<std::uint64_t>(s_.max_question_bytes))
         .kv("request_timeout_ms", static_cast<std::int64_t>(s_.request_timeout.count()))
         .kv("max_concurrent_requests", static_cast<std::uint64_t>(s_.max_clients))
+        .kv("max_concurrent_requests_per_user", static_cast<std::uint64_t>(s_.max_clients_per_user))
         .kv("requests_per_second_per_user", static_cast<std::uint64_t>(s_.rate_limit))
         .kv("max_evidence_age_ms", static_cast<std::int64_t>(s_.max_evidence_age.count()))
         .kv("max_sessions", static_cast<std::uint64_t>(s_.max_sessions))
@@ -487,7 +522,8 @@ HttpResponse DiagnosticApi::history(const HttpRequest& req, const PeerCredential
 // ---------------------------------------------------------------- diagnose ---
 
 HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentials& peer, Access access,
-                                     const std::string& header_rid, const CancellationToken& cancel) {
+                                     const std::string& header_rid, const CancellationToken& cancel,
+                                     SteadyTime deadline) {
     std::string rid = header_rid;
     auto fail = [&](ApiError e) { return error_response(e, rid); };
     if (!req.content_type)
@@ -562,7 +598,17 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
     eo.visibility = s_.visibility;
     AgentEvidence ev(*rt_, eo);
     const auto refused_before = RefusingOs::refused_on_this_thread();
-    Answer a = engine_.ask(*question, session->context, ev, cancel);
+    const auto t_engine = std::chrono::steady_clock::now();
+    auto answered = engine_.ask_until(*question, session->context, ev, deadline, cancel);
+    const double engine_total_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_engine).count();
+    if (!answered) {
+        auto r = fail(make(503, ErrorCode::busy, "deadline_exceeded",
+                           "The request's deadline passed while other questions were being answered; retry.", true, 1));
+        r.engine_wait_ms = engine_total_ms;
+        return r;
+    }
+    Answer& a = *answered;
     const bool refused_on_demand = RefusingOs::refused_on_this_thread() != refused_before;
     const auto& rep = ev.report();
     const auto& f = a.frame;
@@ -617,20 +663,28 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
         lims.push_back({"permission_limited", std::to_string(used->processes_partial) +
                                                   " processes of other users are not readable by the agent"});
     if (access != Access::full) lims.push_back({"redacted", "executable paths of other users' processes are withheld"});
-    // A PID cannot be ambiguous: an unresolved PID target is a process that is not running.
-    const bool pid_not_running = f.target.kind == intent::TargetKind::pid && f.ambiguous && !action;
+    // The target process is not running (a PID with no process, or an earlier
+    // subject that exited or whose PID was reused): a definite answer.
+    const bool pid_not_running = a.target_not_running && !action;
     if (f.safety == intent::SafetyMode::past_event || pid_not_running)
         lims.push_back({"no_event_history", "OSIE keeps no record of past signals, exits or restarts; it reports current state"});
     if (f.intent == Intent::what_if)
         lims.push_back({"prediction_not_available", "numeric predictions are not offered through the API"});
     if (a.diagnosis)
         for (const auto& m : a.diagnosis->missing_evidence) lims.push_back({"missing_evidence", m});
+    const std::string inconsistent = used != nullptr ? inconsistency(*used) : std::string();
+    if (!inconsistent.empty()) lims.push_back({"inconsistent_evidence", inconsistent});
+    const bool history_short = !a.trends.empty() && std::all_of(a.trends.begin(), a.trends.end(), [](const auto& t) {
+        return t.second.direction == TrendDirection::insufficient_data;
+    });
+    if (history_short)
+        lims.push_back({"insufficient_history", "the agent's history is too short for a trend: " + a.trends.front().second.why});
 
     std::string status = "completed";
     if (action) status = "refused";
     else if (pid_not_running) status = "completed";
     else if (f.ambiguous && !f.clarification.empty()) status = "needs_clarification";
-    else if (!rep.missing.empty() || refused_on_demand) status = "partial";
+    else if (!rep.missing.empty() || refused_on_demand || !inconsistent.empty() || history_short) status = "partial";
 
     auto w = envelope(rid);
     w.kv("session_id", session_id).kv("status", status);
@@ -704,7 +758,10 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
     for (const auto& l : lims) w.begin_object().kv("code", l.code).kv("detail", l.detail).end_object();
     w.end_array();
     w.kv("action_executed", false);
-    return ok(w);
+    auto resp = ok(w);
+    resp.engine_ms = a.latency_ms;
+    resp.engine_wait_ms = std::max(0.0, engine_total_ms - a.latency_ms);
+    return resp;
 }
 
 }  // namespace osie::api
