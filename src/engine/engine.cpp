@@ -133,6 +133,7 @@ Resolution SessionContext::resolve(intent::IntentFrame& f, const SystemState& s,
                 res.subject = ref_of(*p);
                 return res;
             }
+            res.target_not_running = true;
             return fail("No running process has PID " + f.target.value + " (it may have exited).");
         }
         case TargetKind::process_name: {
@@ -188,6 +189,7 @@ Resolution SessionContext::resolve(intent::IntentFrame& f, const SystemState& s,
                                                      ? *r->start_time_us != *p->info.start_time_us
                                                      : p->info.name != r->name);
             if (p == nullptr || reused) {
+                res.target_not_running = true;
                 return fail(r->name + " (pid " + std::to_string(r->pid) + ") is no longer running" +
                             (reused ? " (that PID now belongs to " + p->info.name + ")." : "."));
             }
@@ -334,6 +336,13 @@ Answer Engine::ask(std::string_view utterance, SessionContext& session, Evidence
     return answer(utterance, session, evidence, cancel);
 }
 
+std::optional<Answer> Engine::ask_until(std::string_view utterance, SessionContext& session, EvidenceSource& evidence,
+                                        SteadyTime deadline, const CancellationToken& cancel) {
+    std::unique_lock lk(mu_, std::defer_lock);
+    if (!lk.try_lock_until(deadline)) return std::nullopt;
+    return answer(utterance, session, evidence, cancel);
+}
+
 Answer Engine::answer(std::string_view utterance, SessionContext& session, EvidenceSource& evidence,
                       const CancellationToken& cancel) {
     // The rendering helpers read the session and evidence of this question.
@@ -419,7 +428,7 @@ Answer Engine::answer(std::string_view utterance, SessionContext& session, Evide
                                   (a.frame.intent == Intent::cgroup_status || a.frame.intent == Intent::container_throttle);
         st = evidence.state(a.frame.observations, cgroup_focus, cancel, reused);
         // Instances in the architecture graph follow the state being explained.
-        if (st && st != graph_state_) {
+        if (cfg_.track_instances && st && st != graph_state_) {
             arch::update_instances(graph_, *st, os_->platform());
             graph_state_ = st;
         }
@@ -434,6 +443,7 @@ Answer Engine::answer(std::string_view utterance, SessionContext& session, Evide
         }
     }
     const auto& subject = res.subject;
+    a.target_not_running = res.target_not_running;
     a.frame.validation_errors = intent::validate(a.frame);
     a.reused_observations = reused;
     if (st) a.observation_age = std::chrono::duration_cast<Millis>(std::chrono::steady_clock::now() - st->taken_at);
@@ -1138,14 +1148,22 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
         std::sort(rows.begin(), rows.end(), [](const Row& x, const Row& y) {
             return x.t.late_mean - x.t.early_mean > y.t.late_mean - y.t.early_mean;
         });
-        if (pts.size() < 4 || t_of(*pts.back()) < span_min)
+        if (pts.size() < 4 || t_of(*pts.back()) < span_min) {
+            TrendResult none;
+            none.n = pts.size();
+            none.span_s = t_of(*pts.back());
+            none.why = std::to_string(pts.size()) + " samples over " + duration_text(none.span_s);
+            a.trends.emplace_back(std::string("processes: ") + (mem ? "memory" : "CPU"), none);
             return o + "Not enough history to tell which processes are growing (" + std::to_string(pts.size()) +
                    " samples over " + duration_text(t_of(*pts.back())) + "). " + how_to_record();
+        }
         o += std::string("Processes whose ") + (mem ? "memory" : "CPU use") + " increased over " +
              duration_text(t_of(*pts.back())) + " (" + std::to_string(pts.size()) + " samples):\n";
         if (rows.empty()) o += "  none showed a clear increase.\n";
         for (std::size_t i = 0; i < rows.size() && i < 5; ++i) {
             const auto& [r, t] = rows[i];
+            // The series behind each ranked line, for --json and the API.
+            a.trends.emplace_back(r.name + " (pid " + std::to_string(r.pid) + ") " + (mem ? "memory (MiB)" : "CPU (%)"), t);
             o += "  " + std::to_string(i + 1) + ". " + r.name + " (pid " + std::to_string(r.pid) + ")  " +
                  (mem ? fmt::num(t.early_mean, 0) + " -> " + fmt::num(t.late_mean, 0) + " MiB"
                       : fmt::pct(t.early_mean) + " -> " + fmt::pct(t.late_mean)) +
