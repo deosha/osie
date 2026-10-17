@@ -16,9 +16,13 @@
    observation kind to a registered capability, asks the policy and records
    the decision in the `AuditLog` (bounded ring buffer + optional JSON-lines
    file via `--audit FILE`). An unregistered observation is denied.
-4. **No shell.** OSIE never spawns processes (`ps`, `top`, `sysctl`, …) and
-   contains no `system()`/`popen()`/`exec*()` call. Verify with
-   `grep -rnE "system\(|popen|exec[lv]p?\(" src/` (no matches).
+4. **No shell.** OSIE never spawns processes to observe (`ps`, `top`,
+   `sysctl`, …) and contains no `system()`/`popen()` call. The one program
+   it starts is OpenSSH's `ssh`, for `osie remote` only, with a fixed
+   argument vector and never through a shell (see "Remote diagnostics over
+   SSH"). The agent starts nothing. Verify with
+   `grep -rnE "system\(|popen|exec[lv]p?e?\(|posix_spawn\(" src/`: the
+   only matches are in `src/remote/transport.cpp`.
 5. **No privilege escalation.** OSIE does not request root, entitlements,
    `task_for_pid`, `CAP_SYS_PTRACE` or TCC permissions. Data it cannot read is
    reported as unavailable (`Validity::partial` / `Errc::permission_denied`),
@@ -293,6 +297,87 @@ Limits of this design:
 - macOS runs the server, but its peer isolation has not been evaluated to
   the Linux standard. It is therefore experimental and owner-only there:
   `api_group` is refused.
+
+## Remote diagnostics over SSH (`osie remote`, client side)
+
+`osie remote` ([`REMOTE.md`](REMOTE.md)) reaches a remote agent's existing
+Unix socket through an OpenSSH Unix-socket forward. It adds no listener,
+remote helper, remote command, privileged helper or cryptography, and
+changes nothing on the agent.
+- **Authorization is unchanged.** The remote sshd session process connects
+  to the agent's socket as the SSH login user, with that user's kernel
+  credentials, uid and full supplementary groups. The agent applies its
+  normal policy: socket mode and group, tiers, redaction, per-uid sessions.
+  - Logging in as the agent's own user (or root) gives the full tier, the
+    same as locally.
+  - Group changes apply from the next SSH login. Each `osie remote`
+    command is a new login.
+  - Verified with real users against a real sshd (`remote_ssh_test.sh`):
+    - members get diagnoses;
+    - non-members cannot open the socket;
+    - with socket modes loosened by mistake, non-members get only the health
+      tier (the agent's 403 is passed through);
+    - session ids never cross users.
+- **Host authenticity.**
+  - `StrictHostKeyChecking=yes`, `UpdateHostKeys=no` and `CheckHostIP=no`:
+    an unknown or changed host key is a failure (`host_key_unknown`,
+    `host_key_mismatch`), never a prompt or an update.
+  - OSIE never writes `known_hosts` and handles no key material. Profiles
+    hold no secrets.
+- **No injection path.**
+  - `ssh` is started with a fixed argument vector (`posix_spawn` on macOS,
+    `fork`+`execve` on Linux), never through a shell.
+  - Forced options come first on the command line, so `ssh_config` cannot
+    override them.
+  - Every profile field is checked against a strict grammar: no leading
+    `-`, whitespace, quotes, `%`, `$`, `~` or metacharacters, and absolute
+    paths only. Fields are checked when written, when read and when the
+    argument vector is built.
+  - The destination follows `--`, and there is no way to pass `-o`.
+  - The question travels only in the HTTP body.
+  - Tested with injection strings in every field (`RemoteProfile.*`,
+    `RemoteSsh.*`).
+- **The local forwarding socket** is the one new filesystem object.
+  - It is created by OpenSSH with `StreamLocalBindMask=0177`, in a fresh
+    `mkdirat` directory (96 random bits, mode 0700, checked on its
+    descriptor). The directory's parent is validated by the descriptor-based
+    walk used for the agent's configuration.
+  - The path is restricted to characters that OpenSSH neither expands nor
+    splits.
+  - Before use, the socket must be a socket owned by the user. Its kernel
+    peer must be the user's uid and, where reported, the spawned `ssh`'s pid.
+  - It is removed on every exit, including `SIGINT`, `SIGTERM`, `SIGHUP` and
+    timeouts. Tests check that no directory, process, zombie or descriptor
+    is left.
+- **Replies are untrusted.**
+  - HTTP is tokenised by picohttpparser, framed by `Content-Length` only,
+    and bounded at 4 MiB.
+  - The JSON must be strict, carry `schema_version` and have no duplicate
+    keys.
+  - The parser is fuzzed (`osie_fuzz_remote`).
+  - `--json` writes the agent's body unchanged. Text mode reads only
+    `status`, `answer.text`, `limitations` and `error.*`.
+  - ssh's error output is bounded, and reduced to printable ASCII before it
+    is shown.
+- **Bounded.**
+  - One `ssh` per command.
+  - One deadline (default 15 s, at most 120 s) over every stage.
+  - `ssh`'s process group gets `SIGTERM`, then `SIGKILL`, and is always
+    reaped.
+- **Limits.**
+  - OpenSSH grants the Unix-socket channel through its local TCP forwarding
+    permission. With `AllowTcpForwarding no` or `PermitOpen none` the
+    forward is denied, so an administrator who enables `osie remote` for a
+    group also allows that group local TCP forwarding (`REMOTE.md`).
+  - `ClearAllForwardings` cannot be used, because it would clear OSIE's own
+    forward. The user's own `ssh_config` forwardings for the host are set
+    up during the command.
+  - On macOS, an `osie` killed by `SIGKILL` leaves its `ssh` until the
+    connection dies. On Linux, `PR_SET_PDEATHSIG` stops it.
+  - `OSIE_SSH` (a test hook) and `$PATH` choose the `ssh` binary. They are
+    the invoking user's own environment, and neither is consulted in a
+    set-id context.
+  - Evaluated with OpenSSH only.
 
 ## Privacy
 
