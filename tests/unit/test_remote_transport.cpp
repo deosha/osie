@@ -542,20 +542,29 @@ TEST(RemoteTransport, CancellationStopsPromptly) {
     int p[2];
     ASSERT_EQ(::pipe(p), 0);
     fx.opts.cancel_fd = p[0];
-    std::thread canceller([w = p[1]] {
-        std::this_thread::sleep_for(200ms);
+    // Cancel once the stand-in ssh has started (it starts slowly under sanitizers).
+    SClock::time_point cancelled_at{};
+    std::thread canceller([&, w = p[1]] {
+        const auto until = SClock::now() + 10s;
+        while (read_info(fx.info).count("pid") == 0 && SClock::now() < until) std::this_thread::sleep_for(10ms);
+        std::this_thread::sleep_for(100ms);
+        cancelled_at = SClock::now();
         (void)!::write(w, "x", 1);
     });
-    const auto t0 = SClock::now();
-    pid_t pid = -1;
+    std::optional<RemoteError> err;
     {
         auto t = SshTunnel::open(fx.profile, fx.opts);
-        ASSERT_FALSE(t.ok());
-        EXPECT_EQ(t.error().code, RemoteErrorCode::interrupted);
-        pid = std::stoi(read_info(fx.info).at("pid").at(0));
+        if (!t.ok()) err = t.error();
     }
+    const auto done = SClock::now();
     canceller.join();
-    EXPECT_LT((std::chrono::duration<double, std::milli>(SClock::now() - t0).count()), 200 + 300 + 700.0 * kSlow);
+    ASSERT_TRUE(err.has_value());
+    EXPECT_EQ(err->code, RemoteErrorCode::interrupted);
+    const auto info = read_info(fx.info);
+    ASSERT_EQ(info.count("pid"), 1u);
+    const pid_t pid = std::stoi(info.at("pid").at(0));
+    EXPECT_LT((std::chrono::duration<double, std::milli>(done - cancelled_at).count()), 300 + 500.0 * kSlow)
+        << "cancellation to cleaned up";
     fx.expect_clean(pid);
     ::close(p[0]);
     ::close(p[1]);
