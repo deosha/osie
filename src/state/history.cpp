@@ -17,11 +17,23 @@ std::string_view to_string(TrendDirection d) noexcept {
     return "?";
 }
 
-void StateHistory::record(const SystemState& s, const std::vector<std::pair<Pid, std::optional<std::uint64_t>>>& pinned) {
+std::string_view to_string(HistoryGap::Kind k) noexcept {
+    switch (k) {
+        case HistoryGap::Kind::collection_gap: return "collection_gap";
+        case HistoryGap::Kind::suspended_or_clock_change: return "suspended_or_clock_change";
+        case HistoryGap::Kind::before_first_point: return "before_first_point";
+        case HistoryGap::Kind::after_last_point: return "after_last_point";
+    }
+    return "?";
+}
+
+void StateHistory::record(const SystemState& s, const std::vector<std::pair<Pid, std::optional<std::uint64_t>>>& pinned,
+                          std::uint64_t seq) {
     if (!s.cpu && !s.memory && !s.processes) return;
     HistoryPoint p;
     p.at = s.taken_at;
     p.wall = std::chrono::system_clock::now();
+    p.seq = seq;
     if (s.cpu) p.cpu_busy_pct = s.cpu->value.busy_pct();
     if (s.memory) {
         p.mem_available_bytes = s.memory->value.available_bytes;
@@ -108,6 +120,74 @@ std::size_t StateHistory::approx_bytes() const {
         for (const auto& q : p.processes) n += q.name.capacity();
     }
     return n;
+}
+
+HistoryCoverage history_coverage(const StateHistory& h, SteadyTime now, WallTime now_wall,
+                                 std::optional<double> window_s, double gap_threshold_s) {
+    using std::chrono::duration;
+    using std::chrono::duration_cast;
+    HistoryCoverage c;
+    c.requested_s = window_s;
+    c.evaluated_at = now_wall;
+    c.gap_threshold_s = gap_threshold_s;
+    c.history_points = h.size();
+    c.capacity = h.config().capacity;
+    const auto& all = h.points();
+    if (!all.empty()) c.oldest = all.front().wall;
+    const auto wall_minus = [](WallTime t, double s) {
+        return t - duration_cast<WallTime::duration>(duration<double>(s));
+    };
+    if (window_s) c.window_start = wall_minus(now_wall, *window_s);
+    // Points are in time order, so those in the window are a suffix.
+    std::size_t begin = all.size();
+    while (begin > 0 && (!window_s || duration<double>(now - all[begin - 1].at).count() <= *window_s)) --begin;
+    c.points = all.size() - begin;
+    const auto add_gap = [&c](HistoryGap::Kind k, WallTime from, WallTime to, double secs) {
+        c.gaps.push_back(HistoryGap{k, from, to, secs});
+        c.unobserved_s += secs;
+    };
+    if (c.points == 0) {
+        if (window_s) {
+            add_gap(HistoryGap::Kind::before_first_point, *c.window_start, now_wall, *window_s);
+            c.coverage = 0.0;
+        }
+        return c;
+    }
+    const HistoryPoint& first = all[begin];
+    const HistoryPoint& last = all.back();
+    c.first = first.wall;
+    c.last = last.wall;
+    c.first_seq = first.seq;
+    c.last_seq = last.seq;
+    c.observed_span_s = duration<double>(last.at - first.at).count();
+    double suspended_s = 0;  // wall time not seen by the monotonic clock
+    if (window_s) {
+        const double lead = std::max(0.0, *window_s - duration<double>(now - first.at).count());
+        if (lead > gap_threshold_s) add_gap(HistoryGap::Kind::before_first_point, *c.window_start, first.wall, lead);
+    }
+    for (std::size_t i = begin; i + 1 < all.size(); ++i) {
+        const auto& a = all[i];
+        const auto& b = all[i + 1];
+        const double dm = duration<double>(b.at - a.at).count();
+        const double dw = duration<double>(b.wall - a.wall).count();
+        if (dm > gap_threshold_s) {
+            add_gap(HistoryGap::Kind::collection_gap, a.wall, b.wall, dm);
+        } else if (dw - dm > gap_threshold_s) {
+            add_gap(HistoryGap::Kind::suspended_or_clock_change, a.wall, b.wall, dw - dm);
+            suspended_s += dw - dm;
+        }
+    }
+    const double trail = std::max(0.0, duration<double>(now - last.at).count());
+    if (trail > gap_threshold_s) add_gap(HistoryGap::Kind::after_last_point, last.wall, now_wall, trail);
+    const double trail_wall = duration<double>(now_wall - last.wall).count();
+    if (trail_wall - trail > gap_threshold_s) {
+        add_gap(HistoryGap::Kind::suspended_or_clock_change, last.wall, now_wall, trail_wall - trail);
+        suspended_s += trail_wall - trail;
+    }
+    const double reference =
+        window_s ? *window_s : duration<double>(now - first.at).count() + suspended_s;
+    c.coverage = reference > 0 ? std::clamp(1.0 - c.unobserved_s / reference, 0.0, 1.0) : 1.0;
+    return c;
 }
 
 TrendResult analyse_trend(const Series& s, const TrendRule& rule) {
