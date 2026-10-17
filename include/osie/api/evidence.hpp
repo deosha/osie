@@ -82,6 +82,8 @@ struct EvidenceReport {
     std::optional<double> age_ms;
     std::uint64_t seq{0};
     std::optional<WallTime> collected_at;
+    SteadyTime checked_at{};                // when the snapshot's age was measured
+    std::optional<std::uint64_t> prev_seq;  // the previous snapshot, when rates were derived from it
     std::vector<ObservationKind> missing;  // needed but not in the snapshot
     std::string cgroup_note;               // how cgroup rates were obtained, or why not
 };
@@ -111,6 +113,25 @@ private:
     std::shared_ptr<const SystemState> used_;
     std::optional<StateHistory> hist_;
 };
+
+/// Where one evidence item of a diagnosis came from, resolved against the
+/// state the answer was built from. Contains no paths, arguments,
+/// environments or owners: `source` is the collector's static interface
+/// identifier, and `notes` come from a fixed vocabulary (docs/API.md).
+struct ItemProvenance {
+    std::string_view observation;           // observation kind, "" when none applies
+    std::optional<Validity> observation_validity;
+    std::optional<WallTime> sampled_at;     // when the collector read the source
+    std::optional<SteadyTime> sampled_mono;
+    std::optional<DerivationWindow> window;  // derived values: the two readings
+    std::optional<std::uint64_t> window_from_seq;  // the window starts in this earlier snapshot
+    std::vector<std::string_view> notes;
+};
+
+/// Resolves `e` (an item of a diagnosis built from `s`) to its observation.
+/// `subject`: the diagnosis's subject process, for items about "its cgroup".
+ItemProvenance provenance_of(const reason::Evidence& e, const SystemState& s, std::optional<Pid> subject,
+                             std::optional<std::uint64_t> prev_seq);
 
 /// Copies `cur`, filling each cgroup's window rates from the same cgroup in
 /// `prev` (the agent's previous collection): throttling over the interval

@@ -124,6 +124,16 @@
         "max_age_ms": {
           "type": "integer",
           "minimum": 0
+        },
+        "freshness": {
+          "enum": [
+            "fresh",
+            "stale"
+          ]
+        },
+        "previous_snapshot_seq": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -133,6 +143,9 @@
         "max_age_ms"
       ],
       "additionalProperties": false
+    },
+    "history_window": {
+      "$ref": "api_history.schema.json#/$defs/coverage"
     },
     "evidence": {
       "type": "array",
@@ -175,6 +188,102 @@
           },
           "description": {
             "type": "string"
+          },
+          "evidence_id": {
+            "type": "string",
+            "pattern": "^e[1-9][0-9]*$"
+          },
+          "snapshot_seq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "observation": {
+            "enum": [
+              "cpu_times",
+              "cpu_topology",
+              "load_average",
+              "memory",
+              "process_list",
+              "pressure_stall",
+              "filesystems",
+              "thermal_state",
+              "cgroup"
+            ]
+          },
+          "observation_validity": {
+            "enum": [
+              "valid",
+              "partial",
+              "stale",
+              "unavailable",
+              "derived"
+            ]
+          },
+          "sampled_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "age_ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "freshness": {
+            "enum": [
+              "fresh",
+              "stale"
+            ]
+          },
+          "window": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+              },
+              "end": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+              },
+              "seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "from_snapshot_seq": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "start",
+              "end",
+              "seconds"
+            ],
+            "additionalProperties": false
+          },
+          "quality_notes": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "observation_partial",
+                "process_list_incomplete",
+                "cumulative_not_rate",
+                "counter_reset",
+                "quota_changed",
+                "no_baseline",
+                "between_collections"
+              ]
+            }
           }
         },
         "required": [
@@ -296,6 +405,37 @@
           },
           "mann_kendall_z": {
             "type": "number"
+          },
+          "first_point_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "last_point_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "pid": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "start_time_us": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "running": {
+            "type": [
+              "boolean",
+              "null"
+            ]
           }
         },
         "additionalProperties": false
@@ -321,7 +461,9 @@
               "prediction_not_available",
               "missing_evidence",
               "inconsistent_evidence",
-              "insufficient_history"
+              "insufficient_history",
+              "not_observed",
+              "history_gap"
             ]
           },
           "detail": {

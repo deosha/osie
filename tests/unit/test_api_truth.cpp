@@ -157,12 +157,13 @@ struct Rig {
             if (i + 1 < n) std::this_thread::sleep_for(gap);
         }
     }
-    JsonValue ask(const std::string& question, uid_t uid = 0, Access a = Access::full, const std::string& session = "t") {
+    JsonValue ask(const std::string& question, uid_t uid = 0, Access a = Access::full, const std::string& session = "t",
+                  const std::string& extra = "") {
         HttpRequest r;
         r.method = "POST";
         r.path = "/v1/diagnose";
         r.content_type = "application/json";
-        r.body = "{\"question\":\"" + question + "\",\"session_id\":\"" + session + "\"}";
+        r.body = "{\"question\":\"" + question + "\",\"session_id\":\"" + session + "\"" + extra + "}";
         r.content_length = r.body.size();
         PeerCredentials p;
         p.known = true;
@@ -190,6 +191,54 @@ const JsonValue* evidence(const JsonValue& v, const std::string& signal) {
     return nullptr;
 }
 
+/// Provenance of every evidence item: an id unique in the response, the
+/// snapshot the answer used, a reading taken before that snapshot was
+/// published, and, for derived values other than cgroup lifetime ratios, the
+/// two readings they are the difference of.
+void expect_provenance(const JsonValue& v) {
+    if (!v.has("evidence")) return;
+    std::set<std::string> ids;
+    for (const auto& e : v["evidence"].arr()) {
+        const std::string sig = e["signal"].str();
+        ASSERT_TRUE(e.has("evidence_id")) << sig;
+        EXPECT_TRUE(ids.insert(e["evidence_id"].str()).second) << "duplicate id " << e["evidence_id"].str();
+        EXPECT_EQ(e["evidence_id"].str().find('/'), std::string::npos) << "ids carry no paths";
+        ASSERT_TRUE(v.has("observation")) << sig;
+        EXPECT_EQ(e["snapshot_seq"].num(), v["observation"]["snapshot_seq"].num()) << sig;
+        if (e.has("sampled_at") && e.has("observed_at"))
+            EXPECT_LE(e["sampled_at"].str(), e["observed_at"].str()) << sig << ": read after the snapshot was published?";
+        if (e.has("freshness")) {
+            EXPECT_EQ(e["freshness"].str(), "fresh") << sig;
+            EXPECT_LE(e["age_ms"].num(), v["observation"]["max_age_ms"].num()) << sig;
+        }
+        const bool cgroup = e.has("observation") && e["observation"].str() == "cgroup";
+        if (e["validity"].str() == "derived" && !cgroup && sig != "cpu_unattributed_cores") {
+            ASSERT_TRUE(e.has("window")) << sig << " is derived but has no window";
+        }
+        if (e.has("window")) {
+            EXPECT_GT(e["window"]["seconds"].num(), 0.0) << sig;
+            if (e["window"]["start"].is_string() && e["window"]["end"].is_string()) {
+                EXPECT_LT(e["window"]["start"].str(), e["window"]["end"].str()) << sig;
+                EXPECT_LE(e["window"]["end"].str(), e["observed_at"].str()) << sig;
+            }
+        }
+    }
+}
+
+const JsonValue* trend(const JsonValue& v, const std::string& contains) {
+    if (!v.has("trends")) return nullptr;
+    for (const auto& t : v["trends"].arr())
+        if (t["series"].str().find(contains) != std::string::npos) return &t;
+    return nullptr;
+}
+
+bool has_note(const JsonValue& e, const std::string& note) {
+    if (!e.has("quality_notes")) return false;
+    for (const auto& n : e["quality_notes"].arr())
+        if (n.str() == note) return true;
+    return false;
+}
+
 /// Structural truth checks shared by every answered diagnosis.
 void expect_well_founded(const Rig& rig, const JsonValue& v) {
     ASSERT_TRUE(v.has("status")) << rig.last.body;
@@ -208,6 +257,7 @@ void expect_well_founded(const Rig& rig, const JsonValue& v) {
     const auto collected = iso8601(rig.rt->snapshot()->wall);
     for (const auto& e : v["evidence"].arr())
         if (e.has("observed_at")) EXPECT_EQ(e["observed_at"].str(), collected);
+    expect_provenance(v);
 }
 
 bool near(double a, double b, double tol) { return std::abs(a - b) <= tol; }
@@ -234,6 +284,22 @@ TEST(ApiTruth, CpuSaturation) {
     EXPECT_TRUE(near((*ng)["value"].num(), 360.0, 40.0)) << (*ng)["value"].num();
     EXPECT_EQ(v["diagnosis"]["subject_pid"].num(), 100);
     EXPECT_FALSE(has_lim(v, "inconsistent_evidence"));
+    // Provenance: the host figure is a rate over the two CPU readings of the
+    // collection, at least the 100 ms sampling window apart.
+    EXPECT_EQ((*busy)["observation"].str(), "cpu_times");
+    EXPECT_EQ((*busy)["observation_validity"].str(), "derived");
+    EXPECT_EQ((*busy)["source"].str(), "mock.cpu");
+    ASSERT_TRUE(busy->has("window"));
+    EXPECT_GE((*busy)["window"]["seconds"].num(), 0.1);
+    EXPECT_LT((*busy)["window"]["seconds"].num(), 1.0);
+    EXPECT_FALSE((*busy)["window"].has("from_snapshot_seq")) << "within one collection";
+    ASSERT_TRUE(ng->has("window"));
+    EXPECT_EQ((*ng)["observation"].str(), "process_list");
+    EXPECT_GE((*ng)["window"]["seconds"].num(), 0.1);
+    EXPECT_EQ(v["observation"]["freshness"].str(), "fresh");
+    EXPECT_EQ(v["observation"]["snapshot_seq"].num(), static_cast<double>(rig.rt->snapshot()->seq));
+    EXPECT_FALSE(v.has("history_window")) << "not a temporal question";
+    EXPECT_EQ(rig.api->os().refused_calls(), 0U);
 }
 
 // 2. Host CPU available, container throttled by its quota.
@@ -254,13 +320,28 @@ TEST(ApiTruth, IdleHostWithAThrottledContainer) {
     EXPECT_EQ(text.find("saturated"), std::string::npos) << "the host is not saturated: " << text;
     EXPECT_TRUE(has_lim(v, "cgroup_rates", "between the agent's last two collections"));
     EXPECT_FALSE(has_lim(v, "cgroup_rates", " 0.0 s ")) << "the interval between collections is reported";
-    // interval_s is the interval the rate was computed over (between the
-    // agent's two collections), not the 100 ms sampling window of one.
+    // Provenance: a rate across the agent's last two collections, over the
+    // interval between the two reads of cpu.stat (one per collection, at the
+    // same point of each), with no extra read.
     const auto [cur, prev] = rig.rt->snapshots();
     ASSERT_TRUE(cur && prev);
+    EXPECT_EQ((*thr)["observation"].str(), "cgroup");
+    EXPECT_EQ((*thr)["validity"].str(), "derived");
+    ASSERT_TRUE(thr->has("window")) << rig.last.body.substr(0, 800);
+    EXPECT_EQ((*thr)["window"]["from_snapshot_seq"].num(), static_cast<double>(prev->seq));
+    EXPECT_EQ(v["observation"]["previous_snapshot_seq"].num(), static_cast<double>(prev->seq));
     const double between = std::chrono::duration<double>(cur->mono - prev->mono).count();
-    EXPECT_NEAR((*thr)["interval_s"].num(), between, 0.15) << "collections " << between << " s apart";
-    EXPECT_GE((*thr)["interval_s"].num(), 0.3) << "the test slept 300 ms between collections";
+    EXPECT_NEAR((*thr)["window"]["seconds"].num(), between, 0.15) << "collections " << between << " s apart";
+    EXPECT_GE((*thr)["window"]["seconds"].num(), 0.3) << "the test slept 300 ms between collections";
+    EXPECT_TRUE(has_note(*thr, "between_collections"));
+    EXPECT_FALSE(has_note(*thr, "cumulative_not_rate"));
+    // interval_s is the interval the rate was computed over, not the
+    // 100 ms sampling window of one collection.
+    EXPECT_NEAR((*thr)["interval_s"].num(), (*thr)["window"]["seconds"].num(), 0.05);
+    for (const auto& e : v["diagnosis"]["evidence"].arr())
+        if (e["id"].str() == "cgroup_throttled:/system.slice/nginx.service")
+            EXPECT_NEAR(e["interval_s"].num(), (*thr)["window"]["seconds"].num(), 0.05);
+    EXPECT_EQ(rig.api->os().refused_calls(), 0U);
 }
 
 // 3. Throttling counters reset (cgroup recreated) between collections.
@@ -280,6 +361,13 @@ TEST(ApiTruth, ThrottlingCountersResetIsNotARate) {
     EXPECT_TRUE(has_lim(v, "cgroup_rates", "backwards")) << rig.last.body.substr(0, 800);
     EXPECT_EQ(evidence(v, "cgroup_throttled_window:/system.slice/nginx.service"), nullptr);
     EXPECT_NE(v["answer"]["assessment"].str(), "cpu_quota_bound") << "no current-rate conclusion from a reset counter";
+    // The only figure left is the lifetime ratio, and it says so: never a rate.
+    if (const auto* thr = evidence(v, "cgroup_throttled:/system.slice/nginx.service")) {
+        EXPECT_NE((*thr)["validity"].str(), "derived");
+        EXPECT_FALSE(thr->has("window"));
+        EXPECT_TRUE(has_note(*thr, "counter_reset")) << rig.last.body.substr(0, 1500);
+        EXPECT_TRUE(has_note(*thr, "cumulative_not_rate"));
+    }
 }
 
 // 4. The container's CPU quota changes between collections.
@@ -298,17 +386,45 @@ TEST(ApiTruth, QuotaChangeIsNotARate) {
     expect_well_founded(rig, v);
     EXPECT_TRUE(has_lim(v, "cgroup_rates", "quota")) << rig.last.body.substr(0, 800);
     EXPECT_NE(v["answer"]["assessment"].str(), "cpu_quota_bound");
+    const auto* thr = evidence(v, "cgroup_throttled:/system.slice/nginx.service");
+    ASSERT_NE(thr, nullptr) << rig.last.body.substr(0, 800);
+    EXPECT_EQ((*thr)["validity"].str(), "valid");
+    EXPECT_FALSE(thr->has("window")) << "no rate across a quota change";
+    EXPECT_TRUE(has_note(*thr, "quota_changed"));
+    EXPECT_TRUE(has_note(*thr, "cumulative_not_rate"));
+    // The lifetime ratio is the scenario's throttled share of periods.
+    EXPECT_NEAR((*thr)["value"].num(), 0.4, 0.01);
 }
 
 // 5. A process's memory grows steadily: found by the agent's history.
+// With it, a process that grew and then exited, and whose PID was then
+// reused by a process of constant size: the exited one is reported as not
+// running, and the new holder of the PID is never stitched into its series.
 TEST(ApiTruth, ProcessMemoryGrowthFromHistory) {
     Scenario sc;
     sc.procs = {{100, "nginx", kAlice, 0.2, 200ULL << 20, 40ULL << 20}, {200, "postgres", kBob, 0.1, 2000ULL << 20}};
     auto c = cfg(Millis{50});
     c.interval = Millis{250};
     Rig rig(sc, c);
+    static constexpr std::uint64_t kLeakerStart = 7'000'000, kFreshStart = 9'000'000;
+    {
+        // pid 300: "leaker" grows 60 MiB/s from 100 MiB for 11 s and exits;
+        // then "fresh" (a new process, same PID) holds 80 MiB.
+        std::lock_guard lk(rig.mock->mu);
+        auto gen = rig.mock->proc_gen;
+        const auto t0 = Clock::now();
+        rig.mock->proc_gen = [gen, t0](int n) {
+            auto snap = gen(n);
+            const double t = std::chrono::duration<double>(Clock::now() - t0).count();
+            auto p = t < 11.0 ? owned(300, "leaker", kAlice, 0, (100ULL << 20) + static_cast<std::uint64_t>(t * (60 << 20)), "/x")
+                              : owned(300, "fresh", kAlice, 0, 80ULL << 20, "/x");
+            p.start_time_us = t < 11.0 ? kLeakerStart : kFreshStart;
+            snap.processes.push_back(p);
+            return snap;
+        };
+    }
     ASSERT_TRUE(rig.rt->start().ok());
-    std::this_thread::sleep_for(Millis{11'500});  // trends need >= 10 s of history
+    std::this_thread::sleep_for(Millis{13'000});  // trends need >= 10 s of history
     rig.rt->stop();
     auto v = rig.ask("which process is growing in memory?");
     expect_well_founded(rig, v);
@@ -318,9 +434,32 @@ TEST(ApiTruth, ProcessMemoryGrowthFromHistory) {
     for (const auto& t : v["trends"].arr()) {
         if (t["series"].str().find("nginx") != std::string::npos) nginx_up = t["direction"].str() == "increasing";
         if (t["series"].str().find("postgres") != std::string::npos) postgres_up = t["direction"].str() == "increasing";
+        EXPECT_EQ(t["series"].str().find("fresh"), std::string::npos) << "constant memory is not growth";
     }
     EXPECT_TRUE(nginx_up) << rig.last.body.substr(0, 900);
     EXPECT_FALSE(postgres_up) << "postgres is constant";
+    // Identity and liveness of each growing series.
+    const auto* ng = trend(v, "nginx");
+    ASSERT_NE(ng, nullptr);
+    EXPECT_EQ((*ng)["pid"].num(), 100);
+    EXPECT_TRUE((*ng)["running"].boolean());
+    const auto* lk = trend(v, "leaker");
+    ASSERT_NE(lk, nullptr) << rig.last.body.substr(0, 1500);
+    EXPECT_EQ((*lk)["direction"].str(), "increasing");
+    EXPECT_EQ((*lk)["pid"].num(), 300);
+    EXPECT_EQ((*lk)["start_time_us"].num(), static_cast<double>(kLeakerStart));
+    EXPECT_FALSE((*lk)["running"].boolean()) << "it exited; pid 300 now belongs to another process";
+    EXPECT_LT((*lk)["last_point_at"].str(), (*ng)["last_point_at"].str()) << "its series ends when it exited";
+    // The window: everything the agent recorded, continuously.
+    ASSERT_TRUE(v.has("history_window"));
+    const auto& hw = v["history_window"];
+    EXPECT_TRUE(hw["requested_s"].is_null());
+    EXPECT_EQ(hw["points"].num(), static_cast<double>(rig.rt->history_copy().size()));
+    EXPECT_GE(hw["observed_span_s"].num(), 10.0);
+    EXPECT_GE(hw["coverage"].num(), kMinHistoryCoverage) << rig.last.body.substr(0, 2000);
+    EXPECT_TRUE(hw["sufficient"].boolean());
+    EXPECT_FALSE(has_lim(v, "history_gap"));
+    EXPECT_EQ(rig.api->os().refused_calls(), 0U);
 }
 
 // 6 + 10. Memory pressure with incomplete telemetry (no PSI).
@@ -337,6 +476,14 @@ TEST(ApiTruth, MemoryPressureWithoutPsiStaysTentative) {
     EXPECT_NE(v["answer"]["certainty"].str(), "high") << "PSI, the direct stall measurement, is missing";
     EXPECT_TRUE(has_lim(v, "unsupported_on_platform", "pressure_stall"));
     for (const auto& e : v["evidence"].arr()) EXPECT_EQ(e["signal"].str().find("psi"), std::string::npos) << "no PSI evidence invented";
+    for (const auto& e : v["evidence"].arr())
+        if (e.has("observation")) EXPECT_NE(e["observation"].str(), "pressure_stall") << "no PSI provenance invented";
+    const auto* avail = evidence(v, "mem_available_share");
+    ASSERT_NE(avail, nullptr);
+    EXPECT_EQ((*avail)["observation"].str(), "memory");
+    EXPECT_EQ((*avail)["observation_validity"].str(), "valid");
+    EXPECT_FALSE(avail->has("window")) << "an instantaneous reading";
+    EXPECT_NEAR((*avail)["value"].num(), 300.0 / (16 * 1024), 1e-4);
     auto slow = rig.ask("why is my machine slow?");
     expect_well_founded(rig, slow);
     for (const auto& e : slow["evidence"].arr()) EXPECT_EQ(e["signal"].str().find("psi"), std::string::npos);
@@ -539,6 +686,196 @@ TEST(ApiTruth, ConcurrentDiagnosesNeverObserveTheOs) {
     EXPECT_GE(process_calls, 2 * static_cast<int>(h.collections));
     // And the API's engine never attempted an observation of its own.
     EXPECT_EQ(rig.api->os().refused_calls(), 0U) << "a diagnosis tried to observe the OS";
+}
+
+// ---------------------------------------------------------------------------
+// Freshness, historical windows and abstention (v0.3 Feature 4).
+
+// A stale snapshot is refused; an answer within the limit states the age of
+// its snapshot and of each reading, all within the limit.
+TEST(ApiTruth, StaleSnapshotAndPerItemFreshness) {
+    Scenario sc;
+    sc.busy = 0.5;
+    sc.procs = {{100, "nginx", kAlice, 1.0, 300ULL << 20}};
+    Rig rig(sc);
+    rig.collect();
+    std::this_thread::sleep_for(Millis{300});
+    auto stale = rig.ask("why is my CPU usage high?", 0, Access::full, "t", ",\"max_evidence_age_ms\":100");
+    EXPECT_EQ(rig.last.status, 503);
+    EXPECT_EQ(stale["error"]["code"].str(), "stale_evidence");
+    auto v = rig.ask("why is my CPU usage high?", 0, Access::full, "t", ",\"max_evidence_age_ms\":60000");
+    expect_well_founded(rig, v);
+    ASSERT_EQ(rig.last.status, 200);
+    const auto& ob = v["observation"];
+    EXPECT_GE(ob["age_ms"].num(), 300.0) << "the snapshot is at least as old as the pause";
+    EXPECT_EQ(ob["max_age_ms"].num(), 60000);
+    EXPECT_EQ(ob["freshness"].str(), "fresh");
+    ASSERT_FALSE(v["evidence"].arr().empty());
+    for (const auto& e : v["evidence"].arr()) {
+        if (!e.has("age_ms")) continue;
+        // A reading is taken before its snapshot is published, so it is at
+        // least as old as the snapshot.
+        EXPECT_GE(e["age_ms"].num() + 1.0, ob["age_ms"].num()) << e["signal"].str();
+        EXPECT_EQ(e["freshness"].str(), "fresh");
+    }
+    EXPECT_EQ(rig.api->os().refused_calls(), 0U);
+}
+
+// The agent stopped collecting for 1.5 s inside the window asked about.
+TEST(ApiTruth, HistoryGapIsReportedNotInterpolated) {
+    Scenario sc;
+    sc.procs = {{100, "nginx", kAlice, 0.2, 300ULL << 20}};
+    auto c = cfg(Millis{20});  // gap threshold: 2 x 250 ms + 20 ms = 0.52 s
+    Rig rig(sc, c);
+    rig.collect(6, Millis{100});
+    const auto pause = Millis{1500};
+    std::this_thread::sleep_for(pause);
+    rig.collect(6, Millis{100});
+    auto v = rig.ask("has cpu usage increased in the last 10 seconds?");
+    expect_well_founded(rig, v);
+    ASSERT_TRUE(v.has("history_window")) << rig.last.body.substr(0, 1500);
+    const auto& hw = v["history_window"];
+    EXPECT_EQ(hw["requested_s"].num(), 10);
+    EXPECT_EQ(hw["points"].num(), 12);
+    EXPECT_EQ(hw["first_snapshot_seq"].num(), 1);
+    EXPECT_EQ(hw["last_snapshot_seq"].num(), 12);
+    EXPECT_NEAR(hw["gap_threshold_s"].num(), 0.52, 1e-9);
+    int inner = 0;
+    double gap_s = 0;
+    for (const auto& g : hw["gaps"].arr())
+        if (g["kind"].str() == "collection_gap") {
+            ++inner;
+            gap_s = g["seconds"].num();
+        }
+    EXPECT_EQ(inner, 1) << rig.last.body.substr(0, 2000);
+    // Between the last point before the pause and the first after it: the
+    // pause plus one collection.
+    EXPECT_GE(gap_s, 1.5);
+    EXPECT_LT(gap_s, 1.5 + 1.0);
+    // 12 points over ~2.5 s of a 10 s window: far from sufficient.
+    EXPECT_LT(hw["coverage"].num(), kMinHistoryCoverage);
+    EXPECT_FALSE(hw["sufficient"].boolean());
+    EXPECT_EQ(v["status"].str(), "partial");
+    EXPECT_TRUE(has_lim(v, "history_gap", "nothing is interpolated"));
+    EXPECT_TRUE(has_lim(v, "insufficient_history", "of the requested 10 s"));
+    // The history endpoint lists the same gap, and ties points to snapshots.
+    HttpRequest r;
+    r.method = "GET";
+    r.path = "/v1/system/history";
+    r.query = "window_seconds=60";
+    PeerCredentials p;
+    p.known = true;
+    const auto h = JsonReader::parse(rig.api->handle(r, p, Access::full).body);
+    ASSERT_EQ(h["gaps"].arr().size(), 1U) << h["gaps"].arr().size();
+    EXPECT_EQ(h["gaps"][0]["kind"].str(), "collection_gap");
+    EXPECT_NEAR(h["gaps"][0]["seconds"].num(), gap_s, 1e-6);
+    ASSERT_EQ(h["points"].arr().size(), 12U);
+    for (std::size_t i = 0; i < 12; ++i) EXPECT_EQ(h["points"][i]["snapshot_seq"].num(), static_cast<double>(i + 1));
+    EXPECT_EQ(h["coverage"]["points"].num(), 12);
+    EXPECT_EQ(rig.api->os().refused_calls(), 0U);
+}
+
+// "In the last 10 minutes" when the agent has recorded a fraction of a second.
+TEST(ApiTruth, WindowLongerThanHistoryHeld) {
+    Scenario sc;
+    sc.procs = {{100, "nginx", kAlice, 0.2, 300ULL << 20}};
+    Rig rig(sc);
+    rig.collect(3, Millis{100});
+    auto v = rig.ask("has cpu usage increased in the last 10 minutes?");
+    expect_well_founded(rig, v);
+    ASSERT_TRUE(v.has("history_window")) << rig.last.body.substr(0, 1500);
+    const auto& hw = v["history_window"];
+    EXPECT_EQ(hw["requested_s"].num(), 600);
+    EXPECT_EQ(hw["points"].num(), 3);
+    EXPECT_LT(hw["observed_span_s"].num(), 5.0);
+    ASSERT_FALSE(hw["gaps"].arr().empty());
+    EXPECT_EQ(hw["gaps"][0]["kind"].str(), "before_first_point");
+    // Expected from the parameters: at most a few seconds of 600 s observed.
+    EXPECT_GT(hw["gaps"][0]["seconds"].num(), 590.0);
+    EXPECT_LT(hw["coverage"].num(), 0.02);
+    EXPECT_EQ(v["status"].str(), "partial");
+    EXPECT_TRUE(has_lim(v, "insufficient_history", "does not reach back that far")) << rig.last.body.substr(0, 2000);
+    for (const auto& t : v["trends"].arr()) EXPECT_EQ(t["direction"].str(), "insufficient_data");
+    EXPECT_EQ(rig.api->os().refused_calls(), 0U);
+}
+
+// A crash an hour ago that OSIE never observed: no event is reconstructed.
+TEST(ApiTruth, EventNeverObservedIsNotInvented) {
+    Scenario sc;
+    sc.procs = {{100, "nginx", kAlice, 0.2, 300ULL << 20}};
+    Rig rig(sc);
+    rig.collect();
+    auto v = rig.ask("why did nginx crash an hour ago?");
+    expect_well_founded(rig, v);
+    EXPECT_EQ(v["status"].str(), "partial") << rig.last.body.substr(0, 800);
+    EXPECT_TRUE(has_lim(v, "no_event_history", "past event"));
+    const std::string text = v["answer"]["text"].str();
+    for (const char* claim : {"crashed", "was killed", "OOM", "segfault"})
+        EXPECT_EQ(text.find(claim), std::string::npos) << "no crash is asserted: " << text;
+    for (const auto& f : v["diagnosis"]["findings"].arr())
+        EXPECT_EQ(f["text"].str().find("crash"), std::string::npos) << f["text"].str();
+    // Present-tense questions are not flagged.
+    auto now = rig.ask("why is nginx using so much CPU?");
+    EXPECT_FALSE(has_lim(now, "no_event_history"));
+    EXPECT_EQ(rig.api->os().refused_calls(), 0U);
+}
+
+// Application latency is not observed: CPU figures can neither show nor
+// explain it, and the answer says so instead of implying it.
+TEST(ApiTruth, ApplicationLatencyIsNotInferredFromCpu) {
+    Scenario sc;
+    sc.busy = 0.95;
+    sc.procs = {{100, "nginx", kAlice, 3.6, 300ULL << 20}};
+    Rig rig(sc);
+    rig.collect();
+    for (const char* q : {"is high CPU causing my application latency?", "why is nginx latency high?",
+                          "why are requests to my app slow?"}) {
+        auto v = rig.ask(q);
+        expect_well_founded(rig, v);
+        EXPECT_EQ(v["status"].str(), "partial") << q;
+        EXPECT_TRUE(has_lim(v, "not_observed", "application latency")) << q << ": " << rig.last.body.substr(0, 600);
+        if (v.has("diagnosis") && !v["diagnosis"].is_null())
+            for (const auto& f : v["diagnosis"]["findings"].arr()) {
+                EXPECT_EQ(f["text"].str().find("application latency"), std::string::npos) << q << ": " << f["text"].str();
+                EXPECT_EQ(f["text"].str().find("request"), std::string::npos) << q << ": " << f["text"].str();
+            }
+    }
+    // Questions about what OSIE observes are not flagged, nor is the OS's own
+    // scheduling latency.
+    for (const char* q : {"what is using the most CPU?", "why is my CPU usage high?", "what is scheduling latency?"}) {
+        auto v = rig.ask(q);
+        EXPECT_FALSE(has_lim(v, "not_observed")) << q;
+    }
+    EXPECT_EQ(rig.api->os().refused_calls(), 0U);
+}
+
+// Partial reads: an incomplete process list is flagged on the evidence
+// that came from it, and the collector's own validity is passed through.
+TEST(ApiTruth, PartialProcessListIsFlaggedOnItsEvidence) {
+    Scenario sc;
+    sc.busy = 0.6;
+    sc.procs = {{100, "nginx", kAlice, 2.0, 300ULL << 20}};
+    Rig rig(sc);
+    {
+        std::lock_guard lk(rig.mock->mu);
+        auto gen = rig.mock->proc_gen;
+        rig.mock->proc_gen = [gen](int n) {
+            auto snap = gen(n);
+            snap.partial_count = 7;  // seven processes could not be read
+            snap.vanished_count = 2;
+            return snap;
+        };
+    }
+    rig.collect();
+    auto v = rig.ask("what is using the most CPU?");
+    expect_well_founded(rig, v);
+    const auto* ng = evidence(v, "proc_cpu:100");
+    ASSERT_NE(ng, nullptr) << rig.last.body.substr(0, 800);
+    EXPECT_TRUE(has_note(*ng, "process_list_incomplete"));
+    EXPECT_TRUE(has_lim(v, "permission_limited", "7 processes"));
+    const auto* busy = evidence(v, "cpu_busy_pct");
+    ASSERT_NE(busy, nullptr);
+    EXPECT_FALSE(has_note(*busy, "process_list_incomplete")) << "the host figure does not come from the process list";
 }
 
 // Under hidepid, a restricted peer sees neither other users' processes nor
