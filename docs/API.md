@@ -109,7 +109,11 @@ The newest published snapshot:
 - process counts, and the top 10 processes by CPU and by memory;
 - the cgroups read;
 - which observation kinds are present, and why the others are missing (an
-  error code only: descriptions can contain file paths).
+  error code only: descriptions can contain file paths);
+- `provenance`: for each observation, the collector's interface (`source`),
+  its `validity`, when it was read (`sampled_at`) and, for derived values,
+  the `window` of the two readings they are the difference of. Each cgroup
+  also carries `sampled_at`.
 
 Each process is identified by `pid` and `start_time_us`, and carries `name`,
 `uid`, `cpu_pct`, `memory_bytes`, `threads`, and `path` where allowed (see
@@ -129,9 +133,18 @@ Rules:
 - Unknown, duplicate, out-of-range or percent-encoded parameters are
   refused (400).
 - Points are only those the agent recorded. A missing value is `null`.
-- Intervals longer than 2 × `interval` + `sample_window` between consecutive
-  points are listed in `gaps`. Nothing is interpolated.
+- Intervals longer than 2 × `interval` + `sample_window` (`gap_threshold_s`)
+  between consecutive points are listed in `gaps`. Nothing is interpolated.
+  Each gap has a `kind`: `collection_gap` (on the monotonic clock: the agent
+  was stopped, a collection overran, or collections failed) or
+  `suspended_or_clock_change` (on the wall clock only: the monotonic clock
+  does not advance while the machine is suspended).
 - `truncated` says whether `limit` cut the window.
+- Each point carries the `snapshot_seq` of the collection it was recorded
+  from.
+- `coverage` compares the requested window with what the history holds, over
+  all points in the window (not only the returned ones); see "Historical
+  diagnosis".
 
 ### Diagnose
 
@@ -154,7 +167,7 @@ Rules:
 - `max_evidence_age_ms` (1 to 3600000) can only tighten the server's limit,
   never relax it.
 - `include_evidence: false` omits `evidence`, `processes`, `trends` and
-  `diagnosis`.
+  `diagnosis` (`observation` and `history_window` stay).
 
 **What the server does.** It answers through the CLI's pipeline:
 1. the question goes through the safety router, frame validation and
@@ -180,21 +193,31 @@ Rules:
     diagnoses, and none is invented.
   - `text`: the CLI's answer text.
 - **`interpretation`:** intent, safety mode, target, temporal scope.
-- **`observation`:** the snapshot used, its collection time, its age and the
-  limit applied.
+- **`observation`:** the snapshot used, its collection time, its age, the
+  limit applied, and `freshness` (`fresh` or `stale` against that limit).
+  `previous_snapshot_seq` names the earlier snapshot when a rate was derived
+  across the agent's last two collections.
+- **`history_window`:** for temporal questions, the window asked for against
+  what the history holds (see "Historical diagnosis").
 - **`evidence`:** each item comes from the diagnosis's evidence. `value` is a
   value of the snapshot the answer used; a test checks this. `observed_at` is
-  that snapshot's collection time.
+  that snapshot's collection time. Each item also states its provenance
+  (see "Evidence provenance").
 - **`processes`:** the processes the answer refers to, with
   (pid, start time).
-- **`trends`:** for temporal questions.
+- **`trends`:** for temporal questions. Each series also gives its first and
+  last point (`first_point_at`, `last_point_at`), and a process series its
+  identity (`pid`, `start_time_us`) and `running`: whether that identity is in
+  the snapshot the answer used (`false`: it exited, or its PID now belongs to
+  another process; `null`: the snapshot has no process list).
 - **`diagnosis`:** the full structured diagnosis, as `osie ask --json` emits
   it.
 - **`limitations`:** each `{code, detail}`. The codes are
   `observation_not_collected`, `unsupported_on_platform`,
   `on_demand_observation_unavailable`, `cgroup_rates`, `permission_limited`,
   `redacted`, `no_event_history`, `prediction_not_available`,
-  `missing_evidence`, `inconsistent_evidence` and `insufficient_history`.
+  `missing_evidence`, `inconsistent_evidence`, `insufficient_history`,
+  `history_gap` and `not_observed`.
 - **`action_executed`:** always `false`.
 
 **Outcomes that are not answers** use the error envelope:
@@ -226,6 +249,25 @@ truth built from the scenario's physical parameters):
 - **Empty cgroups.** No cgroups in a snapshot is not reported as a
   collection failure unless reading them failed.
 
+- **History coverage.** A temporal answer whose history covers less than
+  80% of the window asked for (or, with no window, of the time since the
+  first point) is `partial`, with `insufficient_history` saying how much was
+  covered. Gaps inside the window are listed as `history_gap`.
+- **Too new to judge.** "Which process is growing?" names current processes
+  whose own samples are too few or too short for a trend, with an
+  `insufficient_data` trend each, instead of counting them as not growing;
+  the answer is then `partial` (`insufficient_history`).
+- **Unobserved quantities.** OSIE does not observe application latency,
+  response times, request rates, throughput or errors. A question about them
+  gets `not_observed`, and is `partial`: CPU, memory and pressure figures
+  can neither show nor explain them.
+- **Past events.** A question about a past crash, kill, exit or restart gets
+  `no_event_history` even when the parser reads it as a question about the
+  current state, and is `partial`: OSIE keeps no event log.
+
+The last two are lexical checks over the question's words. They only add a
+limitation; they never change the interpretation or the answer text.
+
 **Evidence is never synthesised.** Questions that need no observations (for
 example "what is memory compression?") are answered even when the snapshot
 is stale.
@@ -236,6 +278,62 @@ is stale.
   quotas, which is not in the snapshot. The answer says so
   (`on_demand_observation_unavailable`), and the status is `partial`.
 - **Numeric predictions** (`osie predict`) are not offered through the API.
+
+### Evidence provenance
+
+Every `evidence[]` item of an answer that used a snapshot carries, in
+addition to the fields above:
+
+| Field | Meaning |
+|---|---|
+| `evidence_id` | `e1`, `e2`, ... in order. Meaningful within this response only. It encodes no path, argument, environment or owner. |
+| `snapshot_seq` | the snapshot the value comes from (= `observation.snapshot_seq`) |
+| `observation` | the observation kind it was read from (`cpu_times`, `memory`, `process_list`, `cgroup`, ...) |
+| `observation_validity` | the collector's validity for that observation: `partial` when some of it could not be read (permission, races) |
+| `sampled_at` | when the collector read the source (before `observed_at`, the snapshot's publication) |
+| `age_ms`, `freshness` | the reading's age when the answer was built, and `fresh` or `stale` against `observation.max_age_ms` |
+| `window` | derived values (rates, deltas): `start` and `end` (the two readings), `seconds`, and `from_snapshot_seq` when the window starts in the previous snapshot |
+| `quality_notes` | codes: `observation_partial`, `process_list_incomplete` (some processes were unreadable or exited while being read), `cumulative_not_rate` (a lifetime ratio, not a rate), `counter_reset`, `quota_changed`, `no_baseline`, `between_collections` |
+
+`source` is the collector's static interface identifier (for example
+`procfs:/proc/stat`), never a per-process or per-user path. A derived value
+computed from counters that went backwards is never presented as a rate: no
+rate is computed, and what remains (for cgroups, the lifetime ratio) is
+marked `cumulative_not_rate` and `counter_reset`.
+
+The existing `signal` field (and `diagnosis.evidence[].id`) is unchanged
+for compatibility. For a few signals it names its subject:
+`cgroup_throttled:<cgroup path>` and `fs_full:<mount point>`. Restricted
+peers only see cgroups they are allowed to see (see SECURITY.md); use
+`evidence_id` for an identifier that carries no path.
+
+### Historical diagnosis
+
+The agent's history is bounded and in memory (AGENT.md). For a temporal
+question, `history_window` states:
+
+| Field | Meaning |
+|---|---|
+| `requested_s` | the window asked for ("in the last 10 minutes": 600), or `null` |
+| `evaluated_at`, `window_start` | the end and start of that window |
+| `points`, `first_point_at`, `last_point_at`, `first_snapshot_seq`, `last_snapshot_seq`, `observed_span_s` | what the history holds inside it |
+| `gap_threshold_s` | 2 × `interval` + `sample_window` |
+| `gaps`, `gaps_total` | `collection_gap` and `suspended_or_clock_change` between points, `before_first_point` (the history does not reach back that far) and `after_last_point`; at most 100 are listed |
+| `unobserved_s`, `coverage`, `sufficient` | time not covered, the covered share, and whether it reaches 0.8 |
+| `history_points`, `capacity`, `oldest_point_at` | the whole history |
+
+Points are selected as the engine selects them, on the monotonic clock.
+Nothing is interpolated. A suspend is detected from the wall clock, so
+after one, points from before it can fall inside a window by the monotonic
+clock; they then count as a `suspended_or_clock_change` gap, and the answer
+is `partial`. Computing coverage is O(points); trends stay
+O(points × top_k).
+
+History records no cgroups: cgroup rates come only from the last two
+collections, and are not computed across a counter reset (a recreated
+cgroup) or a quota change. A cgroup recreated under the same path whose
+counters have already passed their old values cannot be told apart without
+a cgroup id, which the agent does not read.
 
 ## Errors
 
@@ -437,8 +535,9 @@ same way, and they are left for a parser change with its own evaluation:
   question was read as being about now.
 - **Some past events read as current problems.** "Why did nginx crash an
   hour ago?" is read as a current slowness question, while "why was nginx
-  killed?" is recognised as a past event (`no_event_history`). OSIE keeps no
-  event history either way.
+  killed?" is recognised as a past event. The API flags both
+  (`no_event_history`, and the first is `partial`). OSIE keeps no event
+  history either way.
 - **Some growth questions routed to process information.** "Is nginx's
   memory increasing?" (with the possessive) and "which process's memory
   grew?" go to `process_info` rather than a trend. "Is nginx memory
@@ -452,12 +551,14 @@ same way, and they are left for a parser change with its own evaluation:
 | Test | What it covers |
 |---|---|
 | `ApiHttp.*`, `ApiJson.*` | framing and header policy, paths and queries, NUL bytes, oversize, strict JSON (UTF-8, surrogates, controls, duplicates, nesting, numbers) |
+| `ApiTruth.*` | ground-truth scenarios: saturation, throttling with an idle host, counter reset, quota change, memory growth with exit and PID reuse, missing PSI, stale snapshot, history gap, window longer than the history, past events, application latency, partial process lists, contradictions, hidepid; provenance of every evidence item |
 | `ApiEndpoints.*`, `ApiDiagnose.*` | every endpoint; readiness states; CPU, memory, process-targeted and throttling diagnoses; evidence values equal to snapshot values; no OS call for covered questions; unknown, unsupported and uncollected questions; stale and missing snapshots; process exit and PID reuse; actions and prompt injection; secrets; request validation |
 | `ApiAuthorization.*`, `ApiSessions.*` | tiers by identity whatever the question; redaction and hidepid; sessions isolated across users and ids, bounded and expiring |
 | `ApiConcurrency.*` | 100 concurrent diagnoses with live sampling and reconfiguration |
 | `ApiServer.*` (real socket) | disabled by default; every endpoint over the socket; 0600 and 0660 modes; unsafe directories, symlink and file at the path, stale and live sockets, one agent per directory, replacement at stop; hostile requests; slow clients and timeouts; admission when full; per-user rate limit; 100 concurrent clients; disconnects; stop with active, stalled and queued requests |
 | `ApiLinuxPeers.*` (Linux, root) | real other-uid peers: socket permissions, and credentials when permissions are wrong |
 | `tests/check_api_schemas.py` | a live agent's responses against the schemas |
+| `HistoryCoverage.*`, `HistoryIdentity.*` | coverage, gaps, suspend and windows against synthetic histories; reused PIDs never stitched into a series; processes too new to judge |
 | `osie_fuzz_api` | libFuzzer over HTTP parsing, routing, validation and diagnosis |
 | `packaging/agent/agent_systemd_test.sh` | under systemd: off by default, the `osie` group, socket and directory modes, root and member access, outsider refused, curl, no IP socket, stop with a stalled client, disabling again |
 
