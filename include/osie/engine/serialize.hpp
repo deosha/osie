@@ -12,6 +12,8 @@ namespace osie::serialize {
 
 /// One analysed series of a temporal answer.
 void write_trend(json::Writer& w, const std::string& label, const TrendResult& t);
+/// As above; `close` false leaves the object open for the caller to extend.
+void write_trend(json::Writer& w, const std::string& label, const TrendResult& t, bool close);
 
 /// One unavailable observation. `detailed`: include the error's full
 /// description (CLI); otherwise only its code, since descriptions can name

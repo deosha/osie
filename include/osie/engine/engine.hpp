@@ -76,6 +76,16 @@ struct Answer {
     double parse_ms{0};
     /// Temporal questions: the series that were analysed (label, result).
     std::vector<std::pair<std::string, TrendResult>> trends;
+    /// Where each series in `trends` came from (same order and length).
+    struct SeriesOrigin {
+        std::optional<ProcessRef> process;  // a process series: its identity
+        std::optional<WallTime> first, last;  // the first and last point with a value
+        std::uint64_t first_seq{0}, last_seq{0};
+    };
+    std::vector<SeriesOrigin> trend_origins;
+    /// Temporal questions: the time the history window was evaluated at.
+    std::optional<SteadyTime> history_evaluated_at;
+    std::optional<WallTime> history_evaluated_wall;
     /// See Resolution::target_not_running.
     bool target_not_running{false};
 };

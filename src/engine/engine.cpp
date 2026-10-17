@@ -9,6 +9,7 @@
 #include <map>
 #include <set>
 #include <thread>
+#include <tuple>
 
 #include "osie/architecture/model.hpp"
 #include "osie/util/format.hpp"
@@ -1042,9 +1043,25 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
     const auto& all = history.points();
     const double span_min = history.config().min_span_s;
     const auto now = std::chrono::steady_clock::now();
+    a.history_evaluated_at = now;
+    a.history_evaluated_wall = std::chrono::system_clock::now();
     std::vector<const HistoryPoint*> pts;
     for (const auto& p : all)
         if (!q.window_s || now - p.at <= std::chrono::seconds(*q.window_s)) pts.push_back(&p);
+    // Each analysed series, with where its points came from (for --json and the API).
+    using Origin = Answer::SeriesOrigin;
+    auto add_trend = [&a](std::string label, const TrendResult& t, Origin origin) {
+        a.trends.emplace_back(std::move(label), t);
+        a.trend_origins.push_back(std::move(origin));
+    };
+    auto note = [](Origin& org, const HistoryPoint& p) {
+        if (!org.first) {
+            org.first = p.wall;
+            org.first_seq = p.seq;
+        }
+        org.last = p.wall;
+        org.last_seq = p.seq;
+    };
 
     std::string o;
     const double recorded_s =
@@ -1061,23 +1078,35 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
     };
 
     // Series builders over the windowed points.
-    auto host_series = [&](TemporalMetric m) {
+    auto host_series = [&](TemporalMetric m, Origin* org = nullptr) {
         Series s;
         for (const auto* p : pts) {
+            const std::size_t before = s.size();
             if (m == TemporalMetric::cpu && p->cpu_busy_pct) s.emplace_back(t_of(*p), *p->cpu_busy_pct);
             if (m == TemporalMetric::memory && p->mem_available_bytes && p->mem_total_bytes && *p->mem_total_bytes > 0)
                 s.emplace_back(t_of(*p), 100.0 * (1.0 - static_cast<double>(*p->mem_available_bytes) /
                                                             static_cast<double>(*p->mem_total_bytes)));
+            if (org != nullptr && s.size() != before) note(*org, *p);
         }
         return s;
     };
-    auto proc_series = [&](const ProcessRef& r, bool mem) {
+    // A point belongs to the process only if its identity matches: (pid,
+    // start time), or, where a start time is missing on either side, the
+    // pid and the name. A reused PID is never stitched into the series.
+    auto same_process = [](const ProcessRef& r, const ProcessPoint& pp) {
+        if (pp.pid != r.pid) return false;
+        if (r.start_time_us && pp.start_time_us) return *r.start_time_us == *pp.start_time_us;
+        return pp.name == r.name;
+    };
+    auto proc_series = [&](const ProcessRef& r, bool mem, Origin* org = nullptr) {
         Series s;
         for (const auto* p : pts)
             for (const auto& pp : p->processes)
-                if (pp.pid == r.pid && (!r.start_time_us || !pp.start_time_us || *r.start_time_us == *pp.start_time_us)) {
+                if (same_process(r, pp)) {
+                    const std::size_t before = s.size();
                     if (mem && pp.memory_bytes) s.emplace_back(t_of(*p), static_cast<double>(*pp.memory_bytes) / (1 << 20));
                     if (!mem && pp.cpu_pct) s.emplace_back(t_of(*p), *pp.cpu_pct);
+                    if (org != nullptr && s.size() != before) note(*org, *p);
                 }
         return s;
     };
@@ -1131,19 +1160,25 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
     // ---- which process has been growing? ----------------------------------
     if (q.rank_processes) {
         const bool mem = a.frame.intent == Intent::top_memory;
-        std::map<std::pair<Pid, std::uint64_t>, ProcessRef> ids;
+        // Keyed by identity: (pid, start time), and the name where the start
+        // time is unknown, so that a reused PID is a separate process.
+        std::map<std::tuple<Pid, std::uint64_t, std::string>, ProcessRef> ids;
         for (const auto* p : pts)
             for (const auto& pp : p->processes)
-                ids.emplace(std::make_pair(pp.pid, pp.start_time_us.value_or(0)), ProcessRef{pp.pid, pp.start_time_us, pp.name});
+                ids.emplace(std::make_tuple(pp.pid, pp.start_time_us.value_or(0), pp.start_time_us ? std::string() : pp.name),
+                            ProcessRef{pp.pid, pp.start_time_us, pp.name});
         struct Row {
             ProcessRef r;
             TrendResult t;
+            Origin origin;
         };
         std::vector<Row> rows;
         for (const auto& [_, r] : ids) {
             TrendRule rule = mem ? TrendRule{4, span_min, 16.0, 1.96} : TrendRule{4, span_min, 5.0, 1.96};
-            auto t = analyse_trend(proc_series(r, mem), rule);
-            if (t.direction == TrendDirection::increasing) rows.push_back({r, t});
+            Origin org;
+            org.process = r;
+            auto t = analyse_trend(proc_series(r, mem, &org), rule);
+            if (t.direction == TrendDirection::increasing) rows.push_back({r, t, std::move(org)});
         }
         std::sort(rows.begin(), rows.end(), [](const Row& x, const Row& y) {
             return x.t.late_mean - x.t.early_mean > y.t.late_mean - y.t.early_mean;
@@ -1153,7 +1188,10 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
             none.n = pts.size();
             none.span_s = t_of(*pts.back());
             none.why = std::to_string(pts.size()) + " samples over " + duration_text(none.span_s);
-            a.trends.emplace_back(std::string("processes: ") + (mem ? "memory" : "CPU"), none);
+            Origin org;
+            note(org, *pts.front());
+            note(org, *pts.back());
+            add_trend(std::string("processes: ") + (mem ? "memory" : "CPU"), none, std::move(org));
             return o + "Not enough history to tell which processes are growing (" + std::to_string(pts.size()) +
                    " samples over " + duration_text(t_of(*pts.back())) + "). " + how_to_record();
         }
@@ -1161,9 +1199,9 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
              duration_text(t_of(*pts.back())) + " (" + std::to_string(pts.size()) + " samples):\n";
         if (rows.empty()) o += "  none showed a clear increase.\n";
         for (std::size_t i = 0; i < rows.size() && i < 5; ++i) {
-            const auto& [r, t] = rows[i];
+            const auto& [r, t, origin] = rows[i];
             // The series behind each ranked line, for --json and the API.
-            a.trends.emplace_back(r.name + " (pid " + std::to_string(r.pid) + ") " + (mem ? "memory (MiB)" : "CPU (%)"), t);
+            add_trend(r.name + " (pid " + std::to_string(r.pid) + ") " + (mem ? "memory (MiB)" : "CPU (%)"), t, origin);
             o += "  " + std::to_string(i + 1) + ". " + r.name + " (pid " + std::to_string(r.pid) + ")  " +
                  (mem ? fmt::num(t.early_mean, 0) + " -> " + fmt::num(t.late_mean, 0) + " MiB"
                       : fmt::pct(t.early_mean) + " -> " + fmt::pct(t.late_mean)) +
@@ -1176,21 +1214,31 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
 
     // ---- trend / recovery for one process or the whole machine -------------
     std::vector<std::pair<SeriesSpec, Series>> series;
+    std::vector<Origin> origins;
     if (res.subject) {
         const bool mem = a.frame.intent == Intent::process_memory;
         const auto& r = *res.subject;
         SeriesSpec sp{r.name + " (pid " + std::to_string(r.pid) + ") " + (mem ? "memory" : "CPU"), mem ? " MiB" : "%",
                       mem ? TrendRule{4, span_min, 16.0, 1.96} : TrendRule{4, span_min, 5.0, 1.96}};
-        series.emplace_back(sp, proc_series(r, mem));
+        Origin org;
+        org.process = r;
+        series.emplace_back(sp, proc_series(r, mem, &org));
+        origins.push_back(std::move(org));
     } else {
-        if (q.metric != TemporalMetric::memory && q.metric != TemporalMetric::memory_pressure)
-            series.emplace_back(cpu_spec, host_series(TemporalMetric::cpu));
-        if (q.metric != TemporalMetric::cpu) series.emplace_back(mem_spec, host_series(TemporalMetric::memory));
+        if (q.metric != TemporalMetric::memory && q.metric != TemporalMetric::memory_pressure) {
+            origins.emplace_back();
+            series.emplace_back(cpu_spec, host_series(TemporalMetric::cpu, &origins.back()));
+        }
+        if (q.metric != TemporalMetric::cpu) {
+            origins.emplace_back();
+            series.emplace_back(mem_spec, host_series(TemporalMetric::memory, &origins.back()));
+        }
     }
     bool insufficient = false;
-    for (auto& [sp, s] : series) {
+    for (std::size_t si = 0; si < series.size(); ++si) {
+        auto& [sp, s] = series[si];
         auto t = analyse_trend(s, sp.rule);
-        a.trends.emplace_back(sp.label, t);
+        add_trend(sp.label, t, origins[si]);
         insufficient |= t.direction == TrendDirection::insufficient_data;
         if (q.kind == TemporalKind::recovery && t.direction != TrendDirection::insufficient_data) {
             // Recovering = the latest values are clearly below the peak and
