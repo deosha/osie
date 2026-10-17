@@ -1,0 +1,6 @@
+HTTP/1.0 503 Service Unavailable
+content-type: application/json; charset=utf-8
+content-length: 44
+Retry-After: 1
+
+{"schema_version":"1.0","status":"starting"}

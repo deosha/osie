@@ -1,0 +1,6 @@
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+Content-Length: 148
+Connection: close
+
+{"schema_version":"1.0","error":{"code":"forbidden","reason":"diagnostics_not_permitted","message":"No.","retryable":false},"action_executed":false}

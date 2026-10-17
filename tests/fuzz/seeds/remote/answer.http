@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: 119
+Cache-Control: no-store
+Connection: close
+
+{"schema_version":"1.0","status":"completed","answer":{"text":"ok\n"},"limitations":[{"code":"redacted","detail":"x"}]}
