@@ -12,8 +12,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <map>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -56,8 +54,8 @@ struct JsonNode {
     enum class Kind : std::uint8_t { null, boolean, number, string, array, object } kind{Kind::null};
     bool b{false};
     std::string text;  // string: decoded value; number: source text
-    std::vector<JsonNode> items;                               // array
-    std::vector<std::pair<std::string, JsonNode>> members;     // object, in source order
+    std::vector<JsonNode> items;     // array elements, or object member values
+    std::vector<std::string> keys;   // object: member names, parallel to items, in source order
 
     /// First member named `k`, or nullptr (also when this is not an object).
     [[nodiscard]] const JsonNode* get(std::string_view k) const;

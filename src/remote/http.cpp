@@ -86,7 +86,8 @@ private:
             ++i_;
             JsonNode child;
             if (!value(child, depth + 1)) return false;
-            v.members.emplace_back(std::move(k), std::move(child));
+            v.keys.push_back(std::move(k));
+            v.items.push_back(std::move(child));
             ws();
             if (i_ >= t_.size()) return false;
             if (t_[i_] == ',') { ++i_; continue; }
@@ -242,8 +243,8 @@ bool target_value_ok(std::string_view v, bool digits_only) {
 
 const JsonNode* JsonNode::get(std::string_view k) const {
     if (kind != Kind::object) return nullptr;
-    for (const auto& [name, v] : members)
-        if (name == k) return &v;
+    for (std::size_t i = 0; i < keys.size() && i < items.size(); ++i)
+        if (keys[i] == k) return &items[i];
     return nullptr;
 }
 
