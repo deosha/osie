@@ -3,7 +3,10 @@
 # `osie remote` against a real OpenSSH server and a real osie-agent, with real
 # OS users (Linux, as root, on a disposable machine or CI runner).
 #
-#   sudo tests/platform/remote_ssh_test.sh BUILD_DIR
+#   sudo tests/platform/remote_ssh_test.sh BUILD_DIR [--bench OUT_DIR]
+#
+# With --bench, tests/platform/remote_ssh_bench.py also runs after the
+# scenarios and appends its measurements to OUT_DIR/remote_bench.jsonl.
 #
 # Needs: sshd, ssh, ssh-keygen (openssh-server, openssh-client), ss
 # (iproute2), python3. Starts a private sshd on 127.0.0.1:2222 with its own
@@ -15,7 +18,10 @@
 # Everything it creates is removed on exit.
 set -uo pipefail
 
-BUILD=${1:?usage: remote_ssh_test.sh BUILD_DIR}
+BUILD=${1:?usage: remote_ssh_test.sh BUILD_DIR [--bench OUT_DIR]}
+BENCH_OUT=""
+[ "${2:-}" = --bench ] && BENCH_OUT=${3:?--bench needs OUT_DIR}
+HERE=$(cd "$(dirname "$0")" && pwd)
 [ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 2; }
 for t in sshd ssh ssh-keygen ss python3 runuser setpriv pgrep; do
   command -v "$t" >/dev/null || [ -x "/usr/sbin/$t" ] || { echo "missing $t" >&2; exit 2; }
@@ -336,6 +342,13 @@ echo "== no OSIE TCP listener"
 check "no TCP or UDP listener belongs to osie or osie-agent" sh -c "! ss -ltunpH | grep -q osie"
 check "osie-agent has no IP socket at all" sh -c "! ss -tunapH | grep -q 'pid=$AGENT_PID,'"
 check "nothing left behind by any test" leftovers
+
+if [ -n "$BENCH_OUT" ]; then
+  echo "== benchmarks"
+  mkdir -p "$BENCH_OUT"
+  python3 "$HERE/remote_ssh_bench.py" "$OSIE" osie-alice /home/osie-alice "$SOCK" "$BENCH_OUT" || bad "benchmark run"
+  check "nothing left behind by the benchmarks" leftovers
+fi
 
 echo
 echo "remote_ssh_test: $PASS passed, $FAIL failed"
