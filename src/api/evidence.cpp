@@ -69,8 +69,10 @@ std::shared_ptr<const SystemState> AgentEvidence::state(const std::vector<Observ
     }
     if (!cgroup_focus && !o_.redact_for) return used_ = cur->state;  // shared, immutable
     auto copy = std::make_shared<SystemState>(*cur->state);
-    if (cgroup_focus) r_.cgroup_note = derive_cgroup_rates(*copy, prev && prev->state ? prev->state.get() : nullptr);
+    // Redacted first, so that nothing derived below (the cgroup note and its
+    // per-cgroup details) can name what the peer may not see.
     if (o_.redact_for) redact(*copy, *o_.redact_for, o_.visibility);
+    if (cgroup_focus) r_.cgroup_note = derive_cgroup_rates(*copy, prev && prev->state ? prev->state.get() : nullptr);
     return used_ = std::move(copy);
 }
 

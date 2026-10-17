@@ -142,12 +142,13 @@ agent::AgentConfig cfg(Millis window = Millis{100}) {
 }
 
 struct Rig {
-    explicit Rig(const Scenario& sc, agent::AgentConfig c = cfg()) {
+    explicit Rig(const Scenario& sc, agent::AgentConfig c = cfg(), ProcVisibility vis = ProcVisibility::all) {
         auto os = sc.build();
         mock = os.get();
         rt = std::make_shared<agent::AgentRuntime>(std::move(os), c);
         ApiSettings s;
         s.max_evidence_age = Millis{600'000};
+        s.visibility = vis;
         api = std::make_unique<DiagnosticApi>(rt, s);
     }
     void collect(int n = 2, Millis gap = Millis{120}) {
@@ -531,4 +532,58 @@ TEST(ApiTruth, ConcurrentDiagnosesNeverObserveTheOs) {
     EXPECT_GE(process_calls, 2 * static_cast<int>(h.collections));
     // And the API's engine never attempted an observation of its own.
     EXPECT_EQ(rig.api->os().refused_calls(), 0U) << "a diagnosis tried to observe the OS";
+}
+
+// Under hidepid, a restricted peer sees neither other users' processes nor
+// their cgroups: a cgroup path names its owner and service. Without hidepid
+// cgroup paths stay visible, as /proc/<pid>/cgroup is world-readable.
+TEST(ApiTruth, HiddenUsersCgroupsAreWithheldUnderHidepid) {
+    const std::string secret = "/user.slice/user-1001.slice/user@1001.service/app.slice/secretsvc.service";
+    const std::string own = "/user.slice/user-1000.slice/user@1000.service/app.slice/web.service";
+    Scenario sc;
+    sc.busy = 0.3;
+    sc.procs = {{100, "web", kAlice, 0.4, 300ULL << 20, 0, own}, {200, "secretsvc", kBob, 0.5, 400ULL << 20, 0, secret}};
+    Cgroup hidden{secret, 0.5, 0.4, 0.5};
+    sc.cgroups = {{own, 0.5, 0.3, 0.4}, hidden};
+    auto get = [](Rig& rig, uid_t uid, Access a, const std::string& path) {
+        HttpRequest r;
+        r.method = "GET";
+        r.path = path;
+        PeerCredentials p;
+        p.known = true;
+        p.uid = uid;
+        return rig.api->handle(r, p, a).body;
+    };
+    {
+        Rig rig(sc, cfg(), ProcVisibility::own_only);
+        rig.collect(1);
+        std::this_thread::sleep_for(Millis{200});
+        // The hidden cgroup's quota changes, so a note about it (which would
+        // name it) is derived between the two collections.
+        *hidden.quota_changed = true;
+        rig.collect(1);
+        for (const char* q : {"is a container being CPU-throttled?", "which cgroup is constrained?", "why is my machine slow?",
+                              "why is my CPU usage high?"}) {
+            auto v = rig.ask(q, kAlice, Access::diagnostics);
+            expect_well_founded(rig, v);
+            for (const char* leak : {"user-1001", "secretsvc", "user@1001"})
+                EXPECT_EQ(rig.last.body.find(leak), std::string::npos) << q << " leaks " << leak << ": " << rig.last.body.substr(0, 1500);
+        }
+        auto own_q = rig.ask("is a container being CPU-throttled?", kAlice, Access::diagnostics);
+        EXPECT_NE(rig.last.body.find("web.service"), std::string::npos) << "the peer's own cgroup stays visible";
+        const auto snap = get(rig, kAlice, Access::diagnostics, "/v1/system/snapshot");
+        EXPECT_EQ(snap.find("secretsvc"), std::string::npos) << snap.substr(0, 1500);
+        EXPECT_NE(snap.find("web.service"), std::string::npos);
+        // The agent's own (full) view is unchanged.
+        const auto full = get(rig, 0, Access::full, "/v1/system/snapshot");
+        EXPECT_NE(full.find("secretsvc"), std::string::npos);
+        EXPECT_EQ(rig.api->os().refused_calls(), 0U);
+    }
+    {
+        *hidden.quota_changed = false;
+        Rig rig(sc);  // no hidepid
+        rig.collect(2, Millis{200});
+        const auto snap = get(rig, kAlice, Access::diagnostics, "/v1/system/snapshot");
+        EXPECT_NE(snap.find("secretsvc"), std::string::npos) << "world-readable without hidepid";
+    }
 }
