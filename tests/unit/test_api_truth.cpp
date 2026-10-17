@@ -254,6 +254,13 @@ TEST(ApiTruth, IdleHostWithAThrottledContainer) {
     EXPECT_EQ(text.find("saturated"), std::string::npos) << "the host is not saturated: " << text;
     EXPECT_TRUE(has_lim(v, "cgroup_rates", "between the agent's last two collections"));
     EXPECT_FALSE(has_lim(v, "cgroup_rates", " 0.0 s ")) << "the interval between collections is reported";
+    // interval_s is the interval the rate was computed over (between the
+    // agent's two collections), not the 100 ms sampling window of one.
+    const auto [cur, prev] = rig.rt->snapshots();
+    ASSERT_TRUE(cur && prev);
+    const double between = std::chrono::duration<double>(cur->mono - prev->mono).count();
+    EXPECT_NEAR((*thr)["interval_s"].num(), between, 0.15) << "collections " << between << " s apart";
+    EXPECT_GE((*thr)["interval_s"].num(), 0.3) << "the test slept 300 ms between collections";
 }
 
 // 3. Throttling counters reset (cgroup recreated) between collections.

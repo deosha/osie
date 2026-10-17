@@ -938,7 +938,15 @@ void annotate_evidence(Diagnosis& d, const SystemState& s) {
             e.unit = "bytes";
         else if (head.find("load") != std::string::npos) e.unit = "runnable tasks (exponentially averaged)";
         else if (head.find("tasks") != std::string::npos || head.find("count") != std::string::npos) e.unit = "count";
-        if (e.validity == Validity::derived) e.interval_s = window;
+        if (e.validity == Validity::derived) {
+            e.interval_s = window;
+            // A cgroup rate spans its own window: between two reads of
+            // cpu.stat, which (in the agent) are a collection apart, not the
+            // sampling window.
+            if (head == "cgroup_throttled")
+                for (const auto& cg : s.cgroups)
+                    if (cg.info.path == tail && cg.window_s) e.interval_s = *cg.window_s;
+        }
         e.age_ms = age;
         e.permission_limited = e.validity == Validity::partial ||
                                (head.rfind("proc_", 0) != 0 && head == "cpu_unattributed_cores" && s.processes_partial > 0);
