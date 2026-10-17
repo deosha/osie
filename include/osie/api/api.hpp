@@ -41,6 +41,9 @@ struct ApiSettings {
 
 /// The automatic evidence age limit: 2 x interval + sample window + 2 s.
 Millis automatic_max_evidence_age(const agent::AgentConfig& c);
+/// Consecutive history points further apart than this are a gap:
+/// 2 x interval + sample window, in seconds.
+double history_gap_threshold_s(const agent::AgentConfig& c);
 /// ApiSettings from the agent configuration.
 ApiSettings settings_from(const agent::AgentConfig& c);
 

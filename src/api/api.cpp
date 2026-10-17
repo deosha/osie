@@ -115,6 +115,124 @@ std::string inconsistency(const SystemState& s) {
     return {};
 }
 
+/// Lower-case words of a question ([a-z0-9]+ runs).
+std::vector<std::string> words_of(std::string_view q) {
+    std::vector<std::string> out;
+    std::string cur;
+    for (char ch : q) {
+        const auto c = static_cast<unsigned char>(ch);
+        if (std::isalnum(c) && c < 0x80) {
+            cur.push_back(static_cast<char>(std::tolower(c)));
+        } else if (!cur.empty()) {
+            out.push_back(std::move(cur));
+            cur.clear();
+        }
+    }
+    if (!cur.empty()) out.push_back(std::move(cur));
+    return out;
+}
+
+bool has_word(const std::vector<std::string>& w, std::initializer_list<std::string_view> set) {
+    return std::any_of(w.begin(), w.end(), [&](const std::string& x) {
+        return std::find(set.begin(), set.end(), x) != set.end();
+    });
+}
+
+bool has_pair(const std::vector<std::string>& w, std::string_view a, std::initializer_list<std::string_view> b) {
+    for (std::size_t i = 0; i + 1 < w.size(); ++i)
+        if (w[i] == a && std::find(b.begin(), b.end(), w[i + 1]) != b.end()) return true;
+    return false;
+}
+
+/// The question asks about something OSIE does not observe: application
+/// latency, response times, request rates, throughput or errors. A lexical
+/// check over the requester's own words; it only adds a limitation and never
+/// changes the interpretation or the answer text. Scheduling latency (an OS
+/// mechanism) is not counted.
+bool asks_unobserved(const std::vector<std::string>& w) {
+    for (std::size_t i = 0; i < w.size(); ++i) {
+        if (w[i] != "latency" && w[i] != "latencies") continue;
+        if (i == 0 || (w[i - 1] != "scheduling" && w[i - 1] != "scheduler" && w[i - 1] != "wakeup")) return true;
+    }
+    return has_word(w, {"throughput", "timeout", "timeouts", "qps", "rps", "p50", "p90", "p95", "p99", "request", "requests"}) ||
+           has_pair(w, "response", {"time", "times"}) || has_pair(w, "error", {"rate", "rates"});
+}
+
+/// The question refers to a past event (a crash, kill, exit or restart).
+/// OSIE keeps no event log, so the answer can only describe current state.
+/// Lexical, as above: it only adds a limitation.
+bool asks_past_event(const std::vector<std::string>& w) {
+    if (has_word(w, {"crashed", "died", "killed", "restarted", "rebooted", "segfaulted", "disappeared", "exited"}))
+        return true;
+    if (has_pair(w, "went", {"down", "away"})) return true;
+    const auto did = std::find(w.begin(), w.end(), "did");
+    return did != w.end() &&
+           std::any_of(did + 1, w.end(), [](const std::string& x) {
+               return x == "crash" || x == "die" || x == "restart" || x == "reboot" || x == "exit" || x == "disappear" ||
+                      x == "segfault" || x == "fail";
+           });
+}
+
+void iso_or_null(json::Writer& w, std::string_view k, std::optional<WallTime> t) {
+    w.key(k);
+    if (t && *t != WallTime{}) w.value(iso8601(*t));
+    else w.null();
+}
+
+void seq_or_null(json::Writer& w, std::string_view k, std::uint64_t seq) {
+    w.key(k);
+    if (seq != 0) w.value(seq);
+    else w.null();
+}
+
+void write_window(json::Writer& w, const DerivationWindow& d, std::optional<std::uint64_t> from_seq) {
+    w.key("window").begin_object();
+    iso_or_null(w, "start", d.start);
+    iso_or_null(w, "end", d.end);
+    num(w, "seconds", d.seconds());
+    if (from_seq) w.kv("from_snapshot_seq", *from_seq);
+    w.end_object();
+}
+
+constexpr std::size_t kMaxListedGaps = 100;
+
+/// The window a temporal answer or a history query covers (docs/API.md,
+/// "Historical diagnosis").
+void write_coverage(json::Writer& w, const HistoryCoverage& c) {
+    w.begin_object();
+    num(w, "requested_s", c.requested_s);
+    w.kv("evaluated_at", iso8601(c.evaluated_at));
+    iso_or_null(w, "window_start", c.window_start);
+    w.kv("points", static_cast<std::uint64_t>(c.points));
+    iso_or_null(w, "first_point_at", c.first);
+    iso_or_null(w, "last_point_at", c.last);
+    seq_or_null(w, "first_snapshot_seq", c.first_seq);
+    seq_or_null(w, "last_snapshot_seq", c.last_seq);
+    num(w, "observed_span_s", c.observed_span_s);
+    num(w, "gap_threshold_s", c.gap_threshold_s);
+    w.key("gaps").begin_array();
+    for (std::size_t i = 0; i < c.gaps.size() && i < kMaxListedGaps; ++i) {
+        const auto& g = c.gaps[i];
+        w.begin_object().kv("kind", to_string(g.kind)).kv("from", iso8601(g.from)).kv("to", iso8601(g.to));
+        num(w, "seconds", g.seconds);
+        w.end_object();
+    }
+    w.end_array();
+    w.kv("gaps_total", static_cast<std::uint64_t>(c.gaps.size()));
+    num(w, "unobserved_s", c.unobserved_s);
+    num(w, "coverage", c.coverage);
+    w.kv("sufficient", c.coverage.has_value() && *c.coverage >= kMinHistoryCoverage);
+    w.kv("history_points", static_cast<std::uint64_t>(c.history_points)).kv("capacity", static_cast<std::uint64_t>(c.capacity));
+    iso_or_null(w, "oldest_point_at", c.oldest);
+    w.end_object();
+}
+
+std::string secs_text(double s) {
+    char b[48];
+    std::snprintf(b, sizeof b, s < 10 ? "%.1f s" : "%.0f s", s);
+    return b;
+}
+
 }  // namespace
 
 std::string iso8601(WallTime t) {
@@ -130,6 +248,10 @@ std::string iso8601(WallTime t) {
 
 Millis automatic_max_evidence_age(const agent::AgentConfig& c) {
     return c.interval * 2 + c.sample_window + Millis{2000};
+}
+
+double history_gap_threshold_s(const agent::AgentConfig& c) {
+    return std::chrono::duration<double>(c.interval * 2 + c.sample_window).count();
 }
 
 ApiSettings settings_from(const agent::AgentConfig& c) {
@@ -423,6 +545,7 @@ HttpResponse DiagnosticApi::snapshot(const HttpRequest&, const PeerCredentials& 
         num(w, "lifetime_throttled_ratio", c.lifetime_throttled_ratio);
         w.key("memory_current_bytes").value(c.info.memory_current);
         w.key("memory_max_bytes").value(c.info.memory_max);
+        if (c.read_mono != SteadyTime{}) w.kv("sampled_at", iso8601(c.read_wall));
         w.end_object();
     }
     w.end_array();
@@ -432,6 +555,28 @@ HttpResponse DiagnosticApi::snapshot(const HttpRequest&, const PeerCredentials& 
     w.end_array().key("unavailable").begin_array();
     for (const auto& u : s.unavailable) serialize::write_unavailable(w, u, false);
     w.end_array().end_object();
+    // Where each observation came from: the collector's static interface
+    // identifier, its validity, when it was read and, for derived values,
+    // the two readings they are the difference of.
+    w.key("provenance").begin_array();
+    auto prov = [&w](std::string_view kind, const Provenance& p, const std::optional<DerivationWindow>& win) {
+        w.begin_object().kv("kind", kind).kv("source", p.source).kv("validity", to_string(p.validity))
+            .kv("sampled_at", iso8601(p.wall));
+        if (win) write_window(w, *win, std::nullopt);
+        w.end_object();
+    };
+    if (s.system) prov("system_info", s.system->prov, std::nullopt);
+    if (s.topology) prov("cpu_topology", s.topology->prov, std::nullopt);
+    if (s.cpu) prov("cpu_times", s.cpu->prov, s.cpu_window);
+    if (s.load) prov("load_average", s.load->prov, std::nullopt);
+    if (s.memory) prov("memory", s.memory->prov, std::nullopt);
+    if (s.memory_rates) prov("memory_rates", s.memory_rates->prov, s.memory_rates_window);
+    if (s.processes) prov("process_list", s.processes->prov, s.process_window);
+    if (s.psi) prov("pressure_stall", s.psi->prov, std::nullopt);
+    if (s.filesystems) prov("filesystems", s.filesystems->prov, std::nullopt);
+    if (s.net) prov("network_interfaces", s.net->prov, std::nullopt);
+    if (s.power) prov("thermal_state", s.power->prov, std::nullopt);
+    w.end_array();
     if (access != Access::full) w.kv("redacted", "executable paths of other users' processes are withheld");
     return ok(w);
 }
@@ -477,6 +622,7 @@ HttpResponse DiagnosticApi::history(const HttpRequest& req, const PeerCredential
     const auto hist = rt_->history_copy();
     const auto cfg = rt_->config();
     const auto now = std::chrono::steady_clock::now();
+    const auto now_wall = std::chrono::system_clock::now();
     std::vector<const HistoryPoint*> in_window;
     for (const auto& p : hist.points())
         if (now - p.at <= std::chrono::seconds(window_s)) in_window.push_back(&p);
@@ -494,6 +640,7 @@ HttpResponse DiagnosticApi::history(const HttpRequest& req, const PeerCredential
         const auto& p = **it;
         w.begin_object().kv("t", iso8601(p.wall));
         num(w, "age_s", std::chrono::duration<double>(now - p.at).count());
+        if (p.seq != 0) w.kv("snapshot_seq", p.seq);
         if (want("cpu_busy_pct")) num(w, "cpu_busy_pct", p.cpu_busy_pct);
         if (want("mem_available_bytes")) w.key("mem_available_bytes").value(p.mem_available_bytes);
         if (want("mem_total_bytes")) w.key("mem_total_bytes").value(p.mem_total_bytes);
@@ -508,14 +655,27 @@ HttpResponse DiagnosticApi::history(const HttpRequest& req, const PeerCredential
     }
     w.end_array();
     // Gaps are reported, never filled: consecutive points further apart than
-    // two intervals plus the sampling window.
-    const double gap_s = std::chrono::duration<double>(cfg.interval * 2 + cfg.sample_window).count();
+    // two intervals plus the sampling window, on the monotonic clock (the
+    // agent stopped, overran or failed to collect) or on the wall clock only
+    // (the machine was suspended, or the clock was changed).
+    const double gap_s = history_gap_threshold_s(cfg);
     w.key("gaps").begin_array();
     for (auto it = first; it != in_window.end() && it + 1 != in_window.end(); ++it) {
-        const double dt = std::chrono::duration<double>((*(it + 1))->at - (*it)->at).count();
-        if (dt > gap_s) w.begin_object().kv("from", iso8601((*it)->wall)).kv("to", iso8601((*(it + 1))->wall)).kv("seconds", dt).end_object();
+        const auto& a = **it;
+        const auto& b = **(it + 1);
+        const double dt = std::chrono::duration<double>(b.at - a.at).count();
+        const double dw = std::chrono::duration<double>(b.wall - a.wall).count();
+        if (dt > gap_s)
+            w.begin_object().kv("from", iso8601(a.wall)).kv("to", iso8601(b.wall)).kv("seconds", dt)
+                .kv("kind", to_string(HistoryGap::Kind::collection_gap)).end_object();
+        else if (dw - dt > gap_s)
+            w.begin_object().kv("from", iso8601(a.wall)).kv("to", iso8601(b.wall)).kv("seconds", dw - dt)
+                .kv("kind", to_string(HistoryGap::Kind::suspended_or_clock_change)).end_object();
     }
     w.end_array();
+    w.kv("gap_threshold_s", gap_s);
+    w.key("coverage");
+    write_coverage(w, history_coverage(hist, now, now_wall, static_cast<double>(window_s), gap_s));
     return ok(w);
 }
 
@@ -679,12 +839,71 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
     });
     if (history_short)
         lims.push_back({"insufficient_history", "the agent's history is too short for a trend: " + a.trends.front().second.why});
+    // Some current processes could not be judged (too new): the ranking is incomplete.
+    const bool ranking_incomplete = !history_short && a.too_new_to_judge > 0;
+    if (ranking_incomplete)
+        lims.push_back({"insufficient_history", std::to_string(a.too_new_to_judge) +
+                                                    " current processes have too little history of their own to judge "
+                                                    "whether they are growing; see the insufficient_data trends"});
+    // Temporal answers: the window asked for against what the history holds.
+    std::optional<HistoryCoverage> coverage;
+    bool coverage_short = false;
+    if (f.temporal && a.history_evaluated_at && a.history_evaluated_wall && !action) {
+        coverage = history_coverage(ev.history(), *a.history_evaluated_at, *a.history_evaluated_wall, f.temporal->window_s,
+                                    history_gap_threshold_s(rt_->config()));
+        const auto& c = *coverage;
+        coverage_short = c.coverage && *c.coverage < kMinHistoryCoverage;
+        if (coverage_short) {
+            std::string d = c.requested_s ? "the agent's history covers " + std::to_string(static_cast<int>(std::lround(100 * *c.coverage))) +
+                                                "% of the requested " + secs_text(*c.requested_s)
+                                          : "the agent's history covers " + std::to_string(static_cast<int>(std::lround(100 * *c.coverage))) +
+                                                "% of the time since its first point";
+            d += " (" + std::to_string(c.points) + " points over " + secs_text(c.observed_span_s) + ", " +
+                 secs_text(c.unobserved_s) + " unobserved)";
+            if (c.history_points >= c.capacity && c.capacity > 0)
+                d += "; older points were discarded at the history's capacity of " + std::to_string(c.capacity);
+            else if (c.requested_s && !c.gaps.empty() && c.gaps.front().kind == HistoryGap::Kind::before_first_point)
+                d += "; the history does not reach back that far";
+            lims.push_back({"insufficient_history", d});
+        }
+        std::size_t listed = 0, inner = 0;
+        for (const auto& g : c.gaps) {
+            if (g.kind != HistoryGap::Kind::collection_gap && g.kind != HistoryGap::Kind::suspended_or_clock_change) continue;
+            ++inner;
+            if (listed == 5) continue;
+            ++listed;
+            lims.push_back({"history_gap", "no points from " + iso8601(g.from) + " to " + iso8601(g.to) + " (" + secs_text(g.seconds) +
+                                               (g.kind == HistoryGap::Kind::collection_gap
+                                                    ? "): the agent was stopped, a collection overran, or collections failed"
+                                                    : "): the machine was suspended or its clock was changed") +
+                                               "; nothing is interpolated"});
+        }
+        if (inner > listed)
+            lims.push_back({"history_gap", std::to_string(inner - listed) + " more gaps in the window (see history_window)"});
+    }
+    // What the question asks about but OSIE cannot observe, and past events
+    // OSIE keeps no record of. Lexical checks over the requester's words that
+    // only add limitations.
+    const bool answers_state = !action && f.intent != Intent::explain_concept && f.intent != Intent::help;
+    const auto qwords = words_of(*question);
+    const bool unobserved = answers_state && asks_unobserved(qwords);
+    if (unobserved)
+        lims.push_back({"not_observed",
+                        "application latency, response times, request rates, throughput and errors are not observed by "
+                        "OSIE: CPU, memory and pressure figures can neither show whether they are affected nor explain them"});
+    const bool past_event_words = answers_state && !pid_not_running && f.safety != intent::SafetyMode::past_event &&
+                                  asks_past_event(qwords);
+    if (past_event_words)
+        lims.push_back({"no_event_history", "the question refers to a past event; OSIE keeps no record of past crashes, "
+                                            "signals, exits or restarts, so this answer describes the current state only"});
 
     std::string status = "completed";
     if (action) status = "refused";
     else if (pid_not_running) status = "completed";
     else if (f.ambiguous && !f.clarification.empty()) status = "needs_clarification";
-    else if (!rep.missing.empty() || refused_on_demand || !inconsistent.empty() || history_short) status = "partial";
+    else if (!rep.missing.empty() || refused_on_demand || !inconsistent.empty() || history_short || ranking_incomplete || coverage_short ||
+             unobserved || past_event_words)
+        status = "partial";
 
     auto w = envelope(rid);
     w.kv("session_id", session_id).kv("status", status);
@@ -716,11 +935,19 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
     if (rep.consulted && rep.collected_at) {
         w.key("observation").begin_object().kv("snapshot_seq", rep.seq).kv("collected_at", iso8601(*rep.collected_at));
         num(w, "age_ms", rep.age_ms);
-        w.kv("max_age_ms", static_cast<std::int64_t>(max_age.count())).end_object();
+        w.kv("max_age_ms", static_cast<std::int64_t>(max_age.count()));
+        w.kv("freshness", rep.age_ms && *rep.age_ms <= static_cast<double>(max_age.count()) ? "fresh" : "stale");
+        if (rep.prev_seq) w.kv("previous_snapshot_seq", *rep.prev_seq);
+        w.end_object();
+    }
+    if (coverage) {
+        w.key("history_window");
+        write_coverage(w, *coverage);
     }
     if (include_evidence) {
         w.key("evidence").begin_array();
         if (a.diagnosis) {
+            std::size_t n = 0;
             for (const auto& e : a.diagnosis->evidence) {
                 w.begin_object().kv("signal", e.id).kv("source", e.source);
                 if (!e.scope.empty()) w.kv("scope", e.scope);
@@ -730,7 +957,29 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
                 if (e.interval_s) num(w, "interval_s", e.interval_s);
                 if (rep.collected_at) w.kv("observed_at", iso8601(*rep.collected_at));
                 if (e.permission_limited) w.kv("permission_limited", true);
-                w.kv("description", e.text).end_object();
+                w.kv("description", e.text);
+                // Provenance (additive): an id meaningful within this response
+                // only, the snapshot, and the observation behind the value.
+                w.kv("evidence_id", "e" + std::to_string(++n));
+                if (used != nullptr) {
+                    w.kv("snapshot_seq", rep.seq);
+                    const auto ip = provenance_of(e, *used, a.diagnosis->subject_pid, rep.prev_seq);
+                    if (!ip.observation.empty()) w.kv("observation", ip.observation);
+                    if (ip.observation_validity) w.kv("observation_validity", to_string(*ip.observation_validity));
+                    if (ip.sampled_at) w.kv("sampled_at", iso8601(*ip.sampled_at));
+                    if (ip.sampled_mono) {
+                        const double age = std::chrono::duration<double, std::milli>(rep.checked_at - *ip.sampled_mono).count();
+                        num(w, "age_ms", std::max(0.0, age));
+                        w.kv("freshness", age <= static_cast<double>(max_age.count()) ? "fresh" : "stale");
+                    }
+                    if (ip.window) write_window(w, *ip.window, ip.window_from_seq);
+                    if (!ip.notes.empty()) {
+                        w.key("quality_notes").begin_array();
+                        for (auto q : ip.notes) w.value(q);
+                        w.end_array();
+                    }
+                }
+                w.end_object();
             }
         }
         w.end_array();
@@ -747,7 +996,35 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
         w.end_array();
         if (!a.trends.empty()) {
             w.key("trends").begin_array();
-            for (const auto& [label, t] : a.trends) serialize::write_trend(w, label, t);
+            for (std::size_t i = 0; i < a.trends.size(); ++i) {
+                const auto& [label, t] = a.trends[i];
+                const Answer::SeriesOrigin* org = i < a.trend_origins.size() ? &a.trend_origins[i] : nullptr;
+                serialize::write_trend(w, label, t, false);
+                if (org != nullptr) {
+                    iso_or_null(w, "first_point_at", org->first);
+                    iso_or_null(w, "last_point_at", org->last);
+                    if (org->process) {
+                        // Identity is (pid, start time). "running" is whether that
+                        // identity is in the snapshot the answer used (not merely
+                        // in the history's top-k): false means it exited, or its
+                        // PID now belongs to another process.
+                        w.kv("pid", static_cast<std::int64_t>(org->process->pid));
+                        w.key("start_time_us").value(org->process->start_time_us);
+                        w.key("running");
+                        if (used != nullptr && used->processes) {
+                            const auto* pv = used->find_pid(org->process->pid);
+                            const bool same = pv != nullptr &&
+                                              (org->process->start_time_us && pv->info.start_time_us
+                                                   ? *org->process->start_time_us == *pv->info.start_time_us
+                                                   : pv->info.name == org->process->name);
+                            w.value(same);
+                        } else {
+                            w.null();
+                        }
+                    }
+                }
+                w.end_object();
+            }
             w.end_array();
         }
         w.key("diagnosis");

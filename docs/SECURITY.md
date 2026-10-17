@@ -307,6 +307,15 @@ History of process names and resource use is held **in memory only**:
 - Beyond the sample taken to answer each question, periodic recording happens
   only with the explicit `--watch` option, or in the opt-in `osie-agent`. The
   agent also keeps its history in memory only, bounded by `history_capacity`.
+- History points and evidence provenance carry no paths, arguments,
+  environments or owners. Provenance `source` values are the collectors'
+  static interface names, and `evidence_id` values are per-response ordinals.
+- For diagnostics-tier peers, redaction happens before reasoning and applies
+  to every field. Under `hidepid`, other users' processes are removed, and so
+  is every cgroup that holds none of the peer's own processes (a cgroup path
+  names its owner and service), together with any note derived from it.
+  Without `hidepid`, other users' cgroup paths stay visible, like their
+  process names: `/proc/<pid>/cgroup` is world-readable.
 
 ## Reporting a vulnerability
 

@@ -321,6 +321,7 @@ SystemState StateSampler::sample(const SampleRequest& req, const CancellationTok
             Provenance pv = c1->prov;
             pv.validity = Validity::derived;
             st.cpu = Observation<CpuUtilization>{*u, pv};
+            st.cpu_window = DerivationWindow::between(c0->prov, c1->prov);
         } else {
             note_fail(K::cpu_times, make_error(Errc::unavailable, "CPU counters went backwards (reset or hotplug)"));
         }
@@ -336,6 +337,7 @@ SystemState StateSampler::sample(const SampleRequest& req, const CancellationTok
         Provenance pv = m1->prov;
         pv.validity = Validity::derived;
         st.memory_rates = Observation<MemoryRates>{derive_memory_rates(m0->value, m1->value, secs(m0->prov, m1->prov)), pv};
+        st.memory_rates_window = DerivationWindow::between(m0->prov, m1->prov);
     }
     if (m1) st.memory = std::move(m1);
     if (p1) {
@@ -346,6 +348,7 @@ SystemState StateSampler::sample(const SampleRequest& req, const CancellationTok
         st.processes_vanished = p1->value.vanished_count + (p0 ? p0->value.vanished_count : 0);
         Provenance pv = p1->prov;
         if (p0 && pv.validity == Validity::valid) pv.validity = Validity::derived;
+        if (p0) st.process_window = DerivationWindow::between(p0->prov, p1->prov);
         st.processes = Observation<std::vector<ProcessView>>{std::move(views), pv};
     }
     if (n0 && n1) {
@@ -382,8 +385,11 @@ SystemState StateSampler::sample(const SampleRequest& req, const CancellationTok
                     cv.info = own_cg0->value;
                     derive_cgroup_window(cv, r->value,
                                          std::max(1e-3, std::chrono::duration<double>(r->prov.mono - own_cg0->prov.mono).count()));
+                    if (cv.window_s) cv.window_span = DerivationWindow::between(own_cg0->prov, r->prov);
                 }
                 cv.info = r->value;
+                cv.read_wall = r->prov.wall;
+                cv.read_mono = r->prov.mono;
                 cgroup_read_at.push_back(r->prov.mono);
                 if (cv.info.nr_periods && cv.info.nr_throttled && *cv.info.nr_periods > 0) {
                     cv.lifetime_throttled_ratio =
@@ -408,7 +414,10 @@ SystemState StateSampler::sample(const SampleRequest& req, const CancellationTok
             }
             const double s = std::chrono::duration<double>(r->prov.mono - cgroup_read_at[i]).count();
             derive_cgroup_window(cv, r->value, std::max(s, 1e-3));
+            if (cv.window_s) cv.window_span = DerivationWindow{cv.read_wall, r->prov.wall, cv.read_mono, r->prov.mono};
             cv.info = r->value;  // report the later (current) configuration
+            cv.read_wall = r->prov.wall;
+            cv.read_mono = r->prov.mono;
         }
     }
 

@@ -1,0 +1,6 @@
+POST /v1/diagnose HTTP/1.1
+Host: l
+Content-Type: application/json
+Content-Length: 51
+
+{"question": "which process is growing in memory?"}

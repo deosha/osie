@@ -110,13 +110,28 @@ ProcVisibility detect_proc_visibility() {
 }
 
 void redact(SystemState& s, uid_t peer_uid, ProcVisibility v) {
-    if (!s.processes) return;
-    auto& list = s.processes->value;
     if (v == ProcVisibility::own_only) {
-        list.erase(std::remove_if(list.begin(), list.end(), [&](const ProcessView& p) { return p.info.uid != peer_uid; }),
-                   list.end());
+        if (s.processes) {
+            auto& list = s.processes->value;
+            list.erase(std::remove_if(list.begin(), list.end(), [&](const ProcessView& p) { return p.info.uid != peer_uid; }),
+                       list.end());
+        }
+        // A cgroup's path names its owner's units (user@UID.service, ...),
+        // and /proc/<pid>/cgroup of other users is hidden too: keep only the
+        // cgroups that hold one of the peer's own processes. Without a process
+        // list, none can be shown to be the peer's.
+        s.cgroups.erase(std::remove_if(s.cgroups.begin(), s.cgroups.end(),
+                                       [&](const CgroupView& c) {
+                                           if (!s.processes) return true;
+                                           return std::none_of(s.processes->value.begin(), s.processes->value.end(),
+                                                               [&](const ProcessView& p) {
+                                                                   return p.info.cgroup && *p.info.cgroup == c.info.path;
+                                                               });
+                                       }),
+                        s.cgroups.end());
     }
-    for (auto& p : list)
+    if (!s.processes) return;
+    for (auto& p : s.processes->value)
         if (p.info.uid != peer_uid) p.info.path.clear();
 }
 
