@@ -1173,13 +1173,25 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
             Origin origin;
         };
         std::vector<Row> rows;
+        // Processes in the newest point whose own samples are too few or too
+        // short for a trend (new, or only recently in the tracked set): they
+        // cannot be judged, which is not the same as "not growing".
+        std::vector<Row> too_new;
+        const HistoryPoint& newest = *pts.back();
         for (const auto& [_, r] : ids) {
             TrendRule rule = mem ? TrendRule{4, span_min, 16.0, 1.96} : TrendRule{4, span_min, 5.0, 1.96};
             Origin org;
             org.process = r;
             auto t = analyse_trend(proc_series(r, mem, &org), rule);
-            if (t.direction == TrendDirection::increasing) rows.push_back({r, t, std::move(org)});
+            if (t.direction == TrendDirection::increasing) {
+                rows.push_back({r, t, std::move(org)});
+            } else if (t.direction == TrendDirection::insufficient_data && t.n > 0 &&
+                       std::any_of(newest.processes.begin(), newest.processes.end(),
+                                   [&](const ProcessPoint& pp) { return same_process(r, pp); })) {
+                too_new.push_back({r, t, std::move(org)});
+            }
         }
+        std::sort(too_new.begin(), too_new.end(), [](const Row& x, const Row& y) { return x.t.last > y.t.last; });
         std::sort(rows.begin(), rows.end(), [](const Row& x, const Row& y) {
             return x.t.late_mean - x.t.early_mean > y.t.late_mean - y.t.early_mean;
         });
@@ -1197,7 +1209,8 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
         }
         o += std::string("Processes whose ") + (mem ? "memory" : "CPU use") + " increased over " +
              duration_text(t_of(*pts.back())) + " (" + std::to_string(pts.size()) + " samples):\n";
-        if (rows.empty()) o += "  none showed a clear increase.\n";
+        if (rows.empty() && too_new.empty()) o += "  none showed a clear increase.\n";
+        else if (rows.empty()) o += "  none of the processes with enough history showed a clear increase.\n";
         for (std::size_t i = 0; i < rows.size() && i < 5; ++i) {
             const auto& [r, t, origin] = rows[i];
             // The series behind each ranked line, for --json and the API.
@@ -1206,6 +1219,19 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
                  (mem ? fmt::num(t.early_mean, 0) + " -> " + fmt::num(t.late_mean, 0) + " MiB"
                       : fmt::pct(t.early_mean) + " -> " + fmt::pct(t.late_mean)) +
                  "  (" + std::to_string(t.n) + " samples)\n";
+        }
+        if (!too_new.empty()) {
+            a.too_new_to_judge = too_new.size();
+            o += "Too new to judge (fewer than 4 samples or less than " + duration_text(span_min) + " of them): ";
+            for (std::size_t i = 0; i < too_new.size() && i < 3; ++i) {
+                const auto& [r, t, origin] = too_new[i];
+                add_trend(r.name + " (pid " + std::to_string(r.pid) + ") " + (mem ? "memory (MiB)" : "CPU (%)"), t, origin);
+                o += (i ? ", " : "") + r.name + " (pid " + std::to_string(r.pid) + ", now " +
+                     (mem ? fmt::num(t.last, 0) + " MiB" : fmt::pct(t.last)) + ", " + std::to_string(t.n) + " samples over " +
+                     duration_text(t.span_s) + ")";
+            }
+            if (too_new.size() > 3) o += " and " + std::to_string(too_new.size() - 3) + " more";
+            o += ".\n";
         }
         o += "Only the top " + std::to_string(history.config().top_k) +
              " processes by CPU and by memory are kept per sample, so smaller processes are not covered.\n";

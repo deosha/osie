@@ -428,14 +428,22 @@ TEST(ApiTruth, ProcessMemoryGrowthFromHistory) {
     rig.rt->stop();
     auto v = rig.ask("which process is growing in memory?");
     expect_well_founded(rig, v);
-    EXPECT_EQ(v["status"].str(), "completed") << rig.last.body.substr(0, 1500);
+    // "fresh" has held pid 300 for about 2 s, too little to judge: the
+    // ranking is incomplete, and says so.
+    EXPECT_EQ(v["status"].str(), "partial") << rig.last.body.substr(0, 1500);
+    EXPECT_TRUE(has_lim(v, "insufficient_history", "too little history of their own"));
     ASSERT_TRUE(v.has("trends")) << rig.last.body.substr(0, 1500);
     bool nginx_up = false, postgres_up = false;
     for (const auto& t : v["trends"].arr()) {
         if (t["series"].str().find("nginx") != std::string::npos) nginx_up = t["direction"].str() == "increasing";
         if (t["series"].str().find("postgres") != std::string::npos) postgres_up = t["direction"].str() == "increasing";
-        EXPECT_EQ(t["series"].str().find("fresh"), std::string::npos) << "constant memory is not growth";
     }
+    const auto* fr = trend(v, "fresh");
+    ASSERT_NE(fr, nullptr) << rig.last.body.substr(0, 1500);
+    EXPECT_EQ((*fr)["direction"].str(), "insufficient_data") << "not judged, not called growth";
+    EXPECT_EQ((*fr)["start_time_us"].num(), static_cast<double>(kFreshStart));
+    EXPECT_TRUE((*fr)["running"].boolean());
+    EXPECT_NE(v["answer"]["text"].str().find("Too new to judge"), std::string::npos);
     EXPECT_TRUE(nginx_up) << rig.last.body.substr(0, 900);
     EXPECT_FALSE(postgres_up) << "postgres is constant";
     // Identity and liveness of each growing series.

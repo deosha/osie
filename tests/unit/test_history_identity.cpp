@@ -131,3 +131,53 @@ TEST(HistoryIdentity, SubjectSeriesExcludesAnEarlierHolderOfThePid) {
     }
     EXPECT_EQ(process_series, 1U) << a.text;
 }
+
+// A process too new for a trend of its own is reported as such, never as
+// "not growing". Ground truth: "steady" holds 300 MiB for 30 s; "python3"
+// appears 5 s before the question and grows from 0 to 193 MiB in 6 samples,
+// less than the 10 s a trend needs.
+TEST(HistoryIdentity, ProcessTooNewToJudgeIsNotReportedAsNotGrowing) {
+    const auto base = Clock::now() - std::chrono::seconds(31);
+    const auto wbase = std::chrono::system_clock::now() - std::chrono::seconds(31);
+    std::deque<HistoryPoint> d;
+    for (int t = 0; t < 30; ++t) {
+        HistoryPoint h;
+        h.at = base + std::chrono::seconds(t);
+        h.wall = wbase + std::chrono::seconds(t);
+        h.seq = static_cast<std::uint64_t>(t + 1);
+        h.cpu_busy_pct = 20;
+        h.processes.push_back(pp(200, 7, "steady", 300.0));
+        if (t >= 24) h.processes.push_back(pp(500, 11, "python3", 193.0 * (t - 24) / 5.0));
+        d.push_back(std::move(h));
+    }
+    auto s = current_state(std::nullopt);
+    {
+        auto& v = s->processes->value;
+        ProcessView py;
+        py.info = osie::test::proc(500, 1, "python3", 0, 193ULL << 20);
+        py.info.start_time_us = 11;
+        py.cpu_pct = 5.0;
+        v.push_back(py);
+    }
+    Engine e(std::make_unique<MockOs>(Platform::linux_os), std::make_unique<intent::RuleParser>());
+    FixedEvidence ev(s, StateHistory(HistoryConfig{720, 16, 10.0}, std::move(d)));
+    SessionContext session;
+    const Answer a = e.ask("which process is growing in memory?", session, ev);
+    EXPECT_EQ(a.text.find("none showed a clear increase"), std::string::npos) << a.text;
+    EXPECT_NE(a.text.find("Too new to judge"), std::string::npos) << a.text;
+    EXPECT_NE(a.text.find("python3 (pid 500, now 193 MiB, 6 samples"), std::string::npos) << a.text;
+    EXPECT_EQ(a.too_new_to_judge, 1U);
+    bool listed = false;
+    for (std::size_t i = 0; i < a.trends.size(); ++i) {
+        const auto& [label, t] = a.trends[i];
+        if (label.find("python3") == std::string::npos) continue;
+        listed = true;
+        EXPECT_EQ(t.direction, TrendDirection::insufficient_data);
+        EXPECT_EQ(t.n, 6U);
+        EXPECT_NEAR(t.span_s, 5.0, 1e-6);
+        ASSERT_TRUE(a.trend_origins[i].process);
+        EXPECT_EQ(a.trend_origins[i].process->pid, 500);
+    }
+    EXPECT_TRUE(listed);
+    EXPECT_EQ(a.text.find("steady (pid 200)"), std::string::npos) << "constant memory is neither growth nor too new";
+}

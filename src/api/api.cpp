@@ -839,6 +839,12 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
     });
     if (history_short)
         lims.push_back({"insufficient_history", "the agent's history is too short for a trend: " + a.trends.front().second.why});
+    // Some current processes could not be judged (too new): the ranking is incomplete.
+    const bool ranking_incomplete = !history_short && a.too_new_to_judge > 0;
+    if (ranking_incomplete)
+        lims.push_back({"insufficient_history", std::to_string(a.too_new_to_judge) +
+                                                    " current processes have too little history of their own to judge "
+                                                    "whether they are growing; see the insufficient_data trends"});
     // Temporal answers: the window asked for against what the history holds.
     std::optional<HistoryCoverage> coverage;
     bool coverage_short = false;
@@ -895,7 +901,7 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
     if (action) status = "refused";
     else if (pid_not_running) status = "completed";
     else if (f.ambiguous && !f.clarification.empty()) status = "needs_clarification";
-    else if (!rep.missing.empty() || refused_on_demand || !inconsistent.empty() || history_short || coverage_short ||
+    else if (!rep.missing.empty() || refused_on_demand || !inconsistent.empty() || history_short || ranking_incomplete || coverage_short ||
              unobserved || past_event_words)
         status = "partial";
 
