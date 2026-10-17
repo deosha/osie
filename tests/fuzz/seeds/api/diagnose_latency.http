@@ -1,0 +1,6 @@
+POST /v1/diagnose HTTP/1.1
+Host: l
+Content-Type: application/json
+Content-Length: 80
+
+{"question": "why did nginx crash an hour ago? is CPU causing request latency?"}

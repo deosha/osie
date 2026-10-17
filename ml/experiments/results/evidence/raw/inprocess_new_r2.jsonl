@@ -1,0 +1,16 @@
+{"diagnose":{"question":"what is using the most CPU?","status":200,"bytes":14999,"engine_p50_ms":0.0240,"engine_p99_ms":0.0460,"handle_p50_ms":0.0755,"handle_p99_ms":0.1061,"n":300}}
+{"diagnose":{"question":"why is my CPU usage high?","status":200,"bytes":20276,"engine_p50_ms":0.0212,"engine_p99_ms":0.0601,"handle_p50_ms":0.0838,"handle_p99_ms":0.1734,"n":300}}
+{"diagnose":{"question":"why is my machine slow?","status":200,"bytes":25866,"engine_p50_ms":0.0332,"engine_p99_ms":0.0823,"handle_p50_ms":0.1095,"handle_p99_ms":0.2250,"n":300}}
+{"diagnose":{"question":"which process uses the most memory?","status":200,"bytes":5443,"engine_p50_ms":0.0150,"engine_p99_ms":0.0230,"handle_p50_ms":0.0350,"handle_p99_ms":0.0452,"n":300}}
+{"diagnose":{"question":"is memory pressure high?","status":200,"bytes":7331,"engine_p50_ms":0.0113,"engine_p99_ms":0.0198,"handle_p50_ms":0.0365,"handle_p99_ms":0.0495,"n":300}}
+{"diagnose":{"question":"why is nginx using so much CPU?","status":200,"bytes":4198,"engine_p50_ms":0.0673,"engine_p99_ms":0.0787,"handle_p50_ms":0.0826,"handle_p99_ms":0.0974,"n":300}}
+{"diagnose":{"question":"tell me about pid 101","status":200,"bytes":902,"engine_p50_ms":0.0071,"engine_p99_ms":0.0112,"handle_p50_ms":0.0121,"handle_p99_ms":0.0202,"n":300}}
+{"diagnose":{"question":"is a container being CPU-throttled?","status":200,"bytes":21002,"engine_p50_ms":0.0372,"engine_p99_ms":0.0517,"handle_p50_ms":0.1012,"handle_p99_ms":0.1266,"n":300}}
+{"diagnose_all":{"processes":2000,"engine_p50_ms":0.0237,"engine_p99_ms":0.0711,"n":2400}}
+{"history":{"points":720,"top_k":16,"approx_bytes":2471144,"rss_before_fill_mb":6.30,"rss_after_fill_mb":8.94,"rss_at_start_mb":3.70,"fill_s":16.5}}
+{"temporal":{"question":"which process is growing in memory?","status":200,"bytes":1350,"engine_p50_ms":3.5947,"engine_p99_ms":4.7845,"handle_p50_ms":3.6237,"handle_p99_ms":4.8580}}
+{"temporal":{"question":"has cpu usage increased in the last 10 minutes?","status":200,"bytes":2379,"engine_p50_ms":0.1839,"engine_p99_ms":0.2012,"handle_p50_ms":0.2165,"handle_p99_ms":0.2503}}
+{"temporal":{"question":"is memory pressure increasing?","status":200,"bytes":1981,"engine_p50_ms":0.1760,"engine_p99_ms":0.1955,"handle_p50_ms":0.2050,"handle_p99_ms":0.2259}}
+{"temporal":{"question":"is pid 100 using more memory over time?","status":200,"bytes":1964,"engine_p50_ms":0.1916,"engine_p99_ms":0.2205,"handle_p50_ms":0.2195,"handle_p99_ms":0.2619}}
+{"history_endpoint":{"points":720,"bytes":155877,"p50_ms":0.7744,"p99_ms":0.8616}}
+{"refusals":{"refused_calls":0}}
