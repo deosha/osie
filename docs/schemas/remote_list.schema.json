@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/remote_list.schema.json",
+  "title": "osie remote list --json",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "remotes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" },
+          "destination": { "type": "string" },
+          "port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
+          "socket": { "type": "string", "pattern": "^/" },
+          "identity": { "type": "string", "pattern": "^/" },
+          "known_hosts": { "type": "string", "pattern": "^/" },
+          "timeout_s": { "type": "integer", "minimum": 1, "maximum": 120 }
+        },
+        "required": ["name", "destination", "port", "socket", "timeout_s"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["schema_version", "remotes"],
+  "additionalProperties": false
+}

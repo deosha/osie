@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/remote_status.schema.json",
+  "title": "osie remote status NAME --json",
+  "description": "Both requests travel over one SSH connection. Each `body` is the agent's response embedded verbatim (validated JSON, never re-serialised): api_ready, and api_capabilities or an api_error envelope (403 for a health-tier user). Exit status 0 if readiness answered 2xx, 1 otherwise; transport failures use remote_error.",
+  "type": "object",
+  "$defs": {
+    "answer": {
+      "type": "object",
+      "properties": {
+        "http_status": { "type": "integer", "minimum": 200, "maximum": 599 },
+        "latency_ms": { "type": "number", "minimum": 0 },
+        "body": { "type": "object", "required": ["schema_version"] }
+      },
+      "required": ["http_status", "latency_ms", "body"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "remote": { "type": "string" },
+    "ssh_connect_ms": { "type": "number", "minimum": 0, "description": "ssh spawned until the forwarding socket existed" },
+    "total_ms": { "type": "number", "minimum": 0 },
+    "ready": { "$ref": "#/$defs/answer" },
+    "capabilities": { "$ref": "#/$defs/answer" }
+  },
+  "required": ["schema_version", "remote", "ssh_connect_ms", "total_ms", "ready", "capabilities"],
+  "additionalProperties": false
+}
