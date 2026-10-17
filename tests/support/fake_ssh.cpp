@@ -13,7 +13,9 @@
 //   reply_file     accept, read the request head, send $FAKE_SSH_REPLY raw, close
 //   not_socket     create a regular file at LOCAL
 // FAKE_SSH_DELAY_MS delays everything; FAKE_SSH_GRANDCHILD=1 first starts a
-// long-lived child in the same process group. FAKE_SSH_INFO, if set, is a
+// long-lived child in the same process group.
+// "osie_fake_ssh --exec-ignoring-sigchld PROGRAM ARGS..." runs PROGRAM with
+// SIGCHLD ignored, as a careless parent would. FAKE_SSH_INFO, if set, is a
 // file that receives "pid=<pid>", "grandchild=<pid>", "fd=<n>" for every
 // open descriptor at start, and "arg=<a>" for every argument.
 #include <fcntl.h>
@@ -109,6 +111,12 @@ void relay(int a, const std::string& remote) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    // Test hook: run a program with SIGCHLD ignored (inherited across exec).
+    if (argc > 2 && std::strcmp(argv[1], "--exec-ignoring-sigchld") == 0) {
+        ::signal(SIGCHLD, SIG_IGN);
+        ::execv(argv[2], argv + 2);
+        return 127;
+    }
     std::string local, remote;
     for (int i = 1; i < argc; ++i)
         if (std::strcmp(argv[i], "-L") == 0 && i + 1 < argc) {

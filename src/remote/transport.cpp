@@ -191,8 +191,11 @@ pid_t spawn_ssh(const std::vector<std::string>& args, int err_w) {
 std::atomic<int> g_signal_fd_w{-1};
 std::atomic<int> g_signal_fd_r{-1};
 std::atomic<int> g_caught{0};
-struct sigaction g_old[4];
-constexpr int kGuarded[] = {SIGINT, SIGTERM, SIGHUP, SIGPIPE};
+// SIGCHLD is reset to its default: an inherited SIG_IGN would make the
+// kernel reap ssh itself, and its exit status would be lost.
+constexpr int kGuarded[] = {SIGINT, SIGTERM, SIGHUP, SIGPIPE, SIGCHLD};
+constexpr std::size_t kNumGuarded = sizeof kGuarded / sizeof kGuarded[0];
+struct sigaction g_old[kNumGuarded];
 
 extern "C" void on_signal(int sig) {
     const int saved = errno;
@@ -606,15 +609,16 @@ SignalGuard::SignalGuard() {
     struct sigaction sa {};
     sa.sa_handler = on_signal;
     sigemptyset(&sa.sa_mask);
-    for (std::size_t i = 0; i < 4; ++i) {
+    for (std::size_t i = 0; i < kNumGuarded; ++i) {
         struct sigaction use = sa;
         if (kGuarded[i] == SIGPIPE) use.sa_handler = SIG_IGN;
+        if (kGuarded[i] == SIGCHLD) use.sa_handler = SIG_DFL;
         ::sigaction(kGuarded[i], &use, &g_old[i]);
     }
 }
 
 SignalGuard::~SignalGuard() {
-    for (std::size_t i = 0; i < 4; ++i) ::sigaction(kGuarded[i], &g_old[i], nullptr);
+    for (std::size_t i = 0; i < kNumGuarded; ++i) ::sigaction(kGuarded[i], &g_old[i], nullptr);
     const int w = g_signal_fd_w.exchange(-1), r = g_signal_fd_r.exchange(-1);
     if (w >= 0) ::close(w);
     if (r >= 0) ::close(r);

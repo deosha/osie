@@ -224,7 +224,8 @@ struct Run {
 /// Runs the osie binary with `args`, the current environment plus `extra`.
 /// If `signal_after` is set, sends `sig` to it after that delay.
 Run run_cli(const std::vector<std::string>& args, const std::map<std::string, std::string>& extra = {},
-            std::optional<std::chrono::milliseconds> signal_after = std::nullopt, int sig = SIGTERM) {
+            std::optional<std::chrono::milliseconds> signal_after = std::nullopt, int sig = SIGTERM,
+            bool ignore_sigchld = false) {
     std::vector<std::string> envs;
     for (char** e = environ; *e != nullptr; ++e) {
         const std::string kv = *e;
@@ -235,6 +236,8 @@ Run run_cli(const std::vector<std::string>& args, const std::map<std::string, st
     for (auto& e : envs) envp.push_back(e.data());
     envp.push_back(nullptr);
     std::vector<std::string> full = {OSIE_CLI, "remote"};
+    if (ignore_sigchld)  // an ignored signal stays ignored across exec
+        full = {OSIE_FAKE_SSH, "--exec-ignoring-sigchld", OSIE_CLI, "remote"};
     full.insert(full.end(), args.begin(), args.end());
     std::vector<char*> argv;
     for (auto& a : full) argv.push_back(a.data());
@@ -250,7 +253,7 @@ Run run_cli(const std::vector<std::string>& args, const std::map<std::string, st
     posix_spawn_file_actions_addclose(&fa, e[0]);
     const auto t0 = SClock::now();
     pid_t pid = -1;
-    EXPECT_EQ(posix_spawn(&pid, OSIE_CLI, &fa, nullptr, argv.data(), envp.data()), 0);
+    EXPECT_EQ(posix_spawn(&pid, full[0].c_str(), &fa, nullptr, argv.data(), envp.data()), 0);
     posix_spawn_file_actions_destroy(&fa);
     ::close(o[1]);
     ::close(e[1]);
@@ -368,7 +371,7 @@ TEST(RemoteTransport, EndToEndAgainstARealAgentServer) {
 TEST(RemoteTransport, DeadlineWhileWaitingForSsh) {
     Fixture fx("hang");
     fx.env.set("FAKE_SSH_MODE", "hang");
-    fx.opts.timeout = 700ms;
+    fx.opts.timeout = std::chrono::milliseconds(700 * kSlow);
     const int fds_before = open_fd_count();
     const auto t0 = SClock::now();
     pid_t pid = -1;
@@ -379,8 +382,8 @@ TEST(RemoteTransport, DeadlineWhileWaitingForSsh) {
         pid = std::stoi(read_info(fx.info).at("pid").at(0));
     }
     const double ms = std::chrono::duration<double, std::milli>(SClock::now() - t0).count();
-    EXPECT_GE(ms, 650);
-    EXPECT_LT(ms, 700 + 300 + 500.0 * kSlow) << "deadline + grace";
+    EXPECT_GE(ms, 700.0 * kSlow - 50);
+    EXPECT_LT(ms, 700.0 * kSlow + 300 + 500.0 * kSlow) << "deadline + grace";
     fx.expect_clean(pid);
     EXPECT_EQ(open_fd_count(), fds_before);
 }
@@ -388,7 +391,8 @@ TEST(RemoteTransport, DeadlineWhileWaitingForSsh) {
 TEST(RemoteTransport, SshIgnoringSigtermIsKilled) {
     Fixture fx("kill");
     fx.env.set("FAKE_SSH_MODE", "hang_ignore_term");
-    fx.opts.timeout = 400ms;
+    // Long enough for the stand-in to start and record its pid (slow under sanitizers).
+    fx.opts.timeout = std::chrono::milliseconds(400 * kSlow);
     fx.opts.term_grace = 200ms;
     const auto t0 = SClock::now();
     pid_t pid = -1;
@@ -399,7 +403,8 @@ TEST(RemoteTransport, SshIgnoringSigtermIsKilled) {
         pid = std::stoi(read_info(fx.info).at("pid").at(0));
     }
     const double ms = std::chrono::duration<double, std::milli>(SClock::now() - t0).count();
-    EXPECT_LT(ms, 400 + 200 + 500.0 * kSlow);
+    EXPECT_GE(ms, 400.0 * kSlow + 200 - 50) << "SIGKILL only after the grace";
+    EXPECT_LT(ms, 400.0 * kSlow + 200 + 500.0 * kSlow);
     fx.expect_clean(pid);
 }
 
@@ -695,6 +700,24 @@ TEST(RemoteCli, ExitCodesSeparateAnswersTransportAndUsage) {
     EXPECT_EQ(r.exit_code, 2);
     EXPECT_NE(r.out.find("\"invalid_profile\""), std::string::npos);
     EXPECT_EQ(entries(dir), 0u) << "no private directory left by any command";
+    std::filesystem::remove_all(dir);
+    std::filesystem::remove_all(cfg);
+}
+
+TEST(RemoteCli, InheritedIgnoredSigchldDoesNotLoseSshStatus) {
+    // A parent that ignores SIGCHLD passes that on through exec; osie must
+    // still reap ssh and classify its exit status.
+    const std::string dir = short_dir("chld");
+    const std::string cfg = make_store(dir, "/run/osie/agent.sock");
+    const auto r = run_cli({"snapshot", "t", "--json"},
+                           {{"XDG_CONFIG_HOME", cfg}, {"XDG_RUNTIME_DIR", dir}, {"OSIE_SSH", OSIE_FAKE_SSH},
+                            {"FAKE_SSH_MODE", "exit"}, {"FAKE_SSH_DELAY_MS", "50"},
+                            {"FAKE_SSH_STDERR", "alice@h: Permission denied (publickey).\n"}},
+                           std::nullopt, SIGTERM, /*ignore_sigchld=*/true);
+    EXPECT_EQ(r.exit_code, 3);
+    EXPECT_NE(r.out.find("\"authentication_failed\""), std::string::npos) << r.out;
+    EXPECT_NE(r.out.find("\"ssh_exit_status\":255"), std::string::npos) << r.out;
+    EXPECT_EQ(entries(dir), 0u);
     std::filesystem::remove_all(dir);
     std::filesystem::remove_all(cfg);
 }

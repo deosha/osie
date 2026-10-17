@@ -136,7 +136,8 @@ private:
 };
 
 /// Installs handlers for SIGINT, SIGTERM and SIGHUP that record the signal
-/// and make fd() readable, and ignores SIGPIPE; restores the previous
+/// and make fd() readable, ignores SIGPIPE and resets SIGCHLD to its
+/// default (an inherited SIG_IGN would lose ssh's status); restores the previous
 /// dispositions on destruction. One instance at a time.
 class SignalGuard {
 public:
