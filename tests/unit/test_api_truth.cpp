@@ -242,6 +242,7 @@ bool has_note(const JsonValue& e, const std::string& note) {
 /// Structural truth checks shared by every answered diagnosis.
 void expect_well_founded(const Rig& rig, const JsonValue& v) {
     ASSERT_TRUE(v.has("status")) << rig.last.body;
+    EXPECT_EQ(v["schema_version"].str(), "1.1") << "1.1 adds provenance and history windows";
     EXPECT_TRUE(v["answer"]["confidence"].is_null()) << "no uncalibrated confidence";
     EXPECT_FALSE(v["action_executed"].boolean());
     if (!v.has("diagnosis") || v["diagnosis"].is_null()) return;

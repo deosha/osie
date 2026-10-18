@@ -23,7 +23,7 @@
 
 namespace osie::api {
 
-inline constexpr const char* kSchemaVersion = "1.0";
+inline constexpr const char* kSchemaVersion = "1.1";
 
 struct ApiSettings {
     Millis max_evidence_age{10'000};  // cap for every answer; clients may ask for less

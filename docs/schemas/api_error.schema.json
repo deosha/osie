@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "1.1"
     },
     "request_id": {
       "type": "string",
