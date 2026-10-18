@@ -64,7 +64,7 @@ Without `api_group`, the socket is mode 0600 and only root can use it.
 
 ## Endpoints
 
-All responses are `application/json` with `"schema_version": "1.0"`, and
+All responses are `application/json` with `"schema_version": "1.1"`, and
 carry `Connection: close` and `Cache-Control: no-store`. Requests may carry
 `X-Request-Id` (1–64 characters of `[A-Za-z0-9._:-]`), which is echoed as
 `request_id`. The schemas are in `docs/schemas/api_*.schema.json`.
@@ -136,9 +136,12 @@ Rules:
 - Intervals longer than 2 × `interval` + `sample_window` (`gap_threshold_s`)
   between consecutive points are listed in `gaps`. Nothing is interpolated.
   Each gap has a `kind`: `collection_gap` (on the monotonic clock: the agent
-  was stopped, a collection overran, or collections failed) or
+  was stopped, a collection overran, or collections failed),
   `suspended_or_clock_change` (on the wall clock only: the monotonic clock
-  does not advance while the machine is suspended).
+  does not advance while the machine is suspended) or `clock_step` (the wall
+  clock was stepped back).
+- A point is in the window only if it is inside it on both the monotonic
+  and the wall clock.
 - `truncated` says whether `limit` cut the window.
 - Each point carries the `snapshot_seq` of the collection it was recorded
   from.
@@ -265,8 +268,12 @@ truth built from the scenario's physical parameters):
   `no_event_history` even when the parser reads it as a question about the
   current state, and is `partial`: OSIE keeps no event log.
 
-The last two are lexical checks over the question's words. They only add a
-limitation; they never change the interpretation or the answer text.
+The last two are lexical checks over the question's words. They add a
+limitation and make the answer `partial`; they never change the
+interpretation or the answer text. Words of the resolved target do not
+count (a process called `requests` or `timeout` is a name), and
+"request(s)" counts only together with a word about speed, failure or rate
+("slow", "failing", "errors", "per second", ...).
 
 **Evidence is never synthesised.** Questions that need no observations (for
 example "what is memory compression?") are answered even when the snapshot
@@ -318,16 +325,20 @@ question, `history_window` states:
 | `evaluated_at`, `window_start` | the end and start of that window |
 | `points`, `first_point_at`, `last_point_at`, `first_snapshot_seq`, `last_snapshot_seq`, `observed_span_s` | what the history holds inside it |
 | `gap_threshold_s` | 2 × `interval` + `sample_window` |
-| `gaps`, `gaps_total` | `collection_gap` and `suspended_or_clock_change` between points, `before_first_point` (the history does not reach back that far) and `after_last_point`; at most 100 are listed |
+| `gaps`, `gaps_total` | `collection_gap`, `suspended_or_clock_change` and `clock_step` between points (and for a suspend that ended inside the window), `before_first_point` (the history does not reach back that far) and `after_last_point`; at most 100 are listed |
 | `unobserved_s`, `coverage`, `sufficient` | time not covered, the covered share, and whether it reaches 0.8 |
 | `history_points`, `capacity`, `oldest_point_at` | the whole history |
 
-Points are selected as the engine selects them, on the monotonic clock.
-Nothing is interpolated. A suspend is detected from the wall clock, so
-after one, points from before it can fall inside a window by the monotonic
-clock; they then count as a `suspended_or_clock_change` gap, and the answer
-is `partial`. Computing coverage is O(points); trends stay
-O(points × top_k).
+A point is inside the window only if it is inside it on both the monotonic
+and the wall clock; the engine and the API select points the same way.
+This can only exclude points: after a suspend (which the monotonic clock
+does not see) or a wall-clock step, points from before it do not fall into
+"the last N minutes". Nothing is interpolated. A suspend or clock change
+inside the window (`suspended_or_clock_change` or `clock_step`) makes the
+answer `partial` whatever the coverage, since the time base itself changed.
+`first_point_at` and `last_point_at` (here and in `trends`) are `null` when
+a backward clock step would put the first after the last. Computing
+coverage is O(points); trends stay O(points × top_k).
 
 History records no cgroups: cgroup rates come only from the last two
 collections, and are not computed across a counter reset (a recreated
@@ -340,7 +351,7 @@ a cgroup id, which the agent does not read.
 Every error looks like this:
 
 ```json
-{"schema_version":"1.0","request_id":"r1",
+{"schema_version":"1.1","request_id":"r1",
  "error":{"code":"invalid_request","reason":"unknown_field","message":"Unknown field. ...","retryable":false},
  "action_executed":false}
 ```
@@ -499,10 +510,26 @@ contract requires.
 
 ## Compatibility rules
 
-- The path prefix (`/v1`) and `schema_version` (`"1.0"`) version the API.
+- The path prefix (`/v1`) and `schema_version` version the API. The current
+  version is `"1.1"`.
 - Within 1.x, fields and enum values may be added, and optional fields may
-  become present more often. Clients must ignore what they do not know.
-  Error `code` values are stable; `reason` values may be added.
+  become present more often. Each 1.x minor version that adds fields
+  publishes its schemas (`docs/schemas/api_*.schema.json`), which stay
+  closed so that undocumented fields are caught.
+- Clients must ignore fields and enum values they do not know, and check
+  only the major version. A client that validates responses must validate
+  against the schemas of the `schema_version` it received.
+- Error `code` values are stable; `reason` values may be added.
+- **1.1** (v0.3 Feature 4) adds, without changing any existing field:
+  - diagnose: per-evidence provenance (`evidence_id`, `snapshot_seq`,
+    `observation`, `observation_validity`, `sampled_at`, `age_ms`,
+    `freshness`, `window`, `quality_notes`); `observation.freshness` and
+    `previous_snapshot_seq`; `history_window`; trend `first_point_at`,
+    `last_point_at`, `pid`, `start_time_us`, `running`; limitation codes
+    `history_gap` and `not_observed`;
+  - history: per-point `snapshot_seq`, gap `kind`, `gap_threshold_s`,
+    `coverage`;
+  - snapshot: `provenance`, cgroup `sampled_at`.
 - Removing or renaming a field, changing its type or meaning, or making the
   server stricter about a request it used to accept requires `/v2` and
   schema 2.0.
