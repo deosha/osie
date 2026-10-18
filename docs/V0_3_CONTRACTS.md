@@ -14,6 +14,11 @@ meet.
 - **Specification.** The endpoints, envelopes and errors are those of
   [`API.md`](API.md) and `docs/schemas/api_*.schema.json`. The versioning is
   `/v1` and `schema_version` `"1.0"`.
+- **Amendment (lead decision, after the audit).** The published response
+  schemas are closed (`additionalProperties: false`), so a client validating
+  against the 1.0 schemas would reject Feature 4's additions. Feature 4
+  therefore publishes them as `schema_version` `"1.1"`. Clients check only
+  the major version and ignore unknown fields. Feature 3 accepts any `"1.x"`.
 - **Compatibility rules** ([`API.md`](API.md), "Compatibility rules"):
   - Within 1.x, fields and enum values may be added.
   - Clients ignore what they do not know.
