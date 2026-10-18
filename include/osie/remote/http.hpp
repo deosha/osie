@@ -43,8 +43,8 @@ struct ReplyParse {
 /// kMaxResponseHeaders headers in kMaxResponseHeadBytes; exactly one
 /// Content-Length of digits only; Transfer-Encoding refused; Content-Type
 /// application/json; total size at most `max_bytes`; no bytes after the
-/// body; the body a JSON object with "schema_version". Incomplete at EOF is
-/// an error (truncated).
+/// body; the body a JSON object whose "schema_version" is "1.<digits>" (any
+/// 1.x: unknown fields are ignored). Incomplete at EOF is an error (truncated).
 ReplyParse parse_reply(std::string_view buf, bool eof, std::size_t max_bytes = kMaxResponseBytes);
 
 // ------------------------------------------------------------------ JSON ---

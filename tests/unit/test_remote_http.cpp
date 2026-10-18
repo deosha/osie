@@ -45,6 +45,20 @@ TEST(RemoteHttp, ParsesAgentReplies) {
     EXPECT_EQ(r.reply.status, 503);
 }
 
+TEST(RemoteHttp, AnyMinorSchemaVersionIsAccepted) {
+    // Minor versions only add fields (Feature 4 moves the agent to 1.1).
+    for (const char* v : {"1.0", "1.1", "1.27"}) {
+        const std::string body = std::string(R"({"schema_version":")") + v + R"(","new_field":{"x":1}})";
+        const auto r = parse_reply(reply(200, body), true);
+        ASSERT_EQ(r.state, ReplyParse::State::complete) << v << ": " << r.error;
+        EXPECT_EQ(r.reply.body, body);
+    }
+    for (const char* v : {"2.0", "1", "1.", "10.1", "1.x", "", " 1.0", "1.0 "}) {
+        const std::string body = std::string(R"({"schema_version":")") + v + R"("})";
+        EXPECT_EQ(parse_reply(reply(200, body), true).state, ReplyParse::State::error) << "'" << v << "'";
+    }
+}
+
 TEST(RemoteHttp, BodyBytesArePreservedExactly) {
     // Unknown fields, odd whitespace, escapes and exponent numbers survive.
     const std::string body = "{ \"schema_version\" : \"1.0\",\n\t\"future_field\":{\"x\":[1.50e+3,-0,\"\\u00e9\\n\"]},"

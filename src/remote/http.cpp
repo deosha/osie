@@ -359,8 +359,13 @@ ReplyParse parse_reply(std::string_view buf, bool eof, std::size_t max_bytes) {
     const std::string_view body = buf.substr(head);
     const auto doc = parse_json(body);
     if (!doc) return fail("the response body is not valid JSON");
-    if (doc->kind != JsonNode::Kind::object || doc->str("schema_version") == nullptr)
-        return fail("the response is not an osie agent response (no schema_version)");
+    const std::string* version = doc->kind == JsonNode::Kind::object ? doc->str("schema_version") : nullptr;
+    if (version == nullptr) return fail("the response is not an osie agent response (no schema_version)");
+    // Any 1.x: minor versions only add fields, which are ignored here and
+    // passed through unchanged with --json. Another major is not this API.
+    if (version->size() < 3 || version->compare(0, 2, "1.") != 0 ||
+        version->find_first_not_of("0123456789", 2) != std::string::npos)
+        return fail("unsupported agent schema_version (this client speaks 1.x)");
     ReplyParse r;
     r.state = ReplyParse::State::complete;
     r.reply.status = status;

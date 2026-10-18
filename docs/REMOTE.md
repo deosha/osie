@@ -103,8 +103,10 @@ The commands that contact a remote host accept `--timeout S`, from 1 to
 - The agent's response body is written to stdout exactly as received, with
   no trailing newline added. It is never parsed and re-serialised. So any
   field added to the API (for example by Feature 4) reaches you unchanged.
-- The body is still validated first: it must be one JSON object with
-  `schema_version`, at most 4 MiB, framed by `Content-Length`.
+- The body is still validated first: it must be one JSON object, at most
+  4 MiB, framed by `Content-Length`. Its `schema_version` must be any `1.x`:
+  minor versions only add fields, which reach you unchanged. A different
+  major version is refused (`protocol_error`).
 
 **Text mode.**
 - `ask` prints `answer.text`, then `status` unless it is `completed`, then
@@ -286,7 +288,8 @@ See also [`SECURITY.md`](SECURITY.md), "Remote diagnostics over SSH".
   parsed strictly and bounded:
   - picohttpparser, `Content-Length` framing only, at most 32 headers in
     16 KiB, and 4 MiB in all;
-  - strict UTF-8 JSON, depth at most 64, no duplicate keys;
+  - strict UTF-8 JSON, depth at most 64, no duplicate keys, and an agent
+    `schema_version` of `1.x`;
   - fuzzed by `osie_fuzz_remote`.
 - **Limits.**
   - On macOS, an `osie` killed with `SIGKILL` (which cannot be caught)

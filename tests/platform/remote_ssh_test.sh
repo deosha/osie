@@ -213,12 +213,12 @@ r osie-alice status local
 check "alice (member) status: ready, diagnostics tier" grep -q "access:  diagnostics" <<<"$OUT"
 echo "$OUT" | sed 's/^/      /'
 r osie-alice ask local "what is using the most CPU?" --json
-check "alice ask --json: exit 0, an agent answer" test "$RC" -eq 0 -a "$(json_get 'd["schema_version"]')" = "1.0"
+check "alice ask --json: exit 0, an agent answer" test "$RC" -eq 0 -a "$(json_get 'd["schema_version"].split(".")[0]')" = "1"
 r osie-alice ask local "what is using the most CPU?"
 check "alice ask (text): exit 0" test "$RC" -eq 0
 for sub in snapshot history capabilities; do
   r osie-alice "$sub" local --json
-  check "alice $sub --json: exit 0" test "$RC" -eq 0 -a "$(json_get 'd["schema_version"]')" = "1.0"
+  check "alice $sub --json: exit 0" test "$RC" -eq 0 -a "$(json_get 'd["schema_version"].split(".")[0]')" = "1"
 done
 r osie-alice history local --json --limit 3 --metric cpu_busy_pct
 check "history parameters pass through (returned <= 3)" test "$(json_get 'd["returned"]')" -le 3
