@@ -127,7 +127,8 @@
           "kind": {
             "enum": [
               "collection_gap",
-              "suspended_or_clock_change"
+              "suspended_or_clock_change",
+              "clock_step"
             ]
           }
         },
@@ -235,6 +236,7 @@
                 "enum": [
                   "collection_gap",
                   "suspended_or_clock_change",
+                  "clock_step",
                   "before_first_point",
                   "after_last_point"
                 ]

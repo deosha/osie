@@ -1047,7 +1047,8 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
     a.history_evaluated_wall = std::chrono::system_clock::now();
     std::vector<const HistoryPoint*> pts;
     for (const auto& p : all)
-        if (!q.window_s || now - p.at <= std::chrono::seconds(*q.window_s)) pts.push_back(&p);
+        if (!q.window_s || in_history_window(p, now, *a.history_evaluated_wall, static_cast<double>(*q.window_s)))
+            pts.push_back(&p);
     // Each analysed series, with where its points came from (for --json and the API).
     using Origin = Answer::SeriesOrigin;
     auto add_trend = [&a](std::string label, const TrendResult& t, Origin origin) {

@@ -221,3 +221,34 @@ TEST(HistoryIdentity, StartTimeOnOneSideOnlyIsADifferentProcess) {
     EXPECT_EQ(process_series, 1U) << a.text;
     EXPECT_EQ(a.text.find("decreasing"), std::string::npos) << a.text;
 }
+
+// The engine selects window points on both clocks: after a 60 s suspend,
+// points that are inside a 600 s window on the monotonic clock but not on
+// the wall clock are not analysed. Points every 5 s on the monotonic clock
+// over the last 1000 s; the wall clock is 60 s ahead for the last 200 s.
+// The 600 s window then holds 108 points (it would hold 120 on the
+// monotonic clock alone).
+TEST(HistoryIdentity, WindowIsSelectedOnBothClocks) {
+    const auto now = Clock::now();
+    const auto wnow = std::chrono::system_clock::now();
+    std::deque<HistoryPoint> d;
+    for (int t = 0; t <= 1000; t += 5) {
+        HistoryPoint h;
+        h.at = now - std::chrono::seconds(1001 - t);
+        h.wall = wnow - std::chrono::seconds(1001 + 60 - (t <= 800 ? t : t + 60));
+        h.seq = static_cast<std::uint64_t>(t / 5 + 1);
+        h.cpu_busy_pct = 20.0 + (t % 3);
+        h.mem_total_bytes = 16ULL << 30;
+        h.mem_available_bytes = 8ULL << 30;
+        d.push_back(std::move(h));
+    }
+    Engine e(std::make_unique<MockOs>(Platform::linux_os), std::make_unique<intent::RuleParser>());
+    FixedEvidence ev(current_state(std::nullopt), StateHistory(HistoryConfig{720, 16, 10.0}, std::move(d)));
+    SessionContext session;
+    const Answer a = e.ask("has cpu usage increased in the last 10 minutes?", session, ev);
+    ASSERT_FALSE(a.trends.empty()) << a.text;
+    // A few ms pass between building the history and the answer, which can
+    // move one boundary point out of the window.
+    EXPECT_GE(a.trends.front().second.n, 107U);
+    EXPECT_LE(a.trends.front().second.n, 108U) << "points before the suspend's wall-clock window were analysed";
+}

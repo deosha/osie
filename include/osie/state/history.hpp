@@ -94,6 +94,10 @@ struct HistoryGap {
         /// monotonic clock does not advance during suspend) or the wall
         /// clock was changed.
         suspended_or_clock_change,
+        /// Consecutive points further apart on the monotonic clock than on
+        /// the wall clock: the wall clock was stepped back. Times taken from
+        /// the wall clock around it are out of order.
+        clock_step,
         /// Between the start of the requested window and the first point:
         /// the history does not reach back that far.
         before_first_point,
@@ -114,7 +118,9 @@ struct HistoryCoverage {
     WallTime evaluated_at{};              // "now" for the window
     std::optional<WallTime> window_start; // evaluated_at - requested_s
     std::size_t points{0};                // points in the window
-    std::optional<WallTime> first, last;  // first and last point in the window
+    /// First and last point in the window; both nullopt when the wall clock
+    /// stepped back so that the first point's time is after the last one's.
+    std::optional<WallTime> first, last;
     std::uint64_t first_seq{0}, last_seq{0};
     double observed_span_s{0};            // last - first (monotonic)
     double gap_threshold_s{0};
@@ -133,11 +139,24 @@ struct HistoryCoverage {
 /// answer is partial (docs/API.md, "Historical diagnosis").
 inline constexpr double kMinHistoryCoverage = 0.8;
 
+/// Whether a point is inside the window [now - window_s, now] on both the
+/// monotonic and the wall clock. Requiring both can only exclude points: a
+/// suspend (which the monotonic clock does not see) or a wall-clock step
+/// cannot pull older points into the window. The engine and the API select
+/// points with this.
+bool in_history_window(const HistoryPoint& p, SteadyTime now, WallTime now_wall, double window_s);
+
 /// The coverage of the window [now - window_s, now] (all of the history
-/// when window_s is nullopt), selecting points as the engine does
-/// (now - point.at <= window_s). O(points).
+/// when window_s is nullopt), selecting points with in_history_window().
+/// O(points).
 HistoryCoverage history_coverage(const StateHistory& h, SteadyTime now, WallTime now_wall,
                                  std::optional<double> window_s, double gap_threshold_s);
+
+/// A temporal answer over this coverage is partial: less than
+/// kMinHistoryCoverage is covered, or the machine was suspended or its clock
+/// changed inside the window (the time base itself is then unreliable),
+/// whatever the coverage.
+bool history_coverage_insufficient(const HistoryCoverage& c);
 
 /// One numeric time series: (seconds since the first point, value).
 using Series = std::vector<std::pair<double, double>>;

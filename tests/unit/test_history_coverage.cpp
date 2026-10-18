@@ -173,3 +173,73 @@ TEST(HistoryCoverage, PointsRecordTheirSnapshot) {
     EXPECT_EQ(h.points()[0].seq, 41U);
     EXPECT_EQ(h.points()[1].seq, 42U);
 }
+
+// A 3 h suspend inside a 600 s window. Points every 5 s on the monotonic
+// clock t = 0..1000; the wall clock jumps 10,800 s after t = 700. Now is
+// t = 1001 (wall 11,801). On the wall clock the window starts at 11,201, so
+// every point before the suspend is outside it, even though they are
+// within 600 s on the monotonic clock. Of the window, 304 s fall in the
+// suspend (11,201 to the first point after it at 11,505).
+TEST(HistoryCoverage, LongSuspendInsideTheWindow) {
+    Synthetic sx;
+    std::vector<P> pts;
+    std::uint64_t seq = 1;
+    for (int t = 0; t <= 1000; t += 5) pts.push_back({double(t), t <= 700 ? double(t) : t + 10800.0, seq++});
+    const auto h = sx.history(pts);
+    const auto c = history_coverage(h, sx.at(1001), sx.wall(1001 + 10800), 600.0, 12.0);
+    EXPECT_EQ(c.points, 60U) << "t = 705 .. 1000 only";
+    ASSERT_EQ(c.gaps.size(), 1U);
+    EXPECT_EQ(c.gaps[0].kind, HistoryGap::Kind::suspended_or_clock_change);
+    EXPECT_NEAR(c.gaps[0].seconds, 304.0, 1e-3);
+    EXPECT_EQ(c.gaps[0].from, sx.wall(11201));
+    EXPECT_EQ(c.gaps[0].to, sx.wall(11505));
+    ASSERT_TRUE(c.coverage);
+    EXPECT_NEAR(*c.coverage, 1.0 - 304.0 / 600.0, 1e-5);
+    EXPECT_TRUE(history_coverage_insufficient(c));
+}
+
+// A 60 s suspend inside a 600 s window: coverage stays at 0.9, above the
+// 0.8 floor, but the answer is still insufficient (partial) because the
+// time base itself changed inside the window. Points every 5 s, t = 0..1000
+// monotonic; the wall clock is 60 s ahead after t = 800. Now is t = 1001
+// (wall 1,061): the window starts at wall 461, so points t = 465..1000
+// (108) are in it; selecting on the monotonic clock alone would also take
+// t = 405..460.
+TEST(HistoryCoverage, ShortSuspendInsideTheWindowIsPartialWhateverTheCoverage) {
+    Synthetic sx;
+    std::vector<P> pts;
+    std::uint64_t seq = 1;
+    for (int t = 0; t <= 1000; t += 5) pts.push_back({double(t), t <= 800 ? double(t) : t + 60.0, seq++});
+    const auto h = sx.history(pts);
+    const auto c = history_coverage(h, sx.at(1001), sx.wall(1061), 600.0, 12.0);
+    EXPECT_EQ(c.points, 108U);
+    ASSERT_EQ(c.gaps.size(), 1U);
+    EXPECT_EQ(c.gaps[0].kind, HistoryGap::Kind::suspended_or_clock_change);
+    EXPECT_NEAR(c.gaps[0].seconds, 60.0, 1e-3);
+    ASSERT_TRUE(c.coverage);
+    EXPECT_NEAR(*c.coverage, 0.9, 1e-5);
+    EXPECT_GE(*c.coverage, kMinHistoryCoverage);
+    EXPECT_TRUE(history_coverage_insufficient(c)) << "a suspend in the window makes the answer partial";
+    // Without a suspend the same coverage is sufficient.
+    const auto plain = history_coverage(sx.history(every(5, 0, 1000)), sx.at(1001), sx.wall(1001), 600.0, 12.0);
+    EXPECT_FALSE(history_coverage_insufficient(plain));
+}
+
+// The wall clock was stepped back an hour between two points. The step is a
+// gap of its own kind, and first/last times that would be out of order are
+// not given.
+TEST(HistoryCoverage, BackwardClockStepIsFlagged) {
+    Synthetic sx;
+    std::vector<P> pts;
+    std::uint64_t seq = 1;
+    for (int t = 0; t <= 100; t += 5) pts.push_back({double(t), t <= 50 ? t + 3600.0 : double(t), seq++});
+    const auto h = sx.history(pts);
+    const auto c = history_coverage(h, sx.at(101), sx.wall(101), std::nullopt, 12.0);
+    ASSERT_EQ(c.gaps.size(), 1U);
+    EXPECT_EQ(c.gaps[0].kind, HistoryGap::Kind::clock_step);
+    EXPECT_NEAR(c.gaps[0].seconds, 3600.0, 1e-3);
+    EXPECT_FALSE(c.first) << "the first point's wall time is after the last one's";
+    EXPECT_FALSE(c.last);
+    EXPECT_EQ(c.points, 21U);
+    EXPECT_TRUE(history_coverage_insufficient(c));
+}

@@ -643,7 +643,7 @@ HttpResponse DiagnosticApi::history(const HttpRequest& req, const PeerCredential
     const auto now_wall = std::chrono::system_clock::now();
     std::vector<const HistoryPoint*> in_window;
     for (const auto& p : hist.points())
-        if (now - p.at <= std::chrono::seconds(window_s)) in_window.push_back(&p);
+        if (in_history_window(p, now, now_wall, static_cast<double>(window_s))) in_window.push_back(&p);
     const std::size_t n = std::min<std::size_t>(static_cast<std::size_t>(limit), in_window.size());
     const auto first = in_window.end() - static_cast<std::ptrdiff_t>(n);
     auto w = envelope(rid);
@@ -689,6 +689,9 @@ HttpResponse DiagnosticApi::history(const HttpRequest& req, const PeerCredential
         else if (dw - dt > gap_s)
             w.begin_object().kv("from", iso8601(a.wall)).kv("to", iso8601(b.wall)).kv("seconds", dw - dt)
                 .kv("kind", to_string(HistoryGap::Kind::suspended_or_clock_change)).end_object();
+        else if (dt - dw > gap_s)
+            w.begin_object().kv("from", iso8601(a.wall)).kv("to", iso8601(b.wall)).kv("seconds", dt - dw)
+                .kv("kind", to_string(HistoryGap::Kind::clock_step)).end_object();
     }
     w.end_array();
     w.kv("gap_threshold_s", gap_s);
@@ -870,8 +873,8 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
         coverage = history_coverage(ev.history(), *a.history_evaluated_at, *a.history_evaluated_wall, f.temporal->window_s,
                                     history_gap_threshold_s(rt_->config()));
         const auto& c = *coverage;
-        coverage_short = c.coverage && *c.coverage < kMinHistoryCoverage;
-        if (coverage_short) {
+        coverage_short = history_coverage_insufficient(c);
+        if (c.coverage && *c.coverage < kMinHistoryCoverage) {
             std::string d = c.requested_s ? "the agent's history covers " + std::to_string(static_cast<int>(std::lround(100 * *c.coverage))) +
                                                 "% of the requested " + secs_text(*c.requested_s)
                                           : "the agent's history covers " + std::to_string(static_cast<int>(std::lround(100 * *c.coverage))) +
@@ -886,13 +889,17 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
         }
         std::size_t listed = 0, inner = 0;
         for (const auto& g : c.gaps) {
-            if (g.kind != HistoryGap::Kind::collection_gap && g.kind != HistoryGap::Kind::suspended_or_clock_change) continue;
+            if (g.kind != HistoryGap::Kind::collection_gap && g.kind != HistoryGap::Kind::suspended_or_clock_change &&
+                g.kind != HistoryGap::Kind::clock_step)
+                continue;
             ++inner;
             if (listed == 5) continue;
             ++listed;
             lims.push_back({"history_gap", "no points from " + iso8601(g.from) + " to " + iso8601(g.to) + " (" + secs_text(g.seconds) +
                                                (g.kind == HistoryGap::Kind::collection_gap
                                                     ? "): the agent was stopped, a collection overran, or collections failed"
+                                                : g.kind == HistoryGap::Kind::clock_step
+                                                    ? "): the wall clock was stepped back; times around it are out of order"
                                                     : "): the machine was suspended or its clock was changed") +
                                                "; nothing is interpolated"});
         }
@@ -1025,8 +1032,10 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
                 const Answer::SeriesOrigin* org = i < a.trend_origins.size() ? &a.trend_origins[i] : nullptr;
                 serialize::write_trend(w, label, t, false);
                 if (org != nullptr) {
-                    iso_or_null(w, "first_point_at", org->first);
-                    iso_or_null(w, "last_point_at", org->last);
+                    // Out of order only if the wall clock stepped back: then neither is given.
+                    const bool ordered = !org->first || !org->last || *org->first <= *org->last;
+                    iso_or_null(w, "first_point_at", ordered ? org->first : std::nullopt);
+                    iso_or_null(w, "last_point_at", ordered ? org->last : std::nullopt);
                     if (org->process) {
                         // Identity is (pid, start time). "running" is whether that
                         // identity is in the snapshot the answer used (not merely
