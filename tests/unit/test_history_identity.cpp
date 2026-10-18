@@ -4,6 +4,8 @@
 // the scenario's parameters.
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 #include "osie/engine/engine.hpp"
 #include "support/mock_os.hpp"
 
@@ -165,7 +167,7 @@ TEST(HistoryIdentity, ProcessTooNewToJudgeIsNotReportedAsNotGrowing) {
     const Answer a = e.ask("which process is growing in memory?", session, ev);
     EXPECT_EQ(a.text.find("none showed a clear increase"), std::string::npos) << a.text;
     EXPECT_NE(a.text.find("Too new to judge"), std::string::npos) << a.text;
-    EXPECT_NE(a.text.find("python3 (pid 500, now 193 MiB, 6 samples"), std::string::npos) << a.text;
+    EXPECT_NE(a.text.find("python3 (pid 500, now 193 MiB, 6 samples over 5.0 s)"), std::string::npos) << a.text;
     EXPECT_EQ(a.too_new_to_judge, 1U);
     bool listed = false;
     for (std::size_t i = 0; i < a.trends.size(); ++i) {
@@ -251,4 +253,44 @@ TEST(HistoryIdentity, WindowIsSelectedOnBothClocks) {
     // move one boundary point out of the window.
     EXPECT_GE(a.trends.front().second.n, 107U);
     EXPECT_LE(a.trends.front().second.n, 108U) << "points before the suspend's wall-clock window were analysed";
+}
+
+// The span of a process too new to judge is never rounded up to the
+// minimum: 11 samples 0.996 s apart span 9.96 s, under the 10 s a trend
+// needs, and read as such.
+TEST(HistoryIdentity, TooNewSpanIsNotRoundedUpToTheMinimum) {
+    const auto now = Clock::now();
+    const auto wnow = std::chrono::system_clock::now();
+    std::deque<HistoryPoint> d;
+    for (int t = 0; t < 30; ++t) {
+        HistoryPoint h;
+        h.at = now - std::chrono::seconds(31 - t);
+        h.wall = wnow - std::chrono::seconds(31 - t);
+        h.seq = static_cast<std::uint64_t>(t + 1);
+        h.cpu_busy_pct = 20;
+        h.processes.push_back(pp(200, 7, "steady", 300.0));
+        d.push_back(std::move(h));
+    }
+    for (int i = 0; i < 11; ++i) {  // python3: 11 points 0.996 s apart, interleaved by time
+        HistoryPoint h;
+        h.at = now - std::chrono::milliseconds(10'500 - 996 * i);
+        h.wall = wnow - std::chrono::milliseconds(10'500 - 996 * i);
+        h.cpu_busy_pct = 20;
+        h.processes.push_back(pp(200, 7, "steady", 300.0));
+        h.processes.push_back(pp(500, 11, "python3", 10.0 * i));
+        auto pos = std::find_if(d.begin(), d.end(), [&](const HistoryPoint& x) { return x.at > h.at; });
+        d.insert(pos, std::move(h));
+    }
+    auto s = current_state(std::nullopt);
+    ProcessView py;
+    py.info = osie::test::proc(500, 1, "python3", 0, 100ULL << 20);
+    py.info.start_time_us = 11;
+    py.cpu_pct = 5.0;
+    s->processes->value.push_back(py);
+    Engine e(std::make_unique<MockOs>(Platform::linux_os), std::make_unique<intent::RuleParser>());
+    FixedEvidence ev(s, StateHistory(HistoryConfig{720, 16, 10.0}, std::move(d)));
+    SessionContext session;
+    const Answer a = e.ask("which process is growing in memory?", session, ev);
+    EXPECT_NE(a.text.find("python3 (pid 500, now 100 MiB, 11 samples over 9.9 s)"), std::string::npos) << a.text;
+    EXPECT_NE(a.text.find("spanning less than 10 s"), std::string::npos) << a.text;
 }

@@ -1225,13 +1225,15 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
         }
         if (!too_new.empty()) {
             a.too_new_to_judge = too_new.size();
-            o += "Too new to judge (fewer than 4 samples or less than " + duration_text(span_min) + " of them): ";
+            o += "Too new to judge (fewer than 4 samples, or spanning less than " + duration_text(span_min) + "): ";
             for (std::size_t i = 0; i < too_new.size() && i < 3; ++i) {
                 const auto& [r, t, origin] = too_new[i];
                 add_trend(r.name + " (pid " + std::to_string(r.pid) + ") " + (mem ? "memory (MiB)" : "CPU (%)"), t, origin);
                 o += (i ? ", " : "") + r.name + " (pid " + std::to_string(r.pid) + ", now " +
                      (mem ? fmt::num(t.last, 0) + " MiB" : fmt::pct(t.last)) + ", " + std::to_string(t.n) + " samples over " +
-                     duration_text(t.span_s) + ")";
+                     // Truncated, never rounded up: a span just under the
+                     // minimum must not read as reaching it.
+                     fmt::num(std::floor(t.span_s * 10.0) / 10.0, 1) + " s)";
             }
             if (too_new.size() > 3) o += " and " + std::to_string(too_new.size() - 3) + " more";
             o += ".\n";
