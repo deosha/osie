@@ -3,13 +3,15 @@
 
 namespace osie::serialize {
 
-void write_trend(json::Writer& w, const std::string& label, const TrendResult& t) {
+void write_trend(json::Writer& w, const std::string& label, const TrendResult& t) { write_trend(w, label, t, true); }
+
+void write_trend(json::Writer& w, const std::string& label, const TrendResult& t, bool close) {
     w.begin_object().kv("series", label).kv("direction", to_string(t.direction)).kv("samples", static_cast<std::uint64_t>(t.n))
         .kv("span_s", t.span_s);
     if (t.direction == TrendDirection::insufficient_data) w.kv("why", t.why);
     else w.kv("first", t.first).kv("last", t.last).kv("early_mean", t.early_mean).kv("late_mean", t.late_mean)
              .kv("slope_per_min", t.slope_per_min).kv("mann_kendall_z", t.mann_kendall_z);
-    w.end_object();
+    if (close) w.end_object();
 }
 
 void write_unavailable(json::Writer& w, const Unavailable& u, bool detailed) {

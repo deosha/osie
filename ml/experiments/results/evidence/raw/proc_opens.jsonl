@@ -1,0 +1,2 @@
+{"build": "base", "openat_total": 61834, "openat_proc": 61606, "collections": 2, "proc_opens_per_collection": 30803.0}
+{"build": "new", "openat_total": 70804, "openat_proc": 70576, "collections": 2, "proc_opens_per_collection": 35288.0}

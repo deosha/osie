@@ -114,7 +114,18 @@ version has no network listener, no persistence and no remote access.
 **Same core as the CLI.** The agent reuses `ObservationBroker` (every
 observation is authorised and audited), `StateSampler`, `SystemState` and
 `StateHistory`. Identity is (PID, start time) everywhere: a reused PID is a
-different process in the history.
+different process in the history. Where a start time is missing, the PID and
+the name must both match, so a reused PID is never stitched into the series
+of the process that held it before.
+
+**What history records.** Each point holds the collection's time (monotonic
+and wall clock), the sequence number of the snapshot it was recorded from,
+host CPU and memory, PSI, and the top `history_top_k` processes by CPU and by
+memory (name, CPU, memory; no paths, owners, arguments or environments). It
+holds no cgroups. A collection with no CPU, memory or process data records no
+point, so failed collections show up as gaps. Gaps (points further apart
+than 2 × `interval` + `sample_window`, or a suspend seen on the wall clock)
+are reported by the API, never filled (API.md, "Historical diagnosis").
 
 **Scheduling.**
 - Each collection starts at `start + k × interval` on the monotonic clock.

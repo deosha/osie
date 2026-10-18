@@ -60,8 +60,9 @@ ProcVisibility proc_visibility_from_mountinfo(std::string_view mountinfo);
 
 /// Removes from `s` what `peer_uid` could not read from the kernel itself:
 /// the executable path of other users' processes (as /proc/<pid>/exe), and,
-/// under hidepid, other users' processes altogether. Their CPU and memory
-/// still count towards host totals, which every user can read.
+/// under hidepid, other users' processes altogether, and every cgroup that
+/// holds none of the peer's own processes (its path names its owner). Their
+/// CPU and memory still count towards host totals, which every user can read.
 void redact(SystemState& s, uid_t peer_uid, ProcVisibility v);
 
 }  // namespace osie::api

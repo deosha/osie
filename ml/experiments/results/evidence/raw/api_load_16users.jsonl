@@ -1,0 +1,10 @@
+{"build": "base", "round": 1, "clients": 16, "answered_per_s": 7455.9, "p50_ms_median_of_clients": 1.603, "p99_ms_max_of_clients": 11.243, "statuses": {"200": 74576}, "refusal_share": 0.0}
+{"build": "new", "round": 1, "clients": 16, "answered_per_s": 8333.0, "p50_ms_median_of_clients": 1.626, "p99_ms_max_of_clients": 8.228, "statuses": {"200": 83344}, "refusal_share": 0.0}
+{"build": "base", "round": 2, "clients": 16, "answered_per_s": 5129.6, "p50_ms_median_of_clients": 2.606, "p99_ms_max_of_clients": 14.131, "statuses": {"200": 51310}, "refusal_share": 0.0}
+{"build": "new", "round": 2, "clients": 16, "answered_per_s": 4353.9, "p50_ms_median_of_clients": 2.878, "p99_ms_max_of_clients": 17.759, "statuses": {"200": 43567}, "refusal_share": 0.0}
+{"build": "base", "round": 3, "clients": 16, "answered_per_s": 4245.2, "p50_ms_median_of_clients": 2.885, "p99_ms_max_of_clients": 20.136, "statuses": {"200": 42458}, "refusal_share": 0.0}
+{"build": "new", "round": 3, "clients": 16, "answered_per_s": 13545.3, "p50_ms_median_of_clients": 1.103, "p99_ms_max_of_clients": 4.024, "statuses": {"200": 135473}, "refusal_share": 0.0}
+{"build": "base", "round": 4, "clients": 16, "answered_per_s": 13717.2, "p50_ms_median_of_clients": 1.097, "p99_ms_max_of_clients": 3.77, "statuses": {"200": 137220}, "refusal_share": 0.0}
+{"build": "new", "round": 4, "clients": 16, "answered_per_s": 14723.7, "p50_ms_median_of_clients": 1.014, "p99_ms_max_of_clients": 4.058, "statuses": {"200": 147263}, "refusal_share": 0.0}
+{"build": "base", "round": 5, "clients": 16, "answered_per_s": 14283.3, "p50_ms_median_of_clients": 1.055, "p99_ms_max_of_clients": 3.542, "statuses": {"200": 142869}, "refusal_share": 0.0}
+{"build": "new", "round": 5, "clients": 16, "answered_per_s": 14331.1, "p50_ms_median_of_clients": 1.052, "p99_ms_max_of_clients": 3.832, "statuses": {"200": 143332}, "refusal_share": 0.0}

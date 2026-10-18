@@ -43,8 +43,22 @@ struct NetRates {
     std::optional<double> rx_bytes_per_s, tx_bytes_per_s;
 };
 
+/// The interval a derived value (a rate or a delta) was computed over: the
+/// times of the two raw readings it is the difference of.
+struct DerivationWindow {
+    WallTime start{}, end{};
+    SteadyTime start_mono{}, end_mono{};
+    [[nodiscard]] double seconds() const { return std::chrono::duration<double>(end_mono - start_mono).count(); }
+    static DerivationWindow between(const Provenance& a, const Provenance& b) {
+        return DerivationWindow{a.wall, b.wall, a.mono, b.mono};
+    }
+};
+
 struct CgroupView {
     CgroupInfo info;
+    /// When cpu.stat was read for `info` (the collector's provenance times).
+    WallTime read_wall{};
+    SteadyTime read_mono{};
     /// nr_throttled / nr_periods since the cgroup was created (cumulative, not
     /// a rate: one sample only, so recent throttling may be under-represented).
     std::optional<double> lifetime_throttled_ratio;
@@ -52,6 +66,11 @@ struct CgroupView {
     /// share of periods throttled, CPUs used and CPUs' worth of throttled time.
     std::optional<double> window_s, window_throttled_ratio, window_usage_cpus, window_throttled_cpus;
     std::string window_note;  // e.g. "quota changed during sampling", "counters reset"
+    /// The two cpu.stat reads the window rates were derived from, when they were.
+    std::optional<DerivationWindow> window_span;
+    /// The window rates span two agent collections (src/api), rather than
+    /// two reads within one collection.
+    bool window_across_collections{false};
 };
 
 struct Unavailable {
@@ -65,6 +84,8 @@ struct SystemState {
     std::optional<Observation<SystemInfo>> system;
     std::optional<Observation<CpuTopology>> topology;
     std::optional<Observation<CpuUtilization>> cpu;
+    /// The raw readings each derived observation is the difference of.
+    std::optional<DerivationWindow> cpu_window, memory_rates_window, process_window;
     std::optional<Observation<LoadAverage>> load;
     std::optional<std::uint32_t> runnable_tasks;
     std::optional<double> context_switches_per_s;

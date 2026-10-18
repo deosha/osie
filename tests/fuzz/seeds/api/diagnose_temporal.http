@@ -1,0 +1,6 @@
+POST /v1/diagnose HTTP/1.1
+Host: l
+Content-Type: application/json
+Content-Length: 63
+
+{"question": "has cpu usage increased in the last 10 minutes?"}

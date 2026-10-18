@@ -215,6 +215,13 @@ bool AgentRuntime::collect(const CancellationToken& cancel) {
     const auto t1 = std::chrono::steady_clock::now();
     const auto wall = std::chrono::system_clock::now();
 
+    // Collections never overlap, so the snapshot published below gets this
+    // number; history points record it to tie them to their snapshot.
+    std::uint64_t next_seq = 0;
+    {
+        std::lock_guard sl(snap_mu_);
+        next_seq = seq_ + 1;
+    }
     bool failed_any = false;
     std::vector<std::string> degraded;
     {
@@ -244,7 +251,7 @@ bool AgentRuntime::collect(const CancellationToken& cancel) {
                                        std::to_string(kh.consecutive_failures) + " consecutive collections)");
             }
         }
-        history_.record(*st);
+        history_.record(*st, {}, next_seq);
         // Computed once per collection, so readers never walk the history under the lock.
         health_.history_points = history_.size();
         health_.history_bytes = history_.approx_bytes();

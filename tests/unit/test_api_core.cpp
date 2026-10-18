@@ -106,7 +106,7 @@ TEST(ApiEndpoints, LivenessAndReadinessFollowTheRuntime) {
     EXPECT_EQ(live["status"].str(), "alive");
     ready = f.json(get("/v1/health/ready"), 1234, Access::health);
     EXPECT_EQ(ready["status"].str(), "ready");
-    EXPECT_EQ(ready["schema_version"].str(), "1.0");
+    EXPECT_EQ(ready["schema_version"].str(), "1.1");
     f.api->set_stopping();
     ready = f.json(get("/v1/health/ready"), 1234, Access::health, 503);
     EXPECT_EQ(ready["status"].str(), "stopping");

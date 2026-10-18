@@ -17,11 +17,24 @@ std::string_view to_string(TrendDirection d) noexcept {
     return "?";
 }
 
-void StateHistory::record(const SystemState& s, const std::vector<std::pair<Pid, std::optional<std::uint64_t>>>& pinned) {
+std::string_view to_string(HistoryGap::Kind k) noexcept {
+    switch (k) {
+        case HistoryGap::Kind::collection_gap: return "collection_gap";
+        case HistoryGap::Kind::suspended_or_clock_change: return "suspended_or_clock_change";
+        case HistoryGap::Kind::clock_step: return "clock_step";
+        case HistoryGap::Kind::before_first_point: return "before_first_point";
+        case HistoryGap::Kind::after_last_point: return "after_last_point";
+    }
+    return "?";
+}
+
+void StateHistory::record(const SystemState& s, const std::vector<std::pair<Pid, std::optional<std::uint64_t>>>& pinned,
+                          std::uint64_t seq) {
     if (!s.cpu && !s.memory && !s.processes) return;
     HistoryPoint p;
     p.at = s.taken_at;
     p.wall = std::chrono::system_clock::now();
+    p.seq = seq;
     if (s.cpu) p.cpu_busy_pct = s.cpu->value.busy_pct();
     if (s.memory) {
         p.mem_available_bytes = s.memory->value.available_bytes;
@@ -108,6 +121,111 @@ std::size_t StateHistory::approx_bytes() const {
         for (const auto& q : p.processes) n += q.name.capacity();
     }
     return n;
+}
+
+bool in_history_window(const HistoryPoint& p, SteadyTime now, WallTime now_wall, double window_s) {
+    using std::chrono::duration;
+    return duration<double>(now - p.at).count() <= window_s && duration<double>(now_wall - p.wall).count() <= window_s;
+}
+
+HistoryCoverage history_coverage(const StateHistory& h, SteadyTime now, WallTime now_wall,
+                                 std::optional<double> window_s, double gap_threshold_s) {
+    using std::chrono::duration;
+    using std::chrono::duration_cast;
+    HistoryCoverage c;
+    c.requested_s = window_s;
+    c.evaluated_at = now_wall;
+    c.gap_threshold_s = gap_threshold_s;
+    c.history_points = h.size();
+    c.capacity = h.config().capacity;
+    const auto& all = h.points();
+    if (!all.empty()) c.oldest = all.front().wall;
+    const auto secs = [](auto d) { return duration<double>(d).count(); };
+    const auto wall_minus = [](WallTime t, double s) {
+        return t - duration_cast<WallTime::duration>(duration<double>(s));
+    };
+    if (window_s) c.window_start = wall_minus(now_wall, *window_s);
+    std::vector<std::size_t> idx;
+    idx.reserve(all.size());
+    for (std::size_t i = 0; i < all.size(); ++i)
+        if (!window_s || in_history_window(all[i], now, now_wall, *window_s)) idx.push_back(i);
+    c.points = idx.size();
+    const auto add_gap = [&c](HistoryGap::Kind k, WallTime from, WallTime to, double s) {
+        c.gaps.push_back(HistoryGap{k, from, to, s});
+        c.unobserved_s += s;
+    };
+    if (idx.empty()) {
+        if (window_s) {
+            add_gap(HistoryGap::Kind::before_first_point, *c.window_start, now_wall, *window_s);
+            c.coverage = 0.0;
+        }
+        return c;
+    }
+    const HistoryPoint& first = all[idx.front()];
+    const HistoryPoint& last = all[idx.back()];
+    if (first.wall <= last.wall) {
+        c.first = first.wall;
+        c.last = last.wall;
+    }
+    c.first_seq = first.seq;
+    c.last_seq = last.seq;
+    c.observed_span_s = secs(last.at - first.at);
+    double suspended_s = 0;  // wall time not seen by the monotonic clock
+    // Classifies the interval between two consecutive points (or a point and
+    // now): returns the unobserved seconds it adds.
+    const auto classify = [&](WallTime wa, SteadyTime ma, WallTime wb, SteadyTime mb, bool collection) {
+        const double dm = secs(mb - ma);
+        const double dw = secs(wb - wa);
+        if (collection && dm > gap_threshold_s) {
+            add_gap(HistoryGap::Kind::collection_gap, wa, wb, dm);
+        } else if (dw - dm > gap_threshold_s) {
+            add_gap(HistoryGap::Kind::suspended_or_clock_change, wa, wb, dw - dm);
+            suspended_s += dw - dm;
+        } else if (dm - dw > gap_threshold_s) {
+            add_gap(HistoryGap::Kind::clock_step, wa, wb, dm - dw);
+        }
+    };
+    if (window_s) {
+        // A suspend that began before the window and ended inside it: the
+        // part inside the window is unobserved.
+        double suspended_lead = 0;
+        if (idx.front() > 0) {
+            const auto& a = all[idx.front() - 1];
+            const double extra = secs(first.wall - a.wall) - secs(first.at - a.at);
+            if (extra > gap_threshold_s && first.wall > *c.window_start) {
+                suspended_lead = std::min(extra, secs(first.wall - *c.window_start));
+                add_gap(HistoryGap::Kind::suspended_or_clock_change, std::max(a.wall, *c.window_start), first.wall,
+                        suspended_lead);
+                suspended_s += suspended_lead;
+            }
+        }
+        const double lead_mono = *window_s - secs(now - first.at);
+        const double lead_wall = *window_s - secs(now_wall - first.wall);
+        const double lead = std::max(0.0, std::min(lead_mono, lead_wall) - suspended_lead);
+        if (lead > gap_threshold_s) {
+            auto& g = c.gaps;
+            g.insert(g.begin(), HistoryGap{HistoryGap::Kind::before_first_point, *c.window_start, first.wall, lead});
+            c.unobserved_s += lead;
+        }
+    }
+    for (std::size_t k = 0; k + 1 < idx.size(); ++k) {
+        const auto& a = all[idx[k]];
+        const auto& b = all[idx[k + 1]];
+        classify(a.wall, a.at, b.wall, b.at, true);
+    }
+    const double trail = std::max(0.0, secs(now - last.at));
+    if (trail > gap_threshold_s) add_gap(HistoryGap::Kind::after_last_point, last.wall, now_wall, trail);
+    classify(last.wall, last.at, now_wall, now, false);
+    const double reference = window_s ? *window_s : secs(now - first.at) + suspended_s;
+    c.coverage = reference > 0 ? std::clamp(1.0 - c.unobserved_s / reference, 0.0, 1.0) : 1.0;
+    return c;
+}
+
+bool history_coverage_insufficient(const HistoryCoverage& c) {
+    if (c.coverage && *c.coverage < kMinHistoryCoverage) return true;
+    return std::any_of(c.gaps.begin(), c.gaps.end(), [](const HistoryGap& g) {
+        return g.kind == HistoryGap::Kind::suspended_or_clock_change || g.kind == HistoryGap::Kind::clock_step;
+    });
 }
 
 TrendResult analyse_trend(const Series& s, const TrendRule& rule) {
