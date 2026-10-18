@@ -1091,11 +1091,13 @@ std::string Engine::render_temporal(Answer& a, const Resolution& res) {
         return s;
     };
     // A point belongs to the process only if its identity matches: (pid,
-    // start time), or, where a start time is missing on either side, the
-    // pid and the name. A reused PID is never stitched into the series.
+    // start time), or, only where neither side has a start time, the pid and
+    // the name. A point with a start time is never matched to one without,
+    // so a reused PID is never stitched into the series.
     auto same_process = [](const ProcessRef& r, const ProcessPoint& pp) {
         if (pp.pid != r.pid) return false;
-        if (r.start_time_us && pp.start_time_us) return *r.start_time_us == *pp.start_time_us;
+        if (r.start_time_us.has_value() != pp.start_time_us.has_value()) return false;
+        if (r.start_time_us) return *r.start_time_us == *pp.start_time_us;
         return pp.name == r.name;
     };
     auto proc_series = [&](const ProcessRef& r, bool mem, Origin* org = nullptr) {

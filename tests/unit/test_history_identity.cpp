@@ -181,3 +181,43 @@ TEST(HistoryIdentity, ProcessTooNewToJudgeIsNotReportedAsNotGrowing) {
     EXPECT_TRUE(listed);
     EXPECT_EQ(a.text.find("steady (pid 200)"), std::string::npos) << "constant memory is neither growth nor too new";
 }
+
+// A point with a start time is never stitched to one without, even with the
+// same pid and name. Ground truth: pid 100 "nginx" with start time 1100
+// holds 100 MiB for 15 points; then pid 100 "nginx" without a start time
+// holds 50 MiB for 15 points. The current process is the one with the start
+// time: its series is its own 15 points, stable at 100 MiB, never
+// "decreasing 100 -> 50 MiB".
+TEST(HistoryIdentity, StartTimeOnOneSideOnlyIsADifferentProcess) {
+    const auto base = Clock::now() - std::chrono::seconds(31);
+    const auto wbase = std::chrono::system_clock::now() - std::chrono::seconds(31);
+    std::deque<HistoryPoint> d;
+    for (int t = 0; t < 30; ++t) {
+        HistoryPoint h;
+        h.at = base + std::chrono::seconds(t);
+        h.wall = wbase + std::chrono::seconds(t);
+        h.seq = static_cast<std::uint64_t>(t + 1);
+        h.cpu_busy_pct = 20;
+        h.processes.push_back(t < 15 ? pp(100, 1100, "nginx", 100.0) : pp(100, std::nullopt, "nginx", 50.0));
+        d.push_back(std::move(h));
+    }
+    auto s = current_state(std::nullopt);
+    s->processes->value[0].info = osie::test::proc(100, 1, "nginx", 0, 100ULL << 20);
+    s->processes->value[0].info.start_time_us = 1100;
+    Engine e(std::make_unique<MockOs>(Platform::linux_os), std::make_unique<intent::RuleParser>());
+    FixedEvidence ev(s, StateHistory(HistoryConfig{720, 16, 10.0}, std::move(d)));
+    SessionContext session;
+    const Answer a = e.ask("is pid 100 using more memory over time?", session, ev);
+    ASSERT_EQ(a.trends.size(), a.trend_origins.size());
+    std::size_t process_series = 0;
+    for (std::size_t i = 0; i < a.trends.size(); ++i) {
+        if (!a.trend_origins[i].process) continue;
+        ++process_series;
+        EXPECT_EQ(a.trends[i].second.n, 15U) << "only the points with its start time";
+        EXPECT_EQ(a.trends[i].second.direction, TrendDirection::stable);
+        EXPECT_NEAR(a.trends[i].second.last, 100.0, 1e-6);
+        EXPECT_EQ(a.trend_origins[i].last_seq, 15U);
+    }
+    EXPECT_EQ(process_series, 1U) << a.text;
+    EXPECT_EQ(a.text.find("decreasing"), std::string::npos) << a.text;
+}

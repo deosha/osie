@@ -1013,10 +1013,12 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
                         w.key("running");
                         if (used != nullptr && used->processes) {
                             const auto* pv = used->find_pid(org->process->pid);
-                            const bool same = pv != nullptr &&
-                                              (org->process->start_time_us && pv->info.start_time_us
-                                                   ? *org->process->start_time_us == *pv->info.start_time_us
-                                                   : pv->info.name == org->process->name);
+                            // As in the series: a start time on one side only is a different process.
+                            const bool same =
+                                pv != nullptr &&
+                                org->process->start_time_us.has_value() == pv->info.start_time_us.has_value() &&
+                                (org->process->start_time_us ? *org->process->start_time_us == *pv->info.start_time_us
+                                                             : pv->info.name == org->process->name);
                             w.value(same);
                         } else {
                             w.null();
