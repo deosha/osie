@@ -110,8 +110,21 @@ target_compile_definitions(osie_agent PRIVATE OSIE_VERSION="${PROJECT_VERSION}")
 find_package(Threads REQUIRED)
 target_link_libraries(osie_agent PRIVATE Threads::Threads)
 
+# Remote diagnostics over OpenSSH (docs/REMOTE.md): client side only, linked
+# into the CLI and the tests, never into the agent.
+add_library(osie_remote STATIC
+  src/remote/errors.cpp
+  src/remote/profile.cpp
+  src/remote/ssh.cpp
+  src/remote/http.cpp
+  src/remote/transport.cpp
+  src/remote/cli.cpp)
+target_include_directories(osie_remote PRIVATE third_party/picohttpparser)
+target_compile_options(osie_remote PRIVATE ${OSIE_WARNINGS})
+target_link_libraries(osie_remote PUBLIC osie_core)
+
 add_executable(osie src/cli/main.cpp)
-target_link_libraries(osie PRIVATE osie_core)
+target_link_libraries(osie PRIVATE osie_remote)
 target_compile_options(osie PRIVATE ${OSIE_WARNINGS})
 target_compile_definitions(osie PRIVATE OSIE_VERSION="${PROJECT_VERSION}")
 # The binary never embeds a source-tree path. In the build tree the model is
@@ -178,8 +191,13 @@ if(OSIE_BUILD_TESTS)
   file(GLOB OSIE_UNIT_TESTS CONFIGURE_DEPENDS tests/unit/*.cpp)
   add_executable(osie_unit_tests ${OSIE_UNIT_TESTS})
   target_include_directories(osie_unit_tests PRIVATE src tests)
-  target_link_libraries(osie_unit_tests PRIVATE osie_core GTest::gtest_main)
+  target_link_libraries(osie_unit_tests PRIVATE osie_remote GTest::gtest_main)
   target_compile_definitions(osie_unit_tests PRIVATE OSIE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  # A stand-in for OpenSSH's client in the remote transport tests (OSIE_SSH).
+  add_executable(osie_fake_ssh tests/support/fake_ssh.cpp)
+  add_dependencies(osie_unit_tests osie_fake_ssh osie)
+  target_compile_definitions(osie_unit_tests PRIVATE OSIE_FAKE_SSH="$<TARGET_FILE:osie_fake_ssh>"
+                             OSIE_CLI="$<TARGET_FILE:osie>")
 
   file(GLOB OSIE_PLATFORM_TESTS CONFIGURE_DEPENDS tests/platform/*.cpp tests/integration/*.cpp)
   add_executable(osie_platform_tests ${OSIE_PLATFORM_TESTS})
@@ -216,6 +234,10 @@ if(OSIE_FUZZ)
   target_link_libraries(osie_fuzz_api PRIVATE osie_core)
   target_compile_options(osie_fuzz_api PRIVATE -fsanitize=fuzzer)
   target_link_options(osie_fuzz_api PRIVATE -fsanitize=fuzzer)
+  add_executable(osie_fuzz_remote tests/fuzz/fuzz_remote_response.cpp)
+  target_link_libraries(osie_fuzz_remote PRIVATE osie_remote)
+  target_compile_options(osie_fuzz_remote PRIVATE -fsanitize=fuzzer)
+  target_link_options(osie_fuzz_remote PRIVATE -fsanitize=fuzzer)
   add_executable(osie_fuzz_world_model tests/fuzz/fuzz_world_model_loader.cpp)
   target_link_libraries(osie_fuzz_world_model PRIVATE osie_core)
   target_compile_options(osie_fuzz_world_model PRIVATE -fsanitize=fuzzer)

@@ -38,6 +38,16 @@ jobs:
         run: |
           sudo ./build/osie_unit_tests --gtest_filter='AgentConfig.*'
           sudo ./build/osie_platform_tests --gtest_filter='ApiLinuxPeers.*'
+      - name: osie remote over a real sshd, with real users (root)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y openssh-server openssh-client iproute2
+          sudo tests/platform/remote_ssh_test.sh build
+      - name: osie remote JSON outputs match docs/schemas
+        if: runner.os == 'Linux'
+        run: |
+          python3 -m pip install --upgrade "jsonschema>=4.18" referencing
+          python3 tests/platform/test_remote_schemas.py build
       - name: Local API benchmark (unprivileged; 60 s idle phases)
         if: runner.os == 'Linux'
         run: |
@@ -70,7 +80,7 @@ jobs:
         run: |
           cmake -S . -B build-fuzz -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang \
                 -DOSIE_FUZZ=ON -DOSIE_SANITIZE=address,undefined -DOSIE_BUILD_TESTS=OFF -DOSIE_BUILD_BENCHMARKS=OFF
-          ninja -C build-fuzz osie_fuzz_model osie_fuzz_world_model osie_fuzz_api
+          ninja -C build-fuzz osie_fuzz_model osie_fuzz_world_model osie_fuzz_api osie_fuzz_remote
       - name: Fuzz the intent model loader (5 minutes, seeded with tiny models of each architecture)
         run: |
           mkdir -p corpus && cp tests/fuzz/seeds/*.osiem corpus/
@@ -83,6 +93,10 @@ jobs:
         run: |
           mkdir -p corpus_api && cp tests/fuzz/seeds/api/*.http corpus_api/
           ./build-fuzz/osie_fuzz_api -max_total_time=300 -max_len=20000 -rss_limit_mb=2048 -timeout=10 corpus_api
+      - name: Fuzz the remote client's response parsing (3 minutes, seeded with agent replies)
+        run: |
+          mkdir -p corpus_remote && cp tests/fuzz/seeds/remote/* corpus_remote/
+          ./build-fuzz/osie_fuzz_remote -max_total_time=180 -max_len=20000 -rss_limit_mb=2048 -timeout=10 corpus_remote
 
   packaging:
     # Clean install, upgrade from the previous release, and uninstall of the

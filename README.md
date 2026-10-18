@@ -159,6 +159,12 @@ curl --unix-socket /run/osie/agent.sock -H "Content-Type: application/json" \
 Access is root-only by default; set `api_group = osie` to grant a group.
 See [`docs/API.md`](docs/API.md).
 
+**Remote diagnostics over SSH:** `osie remote add web1 alice@web1` then
+`osie remote ask web1 "why is it slow?"` asks the agent on another host
+through an OpenSSH Unix-socket forward, as the SSH login user. There is no
+new listener, the host key must already be known, and the agent's own
+access tiers apply. See [`docs/REMOTE.md`](docs/REMOTE.md).
+
 ## Develop and test
 
 Requirements:

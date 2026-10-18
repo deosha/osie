@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "osie/remote_error.schema.json",
+  "title": "osie remote: transport failure (exit status 3; invalid_profile: exit status 2)",
+  "description": "Written by `osie remote ... --json` when the remote agent did not answer. An answer of the agent, including an API error envelope, is passed through unchanged instead and never uses this envelope. Codes are stable; new codes may be added.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "remote": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" },
+    "remote_error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            "host_key_unknown",
+            "host_key_mismatch",
+            "authentication_failed",
+            "connection_failed",
+            "timeout",
+            "remote_socket_unavailable",
+            "protocol_error",
+            "ssh_unavailable",
+            "invalid_profile",
+            "interrupted"
+          ]
+        },
+        "message": { "type": "string", "minLength": 1 },
+        "retryable": { "type": "boolean" },
+        "ssh_exit_status": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "ssh_signal": { "type": "integer", "minimum": 1 },
+        "ssh_stderr": {
+          "description": "What ssh printed (LogLevel=ERROR), at most 2048 bytes, bytes outside printable ASCII replaced by '?'.",
+          "type": "string",
+          "maxLength": 2048,
+          "pattern": "^[\\x20-\\x7e\\n]*$"
+        }
+      },
+      "required": ["code", "message", "retryable"],
+      "additionalProperties": false
+    },
+    "action_executed": { "const": false }
+  },
+  "required": ["schema_version", "remote_error", "action_executed"],
+  "additionalProperties": false
+}

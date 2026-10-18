@@ -19,6 +19,7 @@
 #include "osie/inference/model_locator.hpp"
 #include "osie/inference/neural_parser.hpp"
 #include "osie/prediction/world_model.hpp"
+#include "osie/remote/cli.hpp"
 #include "osie/util/format.hpp"
 #include "osie/engine/serialize.hpp"
 #include "osie/util/json.hpp"
@@ -60,6 +61,7 @@ void usage() {
         "  caps                list capabilities and policy decisions\n"
         "  graph               knowledge-graph statistics (--dot for Graphviz, --concepts for ontology only)\n"
         "  version             version, platform and where the intent model is looked up\n"
+        "  remote ...          ask an osie-agent on another host over OpenSSH ('osie remote help')\n"
         "  predict             Linux: predict a cgroup's CPU usage/throttling under a hypothetical change\n"
         "                      --cpu-quota CORES | --cpuset N, and --pid P | --name NAME | --cgroup PATH\n"
         "                      EXPERIMENTAL: requires --experimental (or OSIE_EXPERIMENTAL_PREDICT=1)\n"
@@ -426,6 +428,8 @@ int repl(Engine& e, Options& o, const std::string& note) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    // `osie remote ...` has its own options and never builds an engine.
+    if (argc >= 2 && std::strcmp(argv[1], "remote") == 0) return osie::remote::run_cli(argc, argv);
     Options o;
     if (!parse_args(argc, argv, o)) {
         usage();
