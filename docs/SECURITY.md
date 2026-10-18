@@ -314,8 +314,11 @@ History of process names and resource use is held **in memory only**:
   to every field. Under `hidepid`, other users' processes are removed, and so
   is every cgroup that holds none of the peer's own processes (a cgroup path
   names its owner and service), together with any note derived from it.
-  Without `hidepid`, other users' cgroup paths stay visible, like their
-  process names: `/proc/<pid>/cgroup` is world-readable.
+  A cgroup that holds one of the peer's processes stays visible even if
+  other users' processes are in it too, with its aggregate figures (quota,
+  usage, throttling, memory), which then include their share. Without
+  `hidepid`, other users' cgroup paths stay visible, like their process
+  names: `/proc/<pid>/cgroup` is world-readable.
 
 ## Reporting a vulnerability
 
