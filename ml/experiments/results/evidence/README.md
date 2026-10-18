@@ -49,7 +49,9 @@ less. These are measurements on one machine, not targets.
    `osie_api_bench --requests 300 --clients 16 --seconds 10` against a fresh
    agent per run, 5 interleaved rounds per build with 2,000 sleeping
    processes (`raw/api_load_abab5.jsonl`; a noisier 3-round run is in
-   `raw/api_load_abab.jsonl`).
+   `raw/api_load_abab.jsonl`). These used one user against the default
+   per-user cap of 4 and are superseded by the reruns in "API load" below
+   (`raw/api_load_percap16.jsonl`, `raw/api_load_16users.jsonl`).
 
 The `RefusingOs` refusal count is reported by the in-process benchmark and
 asserted to be 0 by every `ApiTruth` scenario.
@@ -127,19 +129,60 @@ attempts. The API answered every question without an OS call:
 | base | 589 | 2,474 | 4,964 | 5,013 |
 | new | 590 | 2,461 | 4,947 | 4,976 |
 
-### Idle agent and API load
+### Idle agent
 
 | | base | new |
 |---|---|---|
 | idle, no API: CPU share / RSS MB | 0.0156 / 11.06 | 0.0174 / 11.25 |
 | idle, API: CPU share / RSS MB | 0.0177 / 11.53 | 0.0177 / 10.24 |
 | idle with API after 20 s: threads / fds | 20 / 7 | 20 / 7 |
-| load, 5 rounds (medians): answered per s, 16 clients | 1,858 | 1,873 |
-| diagnose_slow sequential p50 / p99 ms (medians) | 1.11 / 4.99 | 1.23 / 4.88 |
-| diagnose_top_cpu sequential p50 / p99 ms (medians) | 1.02 / 5.44 | 0.81 / 3.00 |
 
-One single run of each (`raw/api_bench_*.jsonl`) showed 9,967 vs 7,766
-answered per second; the interleaved five-round medians above do not show
-a difference. Live-load figures vary by several times between rounds of
-the same build in this environment, so only differences much larger than
-that spread would be meaningful.
+### API load (rerun with the per-user cap at least the client count)
+
+The first load runs (`raw/api_bench_*.jsonl`, `raw/api_load_abab*.jsonl`)
+used 16 clients of one user against the default per-user cap of 4, so
+87-90% of their requests were refused (429). They are kept in `raw/` but
+superseded by the two runs below, each 5 interleaved rounds (base, new,
+base, new, ...) with 2,006 processes, a fresh agent per run (default 5 s
+interval) and `api_rate_limit = 10000` (the maximum).
+
+**One user, `api_max_clients_per_user = 16`** (`raw/api_load_percap16.jsonl`;
+`osie_api_bench --requests 300 --clients 16 --seconds 10 --burst 1`).
+
+| Phase | refusal share (all rounds, both builds) | base median | new median |
+|---|---|---|---|
+| sequential, each endpoint (300 requests) | 0% | | |
+| diagnose_slow p50 / p99 ms | 0% | 0.137 / 0.187 | 0.169 / 0.481 |
+| diagnose_top_cpu p50 / p99 ms | 0% | 0.096 / 0.153 | 0.120 / 0.324 |
+| diagnose_top_memory p50 / p99 ms | 0% | 0.100 / 0.190 | 0.111 / 0.190 |
+| diagnose_trend p50 / p99 ms | 0% | 0.071 / 0.120 | 0.075 / 0.141 |
+| snapshot p50 / p99 ms | 0% | 0.086 / 0.185 | 0.087 / 0.172 |
+| history (full) p50 / p99 ms | 0% | 0.059 / 0.093 | 0.056 / 0.124 |
+| concurrent, 16 clients x 10 s: answered per s | 84-87% (429, rate limit) | 11,954 | 11,981 |
+| burst (1 connection) | 0% | | |
+
+With one user, the concurrent phase is bounded by that user's token
+bucket (10,000 per s plus bursts): the closed-loop clients keep retrying
+immediately, so refusals still dominate it in both builds, and answered
+throughput is the bucket's limit, not the server's.
+
+**16 users, one client each** (`raw/api_load_16users.jsonl`; members of
+`api_group`, so the diagnostics tier with redaction; each user has its own
+bucket and cap; `osie_api_bench --clients 1 --seconds 10` per user, run
+together).
+
+| Round | base answered/s (p99 max of clients, ms) | new answered/s (p99 ms) | refusal share |
+|---|---|---|---|
+| 1 | 7,456 (11.2) | 8,333 (8.2) | 0% / 0% |
+| 2 | 5,130 (14.1) | 4,354 (17.8) | 0% / 0% |
+| 3 | 4,245 (20.1) | 13,545 (4.0) | 0% / 0% |
+| 4 | 13,717 (3.8) | 14,724 (4.1) | 0% / 0% |
+| 5 | 14,283 (3.5) | 14,331 (3.8) | 0% / 0% |
+
+Every request was answered. Rounds 1-3 ran while other work on the host
+took CPU (the Docker VM is shared); rounds 4-5, on a quieter host, give
+14,000-14,700 answered per s for both builds. These runs show no
+regression; differences between rounds of the same build are far larger
+than between builds. In the sequential phase, diagnose p99 is 0.1-0.3 ms
+higher in the new build at the same p50 order, consistent with the 19-35%
+larger responses (above).
