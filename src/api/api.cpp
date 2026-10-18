@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <functional>
 
 #include "osie/api/json_in.hpp"
 #include "osie/engine/serialize.hpp"
@@ -146,16 +147,33 @@ bool has_pair(const std::vector<std::string>& w, std::string_view a, std::initia
 
 /// The question asks about something OSIE does not observe: application
 /// latency, response times, request rates, throughput or errors. A lexical
-/// check over the requester's own words; it only adds a limitation and never
-/// changes the interpretation or the answer text. Scheduling latency (an OS
-/// mechanism) is not counted.
-bool asks_unobserved(const std::vector<std::string>& w) {
+/// check over the requester's own words; it adds a limitation (and makes the
+/// answer partial) but never changes the interpretation or the answer text.
+/// Not counted: scheduling latency (an OS mechanism); words that name the
+/// question's resolved target (a process called "requests" or "timeout");
+/// and "request(s)" without a word about speed, failure or rate.
+bool asks_unobserved(const std::vector<std::string>& w, const std::function<bool(const std::string&)>& is_name) {
+    auto counts = [&](std::size_t i) { return !is_name(w[i]); };
     for (std::size_t i = 0; i < w.size(); ++i) {
-        if (w[i] != "latency" && w[i] != "latencies") continue;
-        if (i == 0 || (w[i - 1] != "scheduling" && w[i - 1] != "scheduler" && w[i - 1] != "wakeup")) return true;
+        const std::string& x = w[i];
+        if (x == "latency" || x == "latencies") {
+            if ((i == 0 || (w[i - 1] != "scheduling" && w[i - 1] != "scheduler" && w[i - 1] != "wakeup")) && counts(i))
+                return true;
+        } else if ((x == "throughput" || x == "timeout" || x == "timeouts" || x == "qps" || x == "rps" || x == "p50" ||
+                    x == "p90" || x == "p95" || x == "p99") &&
+                   counts(i)) {
+            return true;
+        } else if (i + 1 < w.size() && ((x == "response" && (w[i + 1] == "time" || w[i + 1] == "times")) ||
+                                        (x == "error" && (w[i + 1] == "rate" || w[i + 1] == "rates"))) &&
+                   counts(i)) {
+            return true;
+        } else if ((x == "request" || x == "requests") && counts(i) &&
+                   has_word(w, {"slow", "slower", "slowly", "fail", "fails", "failing", "failed", "failure", "failures",
+                                "error", "errors", "dropped", "per", "rate", "rates", "second", "timing", "hang", "hanging"})) {
+            return true;
+        }
     }
-    return has_word(w, {"throughput", "timeout", "timeouts", "qps", "rps", "p50", "p90", "p95", "p99", "request", "requests"}) ||
-           has_pair(w, "response", {"time", "times"}) || has_pair(w, "error", {"rate", "rates"});
+    return false;
 }
 
 /// The question refers to a past event (a crash, kill, exit or restart).
@@ -886,7 +904,13 @@ HttpResponse DiagnosticApi::diagnose(const HttpRequest& req, const PeerCredentia
     // only add limitations.
     const bool answers_state = !action && f.intent != Intent::explain_concept && f.intent != Intent::help;
     const auto qwords = words_of(*question);
-    const bool unobserved = answers_state && asks_unobserved(qwords);
+    // Words of the resolved target (a process called "requests" or
+    // "timeout") are names, not questions about latency or requests.
+    const auto target_words = words_of(f.target.value);
+    const auto is_name = [&](const std::string& word) {
+        return std::find(target_words.begin(), target_words.end(), word) != target_words.end();
+    };
+    const bool unobserved = answers_state && asks_unobserved(qwords, is_name);
     if (unobserved)
         lims.push_back({"not_observed",
                         "application latency, response times, request rates, throughput and errors are not observed by "

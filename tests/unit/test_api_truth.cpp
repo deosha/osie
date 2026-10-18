@@ -939,3 +939,28 @@ TEST(ApiTruth, HiddenUsersCgroupsAreWithheldUnderHidepid) {
         EXPECT_NE(snap.find("secretsvc"), std::string::npos) << "world-readable without hidepid";
     }
 }
+
+// The latency/request check is about the question, not about names: a
+// process called "requests" or "timeout" is a target, and "requests" alone
+// is not a question about request latency. Genuine questions stay partial,
+// even on a machine where a process is called "requests".
+TEST(ApiTruth, UnobservedCheckIgnoresNames) {
+    Scenario sc;
+    sc.busy = 0.6;
+    sc.procs = {{100, "requests", kAlice, 1.5, 300ULL << 20}, {200, "timeout", kBob, 0.5, 200ULL << 20}};
+    Rig rig(sc);
+    rig.collect();
+    for (const char* q : {"why is the process named requests using so much CPU?", "why is timeout using so much cpu?",
+                          "why is my CPU usage high? requests", "what is using the most CPU? requests"}) {
+        auto v = rig.ask(q);
+        expect_well_founded(rig, v);
+        EXPECT_FALSE(has_lim(v, "not_observed")) << q << ": " << rig.last.body.substr(0, 600);
+        EXPECT_NE(v["status"].str(), "partial") << q << ": " << rig.last.body.substr(0, 600);
+    }
+    for (const char* q : {"why are requests to my app slow?", "is high CPU causing my application latency?",
+                          "are my requests timing out because of CPU?"}) {
+        auto v = rig.ask(q);
+        EXPECT_TRUE(has_lim(v, "not_observed")) << q;
+        EXPECT_EQ(v["status"].str(), "partial") << q;
+    }
+}
